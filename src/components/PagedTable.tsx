@@ -26,7 +26,7 @@ export function PagedTable<T extends object>({
       columns={columns}
       dataSource={dataSource}
       loading={loading}
-      rowKey={rowKey as string}
+      rowKey={rowKey as string | ((record: T) => string)}
       pagination={{
         current: page,
         pageSize,

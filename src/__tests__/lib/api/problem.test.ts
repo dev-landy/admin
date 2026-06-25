@@ -29,3 +29,8 @@ test("returns null when response data has no title", () => {
   const err = makeAxiosError({ message: "oops" }, 500);
   expect(parseProblemDetail(err)).toBeNull();
 });
+
+test("returns null when response data is missing required fields", () => {
+  const err = makeAxiosError({ title: "Partial" }, 400);
+  expect(parseProblemDetail(err)).toBeNull();
+});
