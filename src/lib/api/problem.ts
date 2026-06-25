@@ -13,10 +13,10 @@ export function parseProblemDetail(error: unknown): ProblemDetail | null {
   if (
     data &&
     typeof data === "object" &&
-    "title" in data &&
-    "type" in data &&
-    "status" in data &&
-    "detail" in data
+    typeof (data as Record<string, unknown>).type === "string" &&
+    typeof (data as Record<string, unknown>).title === "string" &&
+    typeof (data as Record<string, unknown>).status === "number" &&
+    typeof (data as Record<string, unknown>).detail === "string"
   ) {
     return data as ProblemDetail;
   }

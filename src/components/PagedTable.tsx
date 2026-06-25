@@ -1,3 +1,5 @@
+"use client";
+
 import { Table, type TableColumnsType } from "antd";
 
 type PagedTableProps<T> = {

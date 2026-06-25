@@ -34,3 +34,8 @@ test("returns null when response data is missing required fields", () => {
   const err = makeAxiosError({ title: "Partial" }, 400);
   expect(parseProblemDetail(err)).toBeNull();
 });
+
+test("returns null when required fields have wrong types", () => {
+  const err = makeAxiosError({ type: 42, title: null, status: "404", detail: {} }, 404);
+  expect(parseProblemDetail(err)).toBeNull();
+});
