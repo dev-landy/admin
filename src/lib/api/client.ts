@@ -3,6 +3,7 @@ import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig 
 import { env } from "@/config/env";
 import { tokenStore } from "@/features/auth/store";
 import { refreshTokens } from "@/features/auth/api";
+import { parseProblemDetail } from "@/lib/api/problem";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -81,6 +82,19 @@ apiClient.interceptors.response.use(
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
+      }
+    }
+
+    // Non-admin account that successfully logged in: every /v1/admin/** call
+    // 403s. Clear the session and send them back to login with an explanation.
+    // Scoped to admin-forbidden so legitimate per-resource 403s still pass through.
+    if (error.response?.status === 403) {
+      const problem = parseProblemDetail(error);
+      if (problem?.type.endsWith("admin-forbidden")) {
+        tokenStore.clearTokens();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login?denied=1";
+        }
       }
     }
 

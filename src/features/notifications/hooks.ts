@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchNotifications, fetchOutbox, requeueOutbox, dispatchNotifications } from "./api";
-import type { NotificationsListParams, OutboxListParams } from "./types";
+import { fetchNotifications, fetchOutbox, requeueOutbox, dispatchNotifications, sendCustomNotification } from "./api";
+import type { NotificationsListParams, OutboxListParams, SendCustomNotificationRequest } from "./types";
 
 export const notificationKeys = {
   list: (p: NotificationsListParams) => ["notifications", "list", p] as const,
@@ -28,5 +28,13 @@ export function useDispatchNotifications() {
   return useMutation({
     mutationFn: (size?: number) => dispatchNotifications(size),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
+  });
+}
+
+export function useSendCustomNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: SendCustomNotificationRequest) => sendCustomNotification(req),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications", "list"] }),
   });
 }

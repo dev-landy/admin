@@ -35,11 +35,18 @@ export function NotificationTable({ data, loading, page, pageSize, total, onPage
             value={filters.type}
             style={{ width: 130 }}
             onChange={(v) => onFilterChange("type", v)}
-            options={[{ label: "납부일", value: "DUE" }, { label: "연체", value: "OVERDUE" }]}
+            options={[
+              { label: "납부일", value: "DUE" },
+              { label: "연체", value: "OVERDUE" },
+              { label: "커스텀", value: "CUSTOM" },
+            ]}
           />
         </div>
       ),
-      render: (v: NotificationType) => <Tag color={v === "OVERDUE" ? "red" : "blue"}>{v}</Tag>,
+      render: (v: NotificationType) => {
+        const color = v === "OVERDUE" ? "red" : v === "CUSTOM" ? "purple" : "blue";
+        return <Tag color={color}>{v}</Tag>;
+      },
     },
     { title: "대상일", dataIndex: "targetDate", width: 110 },
     { title: "발송일", dataIndex: "sentAt", width: 180 },

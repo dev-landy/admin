@@ -1,24 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Alert, Button, Card, Form, Input, Select, Typography } from "antd";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Alert, Button, Card, Typography } from "antd";
+import { MessageOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/features/auth/context";
-import type { OAuthProvider } from "@/features/auth/types";
 
 const { Title, Text } = Typography;
 
-type LoginFormValues = {
-  provider: OAuthProvider;
-  sub: string;
-};
+const KAKAO_YELLOW = "#FEE500";
+const KAKAO_LABEL_COLOR = "rgba(0, 0, 0, 0.85)";
 
-export default function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+function LoginContent() {
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
+  const searchParams = useSearchParams();
+  const denied = searchParams.get("denied") === "1";
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -26,17 +24,8 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  async function handleSubmit({ sub, provider }: LoginFormValues) {
-    setError(null);
-    setIsPending(true);
-    try {
-      await login(sub.trim(), provider);
-      router.replace("/");
-    } catch {
-      setError("로그인에 실패했습니다. 사용자 ID를 확인해주세요.");
-    } finally {
-      setIsPending(false);
-    }
+  function handleKakaoLogin() {
+    window.location.assign("/auth/kakao/start");
   }
 
   return (
@@ -54,52 +43,41 @@ export default function LoginPage() {
           <Title level={3} style={{ marginBottom: 4 }}>
             Landy Admin
           </Title>
-          <Text type="secondary">개발용 로그인</Text>
+          <Text type="secondary">관리자 로그인</Text>
         </div>
 
-        {error && (
+        {denied && (
           <Alert
             type="error"
-            title={error}
+            message="관리자 권한이 없는 계정입니다."
             style={{ marginBottom: 16 }}
             showIcon
           />
         )}
 
-        <Form
-          layout="vertical"
-          onFinish={handleSubmit}
-          autoComplete="off"
-          initialValues={{ provider: "KAKAO" }}
+        <Button
+          icon={<MessageOutlined />}
+          block
+          size="large"
+          onClick={handleKakaoLogin}
+          style={{
+            background: KAKAO_YELLOW,
+            borderColor: KAKAO_YELLOW,
+            color: KAKAO_LABEL_COLOR,
+            fontWeight: 600,
+          }}
         >
-          <Form.Item label="OAuth 제공자" name="provider">
-            <Select size="large">
-              <Select.Option value="KAKAO">카카오</Select.Option>
-              <Select.Option value="GOOGLE">구글</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="사용자 ID (sub)"
-            name="sub"
-            rules={[{ required: true, message: "사용자 ID를 입력해주세요" }]}
-          >
-            <Input placeholder="예: 123456789" size="large" />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              size="large"
-              loading={isPending}
-            >
-              로그인
-            </Button>
-          </Form.Item>
-        </Form>
+          카카오로 로그인
+        </Button>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

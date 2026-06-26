@@ -10,9 +10,9 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { devLogin } from "./api";
+import { revokeSession } from "./api";
 import { tokenStore } from "./store";
-import type { OAuthProvider } from "./types";
+import type { AuthTokens } from "./types";
 
 type AuthState = {
   isAuthenticated: boolean;
@@ -20,8 +20,9 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
-  login: (sub: string, provider?: OAuthProvider) => Promise<void>;
-  logout: () => void;
+  /** Persist tokens obtained from the Kakao login flow and mark authenticated. */
+  completeLogin: (tokens: AuthTokens) => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -35,23 +36,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const hasToken = !!tokenStore.getAccessToken();
+    // Hydrate auth state from localStorage after mount — localStorage is
+    // unavailable during SSR, so this must run in an effect. The one-time
+    // synchronous setState here is intentional, not a cascading render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ isAuthenticated: hasToken, isLoading: false });
   }, []);
 
-  const login = useCallback(async (sub: string, provider: OAuthProvider = "KAKAO") => {
-    const tokens = await devLogin({ provider, sub });
+  const completeLogin = useCallback((tokens: AuthTokens) => {
     tokenStore.setTokens(tokens);
     setState({ isAuthenticated: true, isLoading: false });
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const accessToken = tokenStore.getAccessToken();
+    const refreshToken = tokenStore.getRefreshToken();
+    if (accessToken && refreshToken) {
+      // Best-effort: revoke the refresh token server-side, but always clear
+      // local state even if the call fails (network/expired token).
+      try {
+        await revokeSession({ accessToken, refreshToken });
+      } catch {
+        // ignore — proceed to clear local state
+      }
+    }
     tokenStore.clearTokens();
     setState({ isAuthenticated: false, isLoading: false });
     router.replace("/login");
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, completeLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );
