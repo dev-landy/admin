@@ -5,6 +5,8 @@ import type {
   OutboxListParams,
   OutboxListResponse,
   OutboxEvent,
+  SendCustomNotificationRequest,
+  SendCustomNotificationResponse,
 } from "./types";
 
 export async function fetchNotifications(params: NotificationsListParams): Promise<NotificationsListResponse> {
@@ -26,5 +28,12 @@ export async function dispatchNotifications(size?: number): Promise<{ processed:
   const { data } = await apiClient.post<{ processed: number }>("/v1/admin/notifications/dispatch", null, {
     params: size !== undefined ? { size } : undefined,
   });
+  return data;
+}
+
+export async function sendCustomNotification(
+  body: SendCustomNotificationRequest,
+): Promise<SendCustomNotificationResponse> {
+  const { data } = await apiClient.post<SendCustomNotificationResponse>("/v1/admin/notifications/send", body);
   return data;
 }

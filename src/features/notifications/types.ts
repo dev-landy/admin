@@ -1,4 +1,4 @@
-export type NotificationType = "DUE" | "OVERDUE";
+export type NotificationType = "DUE" | "OVERDUE" | "CUSTOM";
 export type OutboxStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED";
 
 export type Notification = {
@@ -55,4 +55,17 @@ export type OutboxListParams = {
   userId?: number;
   status?: OutboxStatus;
   errorCode?: string;
+};
+
+export type SendCustomNotificationRequest = {
+  userId: number;
+  title: string;
+  body: string;
+};
+
+export type SendCustomNotificationResponse = {
+  notificationId: number;
+  sent: number;
+  failed: number;
+  skipped: number;
 };

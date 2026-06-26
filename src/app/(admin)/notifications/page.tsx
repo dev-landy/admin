@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, Spin, Typography } from "antd";
+import { Button, Card, Spin, Typography } from "antd";
 
 import { useNotifications } from "@/features/notifications/hooks";
 import { NotificationTable } from "@/features/notifications/components/NotificationTable";
+import { SendNotificationModal } from "@/features/notifications/components/SendNotificationModal";
 import type { NotificationType } from "@/features/notifications/types";
 
 const { Title } = Typography;
@@ -13,6 +14,7 @@ const { Title } = Typography;
 function NotificationsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [sendModalOpen, setSendModalOpen] = useState(false);
 
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
@@ -38,18 +40,28 @@ function NotificationsPageContent() {
   }
 
   return (
-    <Card title={<Title level={4} style={{ margin: 0 }}>인앱 알림</Title>}>
-      <NotificationTable
-        data={data?.notifications ?? []}
-        loading={isLoading}
-        page={page}
-        pageSize={size}
-        total={data?.totalElements ?? 0}
-        onPageChange={handlePageChange}
-        filters={{ type, isRead }}
-        onFilterChange={handleFilterChange}
-      />
-    </Card>
+    <>
+      <Card
+        title={<Title level={4} style={{ margin: 0 }}>인앱 알림</Title>}
+        extra={
+          <Button type="primary" onClick={() => setSendModalOpen(true)}>
+            커스텀 알림 발송
+          </Button>
+        }
+      >
+        <NotificationTable
+          data={data?.notifications ?? []}
+          loading={isLoading}
+          page={page}
+          pageSize={size}
+          total={data?.totalElements ?? 0}
+          onPageChange={handlePageChange}
+          filters={{ type, isRead }}
+          onFilterChange={handleFilterChange}
+        />
+      </Card>
+      <SendNotificationModal open={sendModalOpen} onClose={() => setSendModalOpen(false)} />
+    </>
   );
 }
 
