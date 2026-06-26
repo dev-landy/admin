@@ -1,7 +1,12 @@
 import axios from "axios";
 
 import { env } from "@/config/env";
-import type { AuthTokens, DevLoginRequest } from "./types";
+import type {
+  AuthTokens,
+  LogoutRequest,
+  ProdLoginRequest,
+  ProdLoginResponse,
+} from "./types";
 
 // Separate instance to avoid circular dependency with the main apiClient
 // (apiClient imports tokenStore; this file must not import apiClient)
@@ -11,8 +16,9 @@ const authHttp = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-export async function devLogin(payload: DevLoginRequest): Promise<AuthTokens> {
-  const { data } = await authHttp.post<AuthTokens>("/dev/auth/login", payload);
+/** Social login. Server-side only (Kakao access token is obtained server-side). */
+export async function prodLogin(payload: ProdLoginRequest): Promise<ProdLoginResponse> {
+  const { data } = await authHttp.post<ProdLoginResponse>("/v1/auth/login", payload);
   return data;
 }
 
@@ -21,4 +27,12 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
     refreshToken,
   });
   return data;
+}
+
+/** Revokes the refresh token server-side. Requires the current access token. */
+export async function revokeSession(tokens: AuthTokens): Promise<void> {
+  await authHttp.delete("/v1/auth/logout", {
+    headers: { Authorization: `Bearer ${tokens.accessToken}` },
+    data: { refreshToken: tokens.refreshToken } satisfies LogoutRequest,
+  });
 }
