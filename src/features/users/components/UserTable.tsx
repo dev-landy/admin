@@ -36,6 +36,7 @@ export function UserTable({
 
   const columns: TableColumnsType<UserSummary> = [
     { title: "ID", dataIndex: "userId", width: 80 },
+    { title: "이메일", dataIndex: "email", width: 220 },
     {
       title: "제공자",
       dataIndex: "provider",

@@ -3,6 +3,7 @@ export type OAuthProvider = "KAKAO" | "GOOGLE";
 
 export type UserSummary = {
   userId: number;
+  email: string;
   provider: OAuthProvider;
   role: UserRole;
   onboarded: boolean;
@@ -16,7 +17,7 @@ export type UserDetail = {
   onboarded: boolean;
   notifyDue: boolean;
   notifyOverdue: boolean;
-  sub: string;
+  email: string;
   createdAt: string;
   updatedAt: string;
 };

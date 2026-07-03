@@ -50,7 +50,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
             {user.onboarded ? "완료" : "미완료"}
           </Tag>
         </Descriptions.Item>
-        <Descriptions.Item label="sub">{user.sub}</Descriptions.Item>
+        <Descriptions.Item label="이메일">{user.email}</Descriptions.Item>
         <Descriptions.Item label="가입일">{user.createdAt}</Descriptions.Item>
         <Descriptions.Item label="수정일">{user.updatedAt}</Descriptions.Item>
         <Descriptions.Item label="역할">
