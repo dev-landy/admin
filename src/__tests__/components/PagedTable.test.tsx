@@ -8,8 +8,8 @@ global.ResizeObserver = class {
   disconnect() {}
 };
 
-// jsdom does not implement getComputedStyle — stub to prevent jest-jsdom from
-// re-throwing the "not implemented" error through VirtualConsole
+// jsdom only lacks the pseudo-element variant of getComputedStyle that antd hits —
+// stub to silence the "Not implemented" console.error noise from VirtualConsole
 window.getComputedStyle = (): CSSStyleDeclaration =>
   ({ width: "0px", height: "0px", overflow: "hidden" } as unknown as CSSStyleDeclaration);
 

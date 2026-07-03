@@ -1,5 +1,5 @@
 /*
- * Minimal global reset. Ant Design v5 ships its own CSS-in-JS reset via
+ * Minimal global reset. Ant Design v6 ships its own CSS-in-JS reset via
  * ConfigProvider, so keep this file lean to avoid fighting antd's styles.
  */
 

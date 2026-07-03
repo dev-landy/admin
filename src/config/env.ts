@@ -27,6 +27,31 @@ function resolveApiBaseUrl(): string {
   return value.replace(/\/+$/, "");
 }
 
+const APP_ENVS = ["prod", "dev", "local"] as const;
+
+export type AppEnv = (typeof APP_ENVS)[number];
+
+function isAppEnv(value: string): value is AppEnv {
+  return (APP_ENVS as readonly string[]).includes(value);
+}
+
+// NEXT_PUBLIC_ 변수는 `process.env.NEXT_PUBLIC_APP_ENV`처럼 정적으로 참조한
+// 표현식만 빌드 시점에 인라인되므로 동적 접근(process.env[key])을 쓰면 안 된다.
+function resolveAppEnv(): AppEnv {
+  const value = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase();
+  if (value && isAppEnv(value)) {
+    return value;
+  }
+
+  if (value || process.env.NODE_ENV === "production") {
+    console.warn(
+      `[env] NEXT_PUBLIC_APP_ENV is ${value ? `invalid ("${value}")` : "not set"}. Falling back to "local"`,
+    );
+  }
+  return "local";
+}
+
 export const env = {
   apiBaseUrl: resolveApiBaseUrl(),
+  appEnv: resolveAppEnv(),
 } as const;

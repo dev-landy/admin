@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Button, Card, Typography } from "antd";
+import { Alert, Button, Card, Space, Typography } from "antd";
 import { MessageOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/features/auth/context";
+import { EnvTag } from "@/components/EnvIndicator";
 
 const { Title, Text } = Typography;
 
@@ -43,7 +44,10 @@ function LoginContent() {
           <Title level={3} style={{ marginBottom: 4 }}>
             Landy Admin
           </Title>
-          <Text type="secondary">관리자 로그인</Text>
+          <Space size={8}>
+            <EnvTag />
+            <Text type="secondary">관리자 로그인</Text>
+          </Space>
         </div>
 
         {denied && (

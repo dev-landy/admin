@@ -22,7 +22,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// --- Response: 401 refresh + retry, 403 passthrough ---
+// --- Response: 401 refresh + retry, admin-forbidden 403 → force logout, other 403 passthrough ---
 type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 let isRefreshing = false;

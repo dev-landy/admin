@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button, Layout, Menu, Typography } from "antd";
+import { Button, Layout, Menu, Space, Typography } from "antd";
 import {
   UserOutlined,
   HomeOutlined,
@@ -17,9 +17,11 @@ import {
 
 import { AuthGuard } from "@/features/auth/guard";
 import { useAuth } from "@/features/auth/context";
+import { EnvTag } from "@/components/EnvIndicator";
+import { appEnvMeta } from "@/config/app-env";
 
 const { Sider, Header, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const MENU_ITEMS = [
   { key: "/users", icon: <UserOutlined />, label: "유저 관리" },
@@ -60,14 +62,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <Layout>
           <Header
             style={{
-              background: "#fff",
+              background: appEnvMeta.headerBg,
               display: "flex",
               alignItems: "center",
-              justifyContent: "flex-end",
+              justifyContent: "space-between",
               padding: "0 24px",
               borderBottom: "1px solid #f0f0f0",
             }}
           >
+            <Space size={8}>
+              <EnvTag />
+              <Text type="secondary">{appEnvMeta.description}</Text>
+            </Space>
             <Button icon={<LogoutOutlined />} onClick={logout}>
               로그아웃
             </Button>

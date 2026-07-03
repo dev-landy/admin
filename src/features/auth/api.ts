@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 // Separate instance to avoid circular dependency with the main apiClient
-// (apiClient imports tokenStore; this file must not import apiClient)
+// (apiClient imports refreshTokens from this file; this file must not import apiClient)
 const authHttp = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: 10_000,
