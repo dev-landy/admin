@@ -39,6 +39,7 @@ export type FcmToken = {
   userId: number;
   value: string;
   platform: "ANDROID" | "IOS";
+  silentWakeupSubscribed: boolean;
   createdAt: string;
   updatedAt: string;
 };

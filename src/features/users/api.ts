@@ -48,3 +48,10 @@ export async function deleteUser(userId: number): Promise<void> {
 export async function deactivateFcmToken(fcmTokenId: number): Promise<void> {
   await apiClient.delete(`/v1/admin/fcm-tokens/${fcmTokenId}`);
 }
+
+export async function updateFcmTokenSilentWakeupSubscription(
+  fcmTokenId: number,
+  subscribed: boolean,
+): Promise<void> {
+  await apiClient.patch(`/v1/admin/fcm-tokens/${fcmTokenId}/silent-wakeup-subscription`, { subscribed });
+}

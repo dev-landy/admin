@@ -8,6 +8,7 @@ import {
   updateUserNotifySettings,
   deleteUser,
   deactivateFcmToken,
+  updateFcmTokenSilentWakeupSubscription,
 } from "./api";
 import type { UsersListParams, UserRole } from "./types";
 
@@ -67,6 +68,15 @@ export function useDeactivateFcmToken(userId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (fcmTokenId: number) => deactivateFcmToken(fcmTokenId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.fcmTokens(userId) }),
+  });
+}
+
+export function useUpdateFcmTokenSilentWakeupSubscription(userId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ fcmTokenId, subscribed }: { fcmTokenId: number; subscribed: boolean }) =>
+      updateFcmTokenSilentWakeupSubscription(fcmTokenId, subscribed),
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.fcmTokens(userId) }),
   });
 }
