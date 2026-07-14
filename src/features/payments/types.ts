@@ -1,4 +1,4 @@
-export type PaymentSource = "MANUAL" | "BANK_AUTO";
+export type PaymentSource = "MANUAL" | "BANK_AUTO" | "INITIALIZED";
 
 export type Payment = {
   paymentId: number;
@@ -8,7 +8,6 @@ export type Payment = {
   paidAt: string;
   amount: number;
   paymentSource: PaymentSource;
-  createdAt: string;
   updatedAt: string;
 };
 

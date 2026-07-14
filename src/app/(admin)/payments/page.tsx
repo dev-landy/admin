@@ -31,11 +31,12 @@ function PaymentsPageContent() {
     router.push(`?${params.toString()}`);
   }
 
-  function handleFilterChange(key: string, value: string | undefined) {
+  function handleFilterChange(key: string, value: string | number | undefined) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
+    params.delete("sort");
     if (value === undefined) params.delete(key);
-    else params.set(key, value);
+    else params.set(key, String(value));
     router.push(`?${params.toString()}`);
   }
 
@@ -48,7 +49,7 @@ function PaymentsPageContent() {
         pageSize={size}
         total={data?.totalElements ?? 0}
         onPageChange={handlePageChange}
-        filters={{ source }}
+        filters={{ source, userId, tenantId }}
         onFilterChange={handleFilterChange}
       />
     </Card>
