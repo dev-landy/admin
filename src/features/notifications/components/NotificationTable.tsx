@@ -39,12 +39,14 @@ export function NotificationTable({ data, loading, page, pageSize, total, onPage
               { label: "납부일", value: "DUE" },
               { label: "연체", value: "OVERDUE" },
               { label: "커스텀", value: "CUSTOM" },
+              { label: "납부 확인", value: "PAYMENT_RECORDED" },
             ]}
           />
         </div>
       ),
       render: (v: NotificationType) => {
-        const color = v === "OVERDUE" ? "red" : v === "CUSTOM" ? "purple" : "blue";
+        const color =
+          v === "OVERDUE" ? "red" : v === "CUSTOM" ? "purple" : v === "PAYMENT_RECORDED" ? "green" : "blue";
         return <Tag color={color}>{v}</Tag>;
       },
     },

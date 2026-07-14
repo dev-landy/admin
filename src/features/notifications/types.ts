@@ -1,4 +1,4 @@
-export type NotificationType = "DUE" | "OVERDUE" | "CUSTOM";
+export type NotificationType = "DUE" | "OVERDUE" | "CUSTOM" | "PAYMENT_RECORDED";
 export type OutboxStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED";
 
 export type Notification = {
