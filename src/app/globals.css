@@ -22,3 +22,9 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* 목록 화면의 컬럼명이 폭에 따라 두 줄로 갈라지지 않도록 통일한다. */
+.ant-table-wrapper .ant-table-thead > tr > th,
+.ant-table-wrapper .ant-table-column-title {
+  white-space: nowrap;
+}

@@ -32,7 +32,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
   const { mutate: requeue, isPending: isRequeueing } = useRequeueOutbox(queryParams);
 
   const columns: TableColumnsType<OutboxEvent> = [
-    { title: "ID", dataIndex: "notificationOutboxEventId", width: 80 },
+    { title: "아웃박스 이벤트 ID", dataIndex: "notificationOutboxEventId", width: 150 },
     { title: "알림 ID", dataIndex: "notificationId", width: 90 },
     { title: "유저 ID", dataIndex: "userId", width: 90 },
     { title: "토큰 (마스킹)", dataIndex: "tokenValue" },

@@ -19,9 +19,9 @@ type Props = {
 
 export function NotificationTable({ data, loading, page, pageSize, total, onPageChange, filters, onFilterChange }: Props) {
   const columns: TableColumnsType<Notification> = [
-    { title: "ID", dataIndex: "notificationId", width: 80 },
+    { title: "알림 ID", dataIndex: "notificationId", width: 90 },
     { title: "유저 ID", dataIndex: "userId", width: 90 },
-    { title: "임차인 ID", dataIndex: "tenantId", width: 100 },
+    { title: "임차인 ID", dataIndex: "tenantId", width: 120 },
     { title: "제목", dataIndex: "title" },
     {
       title: "유형",

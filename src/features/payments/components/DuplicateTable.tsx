@@ -7,7 +7,7 @@ import { PagedTable } from "@/components/PagedTable";
 import type { DuplicateGroup } from "../types";
 
 const columns: TableColumnsType<DuplicateGroup> = [
-  { title: "임차인 ID", dataIndex: "tenantId", width: 100 },
+  { title: "임차인 ID", dataIndex: "tenantId", width: 120 },
   { title: "청구월", dataIndex: "billingMonth", width: 120 },
   { title: "중복 수", dataIndex: "count", width: 90, render: (v: number) => <Tag color="red">{v}건</Tag> },
   {

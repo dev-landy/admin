@@ -5,7 +5,7 @@ import { PagedTable } from "@/components/PagedTable";
 import type { Feedback } from "../types";
 
 const columns: TableColumnsType<Feedback> = [
-  { title: "ID", dataIndex: "feedbackId", width: 80 },
+  { title: "피드백 ID", dataIndex: "feedbackId", width: 100 },
   { title: "유저 ID", dataIndex: "userId", width: 90 },
   { title: "내용", dataIndex: "content", ellipsis: true },
   { title: "작성일", dataIndex: "createdAt", width: 180 },
