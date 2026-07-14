@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUpdateUserRole, useUpdateUserNotifySettings, useDeleteUser } from "../hooks";
 import type { UserDetail } from "../types";
+import { USER_STATUS_PRESENTATION } from "../userStatus";
 
 export function UserDetailCard({ user }: { user: UserDetail }) {
   const router = useRouter();
@@ -13,6 +14,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
   const { mutate: updateRole, isPending: isRolePending } = useUpdateUserRole(user.userId);
   const { mutate: updateNotify, isPending: isNotifyPending } = useUpdateUserNotifySettings(user.userId);
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
+  const statusPresentation = USER_STATUS_PRESENTATION[user.status];
 
   function handleRoleChange(role: "USER" | "ADMIN") {
     updateRole(role, {
@@ -45,12 +47,11 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
     >
       <Descriptions column={2} bordered size="small">
         <Descriptions.Item label="제공자">{user.provider}</Descriptions.Item>
-        <Descriptions.Item label="온보딩">
-          <Tag color={user.onboarded ? "green" : "default"}>
-            {user.onboarded ? "완료" : "미완료"}
-          </Tag>
+        <Descriptions.Item label="상태">
+          <Tag color={statusPresentation.color}>{statusPresentation.label}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="이메일">{user.email}</Descriptions.Item>
+        <Descriptions.Item label="전화번호">{user.phone ?? "-"}</Descriptions.Item>
         <Descriptions.Item label="가입일">{user.createdAt}</Descriptions.Item>
         <Descriptions.Item label="수정일">{user.updatedAt}</Descriptions.Item>
         <Descriptions.Item label="역할">

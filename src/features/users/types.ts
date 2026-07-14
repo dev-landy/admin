@@ -1,12 +1,14 @@
 export type UserRole = "USER" | "ADMIN";
 export type OAuthProvider = "KAKAO" | "GOOGLE";
+export type UserStatus = "DRAFT" | "VERIFIED" | "ONBOARDED";
 
 export type UserSummary = {
   userId: number;
   email: string;
+  phone: string | null;
   provider: OAuthProvider;
   role: UserRole;
-  onboarded: boolean;
+  status: UserStatus;
   createdAt: string;
 };
 
@@ -14,10 +16,11 @@ export type UserDetail = {
   userId: number;
   provider: OAuthProvider;
   role: UserRole;
-  onboarded: boolean;
+  status: UserStatus;
   notifyDue: boolean;
   notifyOverdue: boolean;
   email: string;
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -66,6 +69,6 @@ export type UsersListParams = {
   page?: number;
   size?: number;
   provider?: OAuthProvider;
-  onboarded?: boolean;
+  status?: UserStatus;
   role?: UserRole;
 };

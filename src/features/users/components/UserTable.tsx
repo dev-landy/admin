@@ -6,8 +6,10 @@ import type { TableColumnsType } from "antd";
 
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { formatKoreanDate } from "@/lib/format/date";
 import { useDeleteUser } from "../hooks";
-import type { UserSummary, UserRole, OAuthProvider } from "../types";
+import type { UserSummary, UserRole, OAuthProvider, UserStatus } from "../types";
+import { USER_STATUS_OPTIONS, USER_STATUS_PRESENTATION } from "../userStatus";
 
 type Props = {
   data: UserSummary[];
@@ -16,8 +18,8 @@ type Props = {
   pageSize: number;
   total: number;
   onPageChange: (page: number, size: number) => void;
-  filters: { provider?: OAuthProvider; role?: UserRole; onboarded?: boolean };
-  onFilterChange: (key: string, value: string | boolean | undefined) => void;
+  filters: { provider?: OAuthProvider; role?: UserRole; status?: UserStatus };
+  onFilterChange: (key: string, value: string | undefined) => void;
 };
 
 export function UserTable({
@@ -35,8 +37,9 @@ export function UserTable({
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
 
   const columns: TableColumnsType<UserSummary> = [
-    { title: "ID", dataIndex: "userId", width: 80 },
+    { title: "유저 ID", dataIndex: "userId", width: 90 },
     { title: "이메일", dataIndex: "email", width: 220 },
+    { title: "전화번호", dataIndex: "phone", width: 140, render: (v: string | null) => v ?? "-" },
     {
       title: "제공자",
       dataIndex: "provider",
@@ -82,27 +85,27 @@ export function UserTable({
       ),
     },
     {
-      title: "온보딩",
-      dataIndex: "onboarded",
-      width: 90,
+      title: "상태",
+      dataIndex: "status",
+      width: 140,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select
             allowClear
             placeholder="전체"
-            value={filters.onboarded}
-            style={{ width: 120 }}
-            onChange={(v) => onFilterChange("onboarded", v)}
-            options={[
-              { label: "완료", value: true },
-              { label: "미완료", value: false },
-            ]}
+            value={filters.status}
+            style={{ width: 140 }}
+            onChange={(v) => onFilterChange("status", v)}
+            options={USER_STATUS_OPTIONS}
           />
         </div>
       ),
-      render: (v: boolean) => <Tag color={v ? "green" : "default"}>{v ? "완료" : "미완료"}</Tag>,
+      render: (v: UserStatus) => {
+        const presentation = USER_STATUS_PRESENTATION[v];
+        return <Tag color={presentation.color}>{presentation.label}</Tag>;
+      },
     },
-    { title: "가입일", dataIndex: "createdAt", width: 180 },
+    { title: "가입일", dataIndex: "createdAt", width: 140, render: (v: string) => formatKoreanDate(v) },
     {
       title: "액션",
       key: "action",
