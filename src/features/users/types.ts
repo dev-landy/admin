@@ -28,6 +28,7 @@ export type AdminUserTenant = {
   name: string;
   roomNumber: number;
   rentPrice: number;
+  depositAmount?: number | null;
   paymentDay: number;
   startDate: string;
   endDate: string | null;

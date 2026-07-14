@@ -4,6 +4,7 @@ export type TenantSummary = {
   name: string;
   roomNumber: number;
   rentPrice: number;
+  depositAmount?: number | null;
   paymentDay: number;
   startDate: string;
   endDate: string | null;
@@ -28,6 +29,8 @@ export type TenantsListParams = {
   size?: number;
   userId?: number;
   notifyEnabled?: boolean;
+  startDate?: string;
+  endDate?: string;
 };
 
 export type UpdateTenantRequest = {
@@ -35,6 +38,7 @@ export type UpdateTenantRequest = {
   roomNumber?: number;
   phone?: string;
   rentPrice?: number;
+  depositAmount?: number;
   paymentDay?: number;
   startDate?: string;
   endDate?: string;

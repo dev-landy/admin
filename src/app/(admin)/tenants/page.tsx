@@ -15,10 +15,13 @@ function TenantsPageContent() {
 
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
+  const userId = searchParams.get("userId") ? Number(searchParams.get("userId")) : undefined;
   const notifyEnabledRaw = searchParams.get("notifyEnabled");
   const notifyEnabled = notifyEnabledRaw === null ? undefined : notifyEnabledRaw === "true";
+  const startDate = searchParams.get("startDate") || undefined;
+  const endDate = searchParams.get("endDate") || undefined;
 
-  const { data, isLoading } = useTenants({ page, size, notifyEnabled });
+  const { data, isLoading } = useTenants({ page, size, userId, notifyEnabled, startDate, endDate });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -27,7 +30,7 @@ function TenantsPageContent() {
     router.push(`?${params.toString()}`);
   }
 
-  function handleFilterChange(key: string, value: boolean | undefined) {
+  function handleFilterChange(key: string, value: boolean | number | string | undefined) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
     if (value === undefined) params.delete(key);
@@ -44,7 +47,7 @@ function TenantsPageContent() {
         pageSize={size}
         total={data?.totalElements ?? 0}
         onPageChange={handlePageChange}
-        filters={{ notifyEnabled }}
+        filters={{ userId, notifyEnabled, startDate, endDate }}
         onFilterChange={handleFilterChange}
       />
     </Card>

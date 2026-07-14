@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { App, Button, Popconfirm, Select, Space, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { DateFilterDropdown } from "@/components/DateFilterDropdown";
+import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { formatManwon } from "@/lib/format/currency";
 import { useDeleteTenant } from "../hooks";
 import type { TenantSummary } from "../types";
 
@@ -16,28 +19,88 @@ type Props = {
   pageSize: number;
   total: number;
   onPageChange: (p: number, s: number) => void;
-  filters: { notifyEnabled?: boolean };
-  onFilterChange: (key: string, value: boolean | undefined) => void;
+  filters: { userId?: number; notifyEnabled?: boolean; startDate?: string; endDate?: string };
+  onFilterChange: (key: string, value: boolean | number | string | undefined) => void;
 };
 
-export function TenantTable({ data, loading, page, pageSize, total, onPageChange, filters, onFilterChange }: Props) {
+export function TenantTable({
+  data,
+  loading,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  filters,
+  onFilterChange,
+}: Props) {
   const router = useRouter();
   const { notification } = App.useApp();
   const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant();
 
   const columns: TableColumnsType<TenantSummary> = [
-    { title: "ID", dataIndex: "tenantId", width: 80 },
-    { title: "유저 ID", dataIndex: "userId", width: 90 },
-    { title: "이름", dataIndex: "name" },
-    { title: "호실", dataIndex: "roomNumber", width: 80 },
-    { title: "월세", dataIndex: "rentPrice", render: (v: number) => v.toLocaleString() + "원" },
-    { title: "납부일", dataIndex: "paymentDay", width: 90, render: (v: number) => `매월 ${v}일` },
-    { title: "시작일", dataIndex: "startDate" },
-    { title: "종료일", dataIndex: "endDate", render: (v: string | null) => v ?? "진행중" },
+    { title: "임차인 ID", dataIndex: "tenantId", width: 120, align: "center" },
+    {
+      title: "유저 ID",
+      dataIndex: "userId",
+      width: 110,
+      align: "center",
+      filteredValue: filters.userId === undefined ? null : [filters.userId],
+      filterDropdown: () => (
+        <IdFilterDropdown
+          value={filters.userId}
+          placeholder="유저 ID"
+          onApply={(value) => onFilterChange("userId", value)}
+        />
+      ),
+    },
+    { title: "이름", dataIndex: "name", align: "center" },
+    { title: "호실", dataIndex: "roomNumber", width: 80, align: "center" },
+    { title: "월세", dataIndex: "rentPrice", align: "center", render: (v: number) => formatManwon(v) },
+    {
+      title: "보증금",
+      dataIndex: "depositAmount",
+      align: "center",
+      render: (v: number | null | undefined) => formatManwon(v),
+    },
+    {
+      title: "납부일",
+      dataIndex: "paymentDay",
+      width: 90,
+      align: "center",
+      render: (v: number) => `매월 ${v}일`,
+    },
+    {
+      title: "계약 시작일",
+      dataIndex: "startDate",
+      width: 130,
+      align: "center",
+      filteredValue: filters.startDate === undefined ? null : [filters.startDate],
+      filterDropdown: () => (
+        <DateFilterDropdown
+          value={filters.startDate}
+          onApply={(value) => onFilterChange("startDate", value)}
+        />
+      ),
+    },
+    {
+      title: "계약 종료일",
+      dataIndex: "endDate",
+      width: 130,
+      align: "center",
+      filteredValue: filters.endDate === undefined ? null : [filters.endDate],
+      filterDropdown: () => (
+        <DateFilterDropdown
+          value={filters.endDate}
+          onApply={(value) => onFilterChange("endDate", value)}
+        />
+      ),
+      render: (v: string | null) => v ?? "-",
+    },
     {
       title: "알림",
       dataIndex: "notifyEnabled",
       width: 90,
+      align: "center",
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select
@@ -56,6 +119,7 @@ export function TenantTable({ data, loading, page, pageSize, total, onPageChange
       title: "액션",
       key: "action",
       width: 160,
+      align: "center",
       render: (_: unknown, record: TenantSummary) => (
         <Space>
           <Button size="small" onClick={() => router.push(`/tenants/${record.tenantId}`)}>상세</Button>
