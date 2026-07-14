@@ -54,6 +54,13 @@ export type UsersListResponse = {
 export type UserTenantsResponse = { tenants: AdminUserTenant[] };
 export type UserFcmTokensResponse = { fcmTokens: FcmToken[] };
 
+export type ImpersonationTokensResponse = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+export type FcmMessageResponse = { messageId: string };
+
 export type UsersListParams = {
   page?: number;
   size?: number;

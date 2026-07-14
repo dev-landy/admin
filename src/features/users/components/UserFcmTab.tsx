@@ -1,11 +1,18 @@
 "use client";
 
-import { App, Button, Popconfirm, Switch, Table, Tag } from "antd";
+import { useState } from "react";
+import { App, Button, Popconfirm, Space, Switch, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
-import { useUserFcmTokens, useDeactivateFcmToken, useUpdateFcmTokenSilentWakeupSubscription } from "../hooks";
+import {
+  useUserFcmTokens,
+  useDeactivateFcmToken,
+  useUpdateFcmTokenSilentWakeupSubscription,
+  useSendFcmTokenSilentMessage,
+} from "../hooks";
 import type { FcmToken } from "../types";
+import { FcmTestSendModal } from "./FcmTestSendModal";
 
 export function UserFcmTab({ userId }: { userId: number }) {
   const { notification } = App.useApp();
@@ -13,9 +20,11 @@ export function UserFcmTab({ userId }: { userId: number }) {
   const { mutate: deactivate, isPending } = useDeactivateFcmToken(userId);
   const { mutate: updateSilentWakeup, isPending: isUpdatingSilentWakeup } =
     useUpdateFcmTokenSilentWakeupSubscription(userId);
+  const { mutate: sendSilentMessage, isPending: isSendingSilent } = useSendFcmTokenSilentMessage();
+  const [testSendTokenId, setTestSendTokenId] = useState<number | null>(null);
 
   const columns: TableColumnsType<FcmToken> = [
-    { title: "ID", dataIndex: "fcmTokenId", width: 80 },
+    { title: "FCM 토큰 ID", dataIndex: "fcmTokenId", width: 130 },
     { title: "플랫폼", dataIndex: "platform", width: 100, render: (v: string) => <Tag>{v}</Tag> },
     {
       title: "Silent Push",
@@ -49,37 +58,71 @@ export function UserFcmTab({ userId }: { userId: number }) {
       },
     },
     { title: "토큰 (마스킹)", dataIndex: "value" },
-    { title: "생성일", dataIndex: "createdAt" },
-    { title: "수정일", dataIndex: "updatedAt" },
+    { title: "생성일", dataIndex: "createdAt", width: 180, ellipsis: true },
+    { title: "수정일", dataIndex: "updatedAt", width: 180, ellipsis: true },
     {
       title: "액션",
       key: "action",
-      width: 120,
+      width: 280,
       render: (_: unknown, record: FcmToken) => (
-        <Popconfirm
-          title="토큰을 비활성화하시겠습니까?"
-          onConfirm={() =>
-            deactivate(record.fcmTokenId, {
-              onError: (err) => {
-                const p = parseProblemDetail(err);
-                notification.error({ message: p?.title ?? "비활성화 실패", description: p?.detail });
-              },
-            })
-          }
-        >
-          <Button size="small" danger loading={isPending}>비활성화</Button>
-        </Popconfirm>
+        <Space wrap>
+          <Button size="small" onClick={() => setTestSendTokenId(record.fcmTokenId)}>
+            테스트 발송
+          </Button>
+          {record.platform === "ANDROID" && (
+            <Popconfirm
+              title="이 토큰으로 silent 메시지를 발송하시겠습니까?"
+              onConfirm={() =>
+                sendSilentMessage(record.fcmTokenId, {
+                  onSuccess: (res) =>
+                    notification.success({
+                      message: "Silent 테스트 발송 완료",
+                      description: `messageId: ${res.messageId}`,
+                    }),
+                  onError: (err) => {
+                    const p = parseProblemDetail(err);
+                    notification.error({ message: p?.title ?? "Silent 테스트 발송 실패", description: p?.detail });
+                  },
+                })
+              }
+            >
+              <Button size="small" loading={isSendingSilent}>
+                Silent 테스트
+              </Button>
+            </Popconfirm>
+          )}
+          <Popconfirm
+            title="토큰을 비활성화하시겠습니까?"
+            onConfirm={() =>
+              deactivate(record.fcmTokenId, {
+                onError: (err) => {
+                  const p = parseProblemDetail(err);
+                  notification.error({ message: p?.title ?? "비활성화 실패", description: p?.detail });
+                },
+              })
+            }
+          >
+            <Button size="small" danger loading={isPending}>비활성화</Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
 
   return (
-    <Table
-      columns={columns}
-      dataSource={data?.fcmTokens ?? []}
-      loading={isLoading}
-      rowKey={(r) => String(r.fcmTokenId)}
-      pagination={false}
-    />
+    <>
+      <Table
+        columns={columns}
+        dataSource={data?.fcmTokens ?? []}
+        loading={isLoading}
+        rowKey={(r) => String(r.fcmTokenId)}
+        pagination={false}
+      />
+      <FcmTestSendModal
+        open={testSendTokenId !== null}
+        onClose={() => setTestSendTokenId(null)}
+        fcmTokenId={testSendTokenId}
+      />
+    </>
   );
 }

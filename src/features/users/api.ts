@@ -6,6 +6,8 @@ import type {
   UserTenantsResponse,
   UserFcmTokensResponse,
   UserRole,
+  ImpersonationTokensResponse,
+  FcmMessageResponse,
 } from "./types";
 
 export async function fetchUsers(params: UsersListParams): Promise<UsersListResponse> {
@@ -54,4 +56,18 @@ export async function updateFcmTokenSilentWakeupSubscription(
   subscribed: boolean,
 ): Promise<void> {
   await apiClient.patch(`/v1/admin/fcm-tokens/${fcmTokenId}/silent-wakeup-subscription`, { subscribed });
+}
+
+export async function issueImpersonationTokens(userId: number): Promise<ImpersonationTokensResponse> {
+  const { data } = await apiClient.post<ImpersonationTokensResponse>(
+    `/v1/admin/users/${userId}/impersonation-tokens`,
+  );
+  return data;
+}
+
+export async function sendFcmTokenSilentMessage(fcmTokenId: number): Promise<FcmMessageResponse> {
+  const { data } = await apiClient.post<FcmMessageResponse>(
+    `/v1/admin/fcm-tokens/${fcmTokenId}/silent-messages`,
+  );
+  return data;
 }

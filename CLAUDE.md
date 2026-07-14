@@ -42,14 +42,14 @@ src/
     login/              # Kakao 로그인 페이지
     auth/kakao/         # OAuth start/exchange 라우트 핸들러 + callback 페이지
     (admin)/            # AuthGuard + 사이드바 레이아웃, 도메인별 페이지
-                        # (users, tenants, payments, notifications, feedbacks, release-policies)
+                        # (users, tenants, payments, notifications, fcm, feedbacks, release-policies)
   components/           # 공용 컴포넌트 (EnvIndicator, PagedTable)
   config/
     env.ts              # 브라우저 노출 환경 변수 검증/접근 (NEXT_PUBLIC_*)
     env.server.ts       # 서버 전용 시크릿 (Kakao) — 클라이언트 임포트 시 throw
     app-env.ts          # 배포 환경(prod/dev/local)별 표시 메타 (라벨/색상)
   features/             # 도메인별 모듈 — 보통 api.ts / hooks.ts / types.ts / components/
-                        # (auth, users, tenants, payments, notifications, feedbacks, releasePolicies)
+                        # (auth, users, tenants, payments, notifications, fcm, feedbacks, releasePolicies)
   lib/
     api/
       client.ts         # 공유 axios 인스턴스 (토큰 부착, 401 refresh, admin-forbidden 403 처리)

@@ -9,6 +9,8 @@ import {
   deleteUser,
   deactivateFcmToken,
   updateFcmTokenSilentWakeupSubscription,
+  issueImpersonationTokens,
+  sendFcmTokenSilentMessage,
 } from "./api";
 import type { UsersListParams, UserRole } from "./types";
 
@@ -79,4 +81,12 @@ export function useUpdateFcmTokenSilentWakeupSubscription(userId: number) {
       updateFcmTokenSilentWakeupSubscription(fcmTokenId, subscribed),
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.fcmTokens(userId) }),
   });
+}
+
+export function useIssueImpersonationTokens(userId: number) {
+  return useMutation({ mutationFn: () => issueImpersonationTokens(userId) });
+}
+
+export function useSendFcmTokenSilentMessage() {
+  return useMutation({ mutationFn: (fcmTokenId: number) => sendFcmTokenSilentMessage(fcmTokenId) });
 }
