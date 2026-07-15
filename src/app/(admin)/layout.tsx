@@ -26,6 +26,7 @@ const { Title, Text } = Typography;
 
 const MENU_ITEMS = [
   { key: "/users", icon: <UserOutlined />, label: "유저 관리" },
+  { key: "/properties", icon: <HomeOutlined />, label: "건물 관리" },
   { key: "/tenants", icon: <HomeOutlined />, label: "임차인 관리" },
   { key: "/payments", icon: <CreditCardOutlined />, label: "납부 목록" },
   { key: "/payments/duplicates", icon: <WarningOutlined />, label: "납부 중복" },
