@@ -14,6 +14,7 @@ const columns: TableColumnsType<PropertyTenant> = [
   { title: "호실", dataIndex: "roomNumber", width: 80 },
   { title: "전화번호", dataIndex: "phone", width: 140 },
   { title: "월세", dataIndex: "rentPrice", render: (value: number) => formatManwon(value) },
+  { title: "계약 시작일", dataIndex: "startDate", width: 120 },
   { title: "계약 종료일", dataIndex: "endDate", width: 120, render: (value: string | null) => value ?? "-" },
   {
     title: "알림",
