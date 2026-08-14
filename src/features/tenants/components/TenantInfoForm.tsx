@@ -161,8 +161,8 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
         <Form.Item
           label="호실"
           name="room"
-          required
           normalize={(value?: string) => value?.replace(/\D/g, "")}
+          rules={[{ required: true, message: "호실을 입력해 주세요." }]}
         >
           <Input
             maxLength={10}
@@ -181,7 +181,11 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="세입자 이름" name="name" required>
+        <Form.Item
+          label="세입자 이름"
+          name="name"
+          rules={[{ required: true, whitespace: true, message: "세입자 이름을 입력해 주세요." }]}
+        >
           <Input maxLength={100} placeholder="홍길동" />
         </Form.Item>
       </Col>
@@ -189,15 +193,22 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
         <Form.Item
           label="연락처"
           name="phone"
-          required
           normalize={formatPhone}
-          rules={[{ pattern: /^0\d{1,2}-\d{3,4}-\d{4}$/, message: "전화번호 형식이 아닙니다." }]}
+          rules={[
+            { required: true, message: "연락처를 입력해 주세요." },
+            // 서버가 010-XXXX-XXXX(11자리)만 허용한다.
+            { pattern: /^010-\d{4}-\d{4}$/, message: "010-1234-5678 형식(11자리)으로 입력해 주세요." },
+          ]}
         >
           <Input placeholder="010-1111-2222" inputMode="numeric" maxLength={13} />
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="계약 시작일" name="startDate" required>
+        <Form.Item
+          label="계약 시작일"
+          name="startDate"
+          rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
+        >
           <DateAddonPicker
             placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
           />
@@ -231,22 +242,44 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="납부일 (1~31)" name="paymentDay" required>
+        <Form.Item
+          label="납부일 (1~31)"
+          name="paymentDay"
+          rules={[
+            { required: true, message: "납부일을 입력해 주세요." },
+            { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
+          ]}
+        >
           <InputNumber min={1} max={31} style={{ width: "100%" }} addonAfter="일" placeholder="25" />
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="월세" name="rentManwon" required>
+        <Form.Item
+          label="월세"
+          name="rentManwon"
+          rules={[
+            { required: true, message: "월세를 입력해 주세요." },
+            { type: "number", min: 1, message: "월세는 1만원 이상이어야 합니다." },
+          ]}
+        >
           <InputNumber min={1} style={{ width: "100%" }} addonAfter="만원" placeholder="50" />
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="관리비" name="maintenanceFeeManwon">
+        <Form.Item
+          label="관리비"
+          name="maintenanceFeeManwon"
+          rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
+        >
           <InputNumber min={0} style={{ width: "100%" }} addonAfter="만원" placeholder="0" />
         </Form.Item>
       </Col>
       <Col span={12}>
-        <Form.Item label="보증금" name="depositManwon">
+        <Form.Item
+          label="보증금"
+          name="depositManwon"
+          rules={[{ type: "number", min: 0, message: "보증금은 0 이상이어야 합니다." }]}
+        >
           <InputNumber min={0} style={{ width: "100%" }} addonAfter="만원" placeholder="0" />
         </Form.Item>
       </Col>
