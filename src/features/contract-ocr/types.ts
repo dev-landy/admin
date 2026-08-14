@@ -56,3 +56,8 @@ export type ContractOcrDraftValues = {
 export type ContractOcrAnalysisCompletionRequest = {
   values: ContractOcrDraftValues;
 };
+
+export type ContractOcrDraftResponse = {
+  documentId: string;
+  values: ContractOcrDraftValues;
+};

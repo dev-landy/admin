@@ -4,8 +4,10 @@ import {
   completeContractOcrAnalysis,
   fetchContractOcrDocument,
   fetchContractOcrDocuments,
+  fetchContractOcrDraft,
   fetchContractOcrSources,
   rejectContractOcrAnalysis,
+  retryContractOcrRegistration,
 } from "./api";
 import type { ContractOcrAnalysisCompletionRequest, ContractOcrListStatus } from "./types";
 
@@ -15,6 +17,7 @@ export const contractOcrKeys = {
     ["contract-ocr", "list", status, page, size] as const,
   detail: (documentId: string) => ["contract-ocr", documentId, "detail"] as const,
   sources: (documentId: string) => ["contract-ocr", documentId, "sources"] as const,
+  draft: (documentId: string) => ["contract-ocr", documentId, "draft"] as const,
 };
 
 export function useContractOcrDocument(documentId: string) {
@@ -61,5 +64,35 @@ export function useCompleteContractOcrAnalysis() {
       body: ContractOcrAnalysisCompletionRequest;
     }) => completeContractOcrAnalysis(documentId, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: contractOcrKeys.all }),
+  });
+}
+
+// 폴백(자동 등록 실패) 문서에서만 조회한다.
+export function useContractOcrDraft(documentId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: contractOcrKeys.draft(documentId),
+    queryFn: () => fetchContractOcrDraft(documentId),
+    enabled,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRetryContractOcrRegistration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      documentId,
+      body,
+    }: {
+      documentId: string;
+      body: ContractOcrAnalysisCompletionRequest;
+    }) => retryContractOcrRegistration(documentId, body),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: contractOcrKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ["tenants"] }),
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["properties"] }),
+      ]),
   });
 }

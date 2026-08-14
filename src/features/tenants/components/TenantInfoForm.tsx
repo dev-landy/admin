@@ -75,30 +75,41 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
     roomNumber: room ? `${form.basement ? "B" : ""}${room}` : null,
     phone: form.phone?.trim() || null,
     rentPrice: toWon(form.rentManwon),
-    maintenanceFee: toWon(form.maintenanceFeeManwon),
-    depositAmount: toWon(form.depositManwon),
+    // 서버 등록 검증이 보증금 null을 거부하므로, 안내 문구대로 비워 두면 0으로 보낸다.
+    maintenanceFee: toWon(form.maintenanceFeeManwon) ?? 0,
+    depositAmount: toWon(form.depositManwon) ?? 0,
     paymentDay: form.paymentDay ?? null,
     startDate: form.startDate ? form.startDate.format("YYYY-MM-DD") : null,
     endDate: form.endDate ? form.endDate.format("YYYY-MM-DD") : null,
   };
 }
 
-// 등록된 임차인 값을 폼 형태로 되돌린다 (B접두 호실 분해, 원 → 만원).
-export function fromTenantDetail(tenant: TenantDetail): TenantInfoFormValues {
-  const roomNumber = String(tenant.roomNumber ?? "").trim();
+// 서버 계약 형태의 값을 폼 형태로 되돌린다 (B접두 호실 분해, 원 → 만원, 전화번호 대시 포맷).
+export function fromTenantValues(values: TenantInfoValues): TenantInfoFormValues {
+  const roomNumber = String(values.roomNumber ?? "").trim();
   const basement = roomNumber.startsWith("B");
   return {
     room: basement ? roomNumber.slice(1) : roomNumber,
     basement,
-    name: tenant.name,
-    phone: tenant.phone,
-    startDate: tenant.startDate ? dayjs(tenant.startDate) : null,
-    endDate: tenant.endDate ? dayjs(tenant.endDate) : null,
-    paymentDay: tenant.paymentDay,
-    rentManwon: tenant.rentPrice / 10_000,
-    maintenanceFeeManwon: tenant.maintenanceFee != null ? tenant.maintenanceFee / 10_000 : undefined,
-    depositManwon: tenant.depositAmount != null ? tenant.depositAmount / 10_000 : undefined,
+    name: values.name ?? undefined,
+    phone: values.phone ? formatPhone(values.phone) : undefined,
+    startDate: values.startDate ? dayjs(values.startDate) : null,
+    endDate: values.endDate ? dayjs(values.endDate) : null,
+    paymentDay: values.paymentDay,
+    rentManwon: values.rentPrice != null ? values.rentPrice / 10_000 : undefined,
+    maintenanceFeeManwon: values.maintenanceFee != null ? values.maintenanceFee / 10_000 : undefined,
+    depositManwon: values.depositAmount != null ? values.depositAmount / 10_000 : undefined,
   };
+}
+
+// 등록된 임차인 값을 폼 형태로 되돌린다 (호실은 숫자로 내려와 문자열로 정규화).
+export function fromTenantDetail(tenant: TenantDetail): TenantInfoFormValues {
+  return fromTenantValues({
+    ...tenant,
+    roomNumber: String(tenant.roomNumber ?? ""),
+    maintenanceFee: tenant.maintenanceFee ?? null,
+    depositAmount: tenant.depositAmount ?? null,
+  });
 }
 
 export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {

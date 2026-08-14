@@ -22,14 +22,17 @@ import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
 import {
   useCompleteContractOcrAnalysis,
   useContractOcrDocument,
+  useContractOcrDraft,
   useContractOcrSources,
   useRejectContractOcrAnalysis,
+  useRetryContractOcrRegistration,
 } from "@/features/contract-ocr/hooks";
 import { fetchTenant } from "@/features/tenants/api";
 import {
   TenantInfoFormFields,
   type TenantInfoFormValues,
   fromTenantDetail,
+  fromTenantValues,
   isTenantFormComplete,
   toTenantValues,
 } from "@/features/tenants/components/TenantInfoForm";
@@ -54,6 +57,9 @@ export default function ContractOcrReviewPage({
     (document.analysisStatus === "QUEUED" || document.analysisStatus === "PROCESSING") &&
     document.decisionStatus === "PENDING";
   const isEditMode = document?.decisionStatus === "REGISTERED" && document.tenantId != null;
+  // 자동 등록이 거부된 폴백 문서: 직전 제출 값을 프리필해 고쳐서 재등록한다.
+  const isFallbackMode =
+    document?.analysisStatus === "REVIEW_REQUIRED" && document.decisionStatus === "PENDING";
 
   const { data: tenant } = useQuery({
     queryKey: tenantKeys.detail(document?.tenantId ?? 0),
@@ -61,11 +67,19 @@ export default function ContractOcrReviewPage({
     enabled: isEditMode,
   });
 
+  const { data: draft, isError: isDraftError } = useContractOcrDraft(documentId, isFallbackMode);
+
   useEffect(() => {
     if (tenant) {
       form.setFieldsValue(fromTenantDetail(tenant));
     }
   }, [tenant, form]);
+
+  useEffect(() => {
+    if (draft) {
+      form.setFieldsValue(fromTenantValues(draft.values));
+    }
+  }, [draft, form]);
 
   // 수정 성공 시 tenant 쿼리가 무효화·재조회되므로 스냅샷은 항상 서버 상태에서 파생한다.
   const initialSnapshot = tenant ? JSON.stringify(toTenantValues(fromTenantDetail(tenant))) : null;
@@ -79,6 +93,7 @@ export default function ContractOcrReviewPage({
     useContractOcrSources(documentId);
   const { mutate: complete, isPending: isSubmitting } = useCompleteContractOcrAnalysis();
   const { mutate: reject, isPending: isRejecting } = useRejectContractOcrAnalysis();
+  const { mutate: retryRegistration, isPending: isRetrying } = useRetryContractOcrRegistration();
   const { mutate: patchTenant, isPending: isPatching } = useUpdateTenant(document?.tenantId ?? 0);
 
   function handleReject() {
@@ -102,6 +117,28 @@ export default function ContractOcrReviewPage({
 
   function handleSubmit(values: TenantInfoFormValues) {
     const draft = toTenantValues(values);
+    if (isFallbackMode) {
+      retryRegistration(
+        { documentId, body: { values: draft } },
+        {
+          onSuccess: () => {
+            notification.success({
+              message: "임차인으로 재등록했습니다.",
+              description: "사용자에게 완료 푸시가 발송됩니다.",
+            });
+            router.push("/contract-ocr?status=completed");
+          },
+          onError: (err) => {
+            const problem = parseProblemDetail(err);
+            notification.error({
+              message: problem?.title ?? "재등록 실패",
+              description: problem?.detail ?? "입력 값을 다시 확인해 주세요.",
+            });
+          },
+        },
+      );
+      return;
+    }
     if (isEditMode) {
       patchTenant(
         {
@@ -152,10 +189,10 @@ export default function ContractOcrReviewPage({
   }
 
   const sourceProblem = isError ? parseProblemDetail(error) : null;
-  const isBusy = isSubmitting || isPatching || isRejecting;
+  const isBusy = isSubmitting || isPatching || isRejecting || isRetrying;
   // 완료 상태 문서에서 목록으로 돌아갈 때는 보던 완료 탭을 유지한다.
   const listPath = document != null && !isPendingMode ? "/contract-ocr?status=completed" : "/contract-ocr";
-  const formEditable = isPendingMode || isEditMode;
+  const formEditable = isPendingMode || isEditMode || isFallbackMode;
   const stateNotice =
     !isDocumentLoading && document != null && !formEditable
       ? document.analysisStatus === "STORING"
@@ -164,7 +201,9 @@ export default function ContractOcrReviewPage({
           ? "인식 불가 처리된 계약서입니다."
           : document.decisionStatus === "DISCARDED"
             ? "제외 처리된 계약서입니다."
-            : "자동 등록이 완료되지 않은 계약서입니다."
+            : document.analysisStatus === "RETRYABLE_FAILED"
+              ? "재시도 대기 중인 계약서입니다. 사용자가 다시 등록하면 새 검수 요청이 옵니다."
+              : "처리할 수 없는 상태의 계약서입니다."
       : null;
 
   return (
@@ -232,6 +271,17 @@ export default function ContractOcrReviewPage({
             <Space direction="vertical" size={12} style={{ width: "100%" }}>
               {stateNotice ? (
                 <Alert type="info" showIcon message={stateNotice} />
+              ) : isFallbackMode ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="자동 등록에 실패한 계약서입니다."
+                  description={
+                    isDraftError
+                      ? "직전 제출 값을 불러오지 못했습니다. 원본을 보고 값을 다시 입력한 뒤 재등록해 주세요."
+                      : "직전에 제출한 값을 채워 두었습니다. 값을 확인·수정한 뒤 재등록해 주세요."
+                  }
+                />
               ) : (
                 <Text type="secondary">
                   {isEditMode
@@ -276,6 +326,16 @@ export default function ContractOcrReviewPage({
                         </Popconfirm>
                       </Col>
                     </Row>
+                  ) : isFallbackMode ? (
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={isRetrying}
+                      disabled={!canSubmit}
+                      block
+                    >
+                      재등록
+                    </Button>
                   ) : (
                     <Button type="primary" htmlType="submit" loading={isPatching} disabled={!isDirty} block>
                       수정

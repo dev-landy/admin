@@ -3,6 +3,7 @@ import type {
   ContractOcrAnalysisCompletionRequest,
   ContractOcrDocumentListResponse,
   ContractOcrDocumentSummary,
+  ContractOcrDraftResponse,
   ContractOcrListStatus,
   ContractOcrSourceViewResponse,
 } from "./types";
@@ -47,4 +48,19 @@ export async function completeContractOcrAnalysis(
 
 export async function rejectContractOcrAnalysis(documentId: string): Promise<void> {
   await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/rejection`);
+}
+
+// 폴백(자동 등록 실패) 문서의 직전 제출 값. 재등록 화면 프리필용.
+export async function fetchContractOcrDraft(documentId: string): Promise<ContractOcrDraftResponse> {
+  const { data } = await apiClient.get<ContractOcrDraftResponse>(
+    `/v1/admin/contract-ocr/documents/${documentId}/draft`,
+  );
+  return data;
+}
+
+export async function retryContractOcrRegistration(
+  documentId: string,
+  body: ContractOcrAnalysisCompletionRequest,
+): Promise<void> {
+  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/registration-retry`, body);
 }
