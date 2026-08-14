@@ -8,7 +8,6 @@ import {
   HomeOutlined,
   CreditCardOutlined,
   BellOutlined,
-  MessageOutlined,
   DeploymentUnitOutlined,
   FileTextOutlined,
   WarningOutlined,
@@ -35,7 +34,6 @@ const MENU_ITEMS = [
   { key: "/notifications", icon: <BellOutlined />, label: "인앱 알림" },
   { key: "/notifications/outbox", icon: <MailOutlined />, label: "알림 Outbox" },
   { key: "/fcm", icon: <SendOutlined />, label: "FCM 테스트" },
-  { key: "/feedbacks", icon: <MessageOutlined />, label: "피드백" },
   { key: "/release-policies", icon: <DeploymentUnitOutlined />, label: "릴리즈 정책" },
 ];
 
