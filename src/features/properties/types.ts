@@ -50,6 +50,7 @@ export type PropertyTenant = {
   roomNumber: number;
   phone: string;
   rentPrice: number;
+  maintenanceFee?: number | null;
   depositAmount: number | null;
   paymentDay: number;
   startDate: string;

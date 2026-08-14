@@ -44,6 +44,7 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
           <Descriptions.Item label="호실">{tenant.roomNumber}</Descriptions.Item>
           <Descriptions.Item label="전화번호">{tenant.phone}</Descriptions.Item>
           <Descriptions.Item label="월세">{formatManwon(tenant.rentPrice)}</Descriptions.Item>
+          <Descriptions.Item label="관리비">{formatManwon(tenant.maintenanceFee)}</Descriptions.Item>
           <Descriptions.Item label="보증금">{formatManwon(tenant.depositAmount)}</Descriptions.Item>
           <Descriptions.Item label="납부일">매월 {tenant.paymentDay}일</Descriptions.Item>
           <Descriptions.Item label="알림">

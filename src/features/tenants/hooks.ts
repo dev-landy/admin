@@ -23,6 +23,9 @@ export function useUpdateTenant(tenantId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tenantKeys.detail(tenantId) });
       qc.invalidateQueries({ queryKey: tenantKeys.all });
+      // 임차인 목록을 포함하는 다른 도메인 화면(건물 임차인, 유저 임차인)도 함께 갱신한다.
+      qc.invalidateQueries({ queryKey: ["properties"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

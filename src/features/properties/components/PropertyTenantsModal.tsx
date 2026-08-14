@@ -1,28 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Modal, Table, Tag } from "antd";
+import { Button, Modal, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
 import { formatManwon } from "@/lib/format/currency";
 import { usePropertyTenants } from "../hooks";
 import type { PropertyTenant } from "../types";
-
-const columns: TableColumnsType<PropertyTenant> = [
-  { title: "임차인 ID", dataIndex: "tenantId", width: 110 },
-  { title: "이름", dataIndex: "name" },
-  { title: "호실", dataIndex: "roomNumber", width: 80 },
-  { title: "전화번호", dataIndex: "phone", width: 140 },
-  { title: "월세", dataIndex: "rentPrice", render: (value: number) => formatManwon(value) },
-  { title: "계약 시작일", dataIndex: "startDate", width: 120 },
-  { title: "계약 종료일", dataIndex: "endDate", width: 120, render: (value: string | null) => value ?? "-" },
-  {
-    title: "알림",
-    dataIndex: "notifyEnabled",
-    width: 80,
-    render: (value: boolean) => <Tag color={value ? "green" : "default"}>{value ? "활성" : "비활성"}</Tag>,
-  },
-];
 
 export function PropertyTenantsModal({
   propertyId,
@@ -35,7 +20,50 @@ export function PropertyTenantsModal({
 }) {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(20);
+  const [editingTenantId, setEditingTenantId] = useState<number | null>(null);
   const { data, isLoading } = usePropertyTenants(propertyId, page, size);
+
+  const columns: TableColumnsType<PropertyTenant> = [
+    { title: "임차인 ID", dataIndex: "tenantId", width: 110 },
+    { title: "이름", dataIndex: "name" },
+    { title: "호실", dataIndex: "roomNumber", width: 80 },
+    { title: "전화번호", dataIndex: "phone", width: 140 },
+    { title: "월세", dataIndex: "rentPrice", render: (value: number) => formatManwon(value) },
+    {
+      title: "관리비",
+      dataIndex: "maintenanceFee",
+      render: (value: number | null | undefined) => formatManwon(value),
+    },
+    {
+      title: "보증금",
+      dataIndex: "depositAmount",
+      render: (value: number | null | undefined) => formatManwon(value),
+    },
+    { title: "계약 시작일", dataIndex: "startDate", width: 120 },
+    {
+      title: "계약 종료일",
+      dataIndex: "endDate",
+      width: 120,
+      render: (value: string | null) => value ?? "-",
+    },
+    {
+      title: "알림",
+      dataIndex: "notifyEnabled",
+      width: 80,
+      render: (value: boolean) => (
+        <Tag color={value ? "green" : "default"}>{value ? "활성" : "비활성"}</Tag>
+      ),
+    },
+    {
+      title: "동작",
+      key: "action",
+      width: 90,
+      align: "center",
+      render: (_, record) => (
+        <Button onClick={() => setEditingTenantId(record.tenantId)}>수정</Button>
+      ),
+    },
+  ];
 
   return (
     <Modal
@@ -68,6 +96,9 @@ export function PropertyTenantsModal({
         }}
         scroll={{ x: "max-content" }}
       />
+      {editingTenantId != null && (
+        <TenantEditDrawerById tenantId={editingTenantId} onClose={() => setEditingTenantId(null)} />
+      )}
     </Modal>
   );
 }

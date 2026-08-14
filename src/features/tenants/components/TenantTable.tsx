@@ -57,6 +57,12 @@ export function TenantTable({
     { title: "호실", dataIndex: "roomNumber", width: 80, align: "center" },
     { title: "월세", dataIndex: "rentPrice", align: "center", render: (v: number) => formatManwon(v) },
     {
+      title: "관리비",
+      dataIndex: "maintenanceFee",
+      align: "center",
+      render: (v: number | null | undefined) => formatManwon(v),
+    },
+    {
       title: "보증금",
       dataIndex: "depositAmount",
       align: "center",
