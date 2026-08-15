@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, use, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
   useContractOcrDraft,
   useContractOcrSources,
   useRejectContractOcrAnalysis,
+  useRetryContractOcrAnalysis,
   useRetryContractOcrRegistration,
 } from "@/features/contract-ocr/hooks";
 import { fetchTenant } from "@/features/tenants/api";
@@ -41,13 +42,9 @@ import { parseProblemDetail } from "@/lib/api/problem";
 
 const { Title, Text } = Typography;
 
-export default function ContractOcrReviewPage({
-  params,
-}: {
-  params: Promise<{ documentId: string }>;
-}) {
-  const { documentId } = use(params);
+function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { notification } = App.useApp();
   const [form] = Form.useForm<TenantInfoFormValues>();
 
@@ -60,6 +57,8 @@ export default function ContractOcrReviewPage({
   // 자동 등록이 거부된 폴백 문서: 직전 제출 값을 프리필해 고쳐서 재등록한다.
   const isFallbackMode =
     document?.analysisStatus === "REVIEW_REQUIRED" && document.decisionStatus === "PENDING";
+  const isRetryableMode =
+    document?.analysisStatus === "RETRYABLE_FAILED" && document.decisionStatus === "PENDING";
 
   const { data: tenant } = useQuery({
     queryKey: tenantKeys.detail(document?.tenantId ?? 0),
@@ -93,6 +92,7 @@ export default function ContractOcrReviewPage({
     useContractOcrSources(documentId);
   const { mutate: complete, isPending: isSubmitting } = useCompleteContractOcrAnalysis();
   const { mutate: reject, isPending: isRejecting } = useRejectContractOcrAnalysis();
+  const { mutate: retryAnalysis, isPending: isAnalysisRetrying } = useRetryContractOcrAnalysis();
   const { mutate: retryRegistration, isPending: isRetrying } = useRetryContractOcrRegistration();
   const { mutate: patchTenant, isPending: isPatching } = useUpdateTenant(document?.tenantId ?? 0);
 
@@ -115,6 +115,25 @@ export default function ContractOcrReviewPage({
     });
   }
 
+  function handleRetryAnalysis() {
+    retryAnalysis(documentId, {
+      onSuccess: () => {
+        notification.success({
+          message: "검수 요청을 다시 등록했습니다.",
+          description: "검수 대기 탭에서 처리 상태를 확인할 수 있습니다.",
+        });
+        router.push("/contract-ocr");
+      },
+      onError: (err) => {
+        const problem = parseProblemDetail(err);
+        notification.error({
+          message: problem?.title ?? "분석 재시도 실패",
+          description: problem?.detail,
+        });
+      },
+    });
+  }
+
   function handleSubmit(values: TenantInfoFormValues) {
     const draft = toTenantValues(values);
     if (isFallbackMode) {
@@ -126,7 +145,7 @@ export default function ContractOcrReviewPage({
               message: "임차인으로 재등록했습니다.",
               description: "사용자에게 완료 푸시가 발송됩니다.",
             });
-            router.push("/contract-ocr?status=completed");
+            router.push(listPath);
           },
           onError: (err) => {
             const problem = parseProblemDetail(err);
@@ -189,9 +208,10 @@ export default function ContractOcrReviewPage({
   }
 
   const sourceProblem = isError ? parseProblemDetail(error) : null;
-  const isBusy = isSubmitting || isPatching || isRejecting || isRetrying;
-  // 완료 상태 문서에서 목록으로 돌아갈 때는 보던 완료 탭을 유지한다.
-  const listPath = document != null && !isPendingMode ? "/contract-ocr?status=completed" : "/contract-ocr";
+  const isBusy = isSubmitting || isPatching || isRejecting || isRetrying || isAnalysisRetrying;
+  // 완료 탭에서 들어온 경우에만 완료 탭으로 복귀한다. 직접 진입(Slack 링크 등)은 기본인 검수 대기로 나간다.
+  const listPath =
+    searchParams.get("from") === "completed" ? "/contract-ocr?status=completed" : "/contract-ocr";
   const formEditable = isPendingMode || isEditMode || isFallbackMode;
   const stateNotice =
     !isDocumentLoading && document != null && !formEditable
@@ -202,7 +222,7 @@ export default function ContractOcrReviewPage({
           : document.decisionStatus === "DISCARDED"
             ? "제외 처리된 계약서입니다."
             : document.analysisStatus === "RETRYABLE_FAILED"
-              ? "재시도 대기 중인 계약서입니다. 사용자가 다시 등록하면 새 검수 요청이 옵니다."
+              ? "검수 요청 처리에 실패했습니다. 아래 버튼으로 관리자 검수를 다시 요청해 주세요."
               : "처리할 수 없는 상태의 계약서입니다."
       : null;
 
@@ -342,10 +362,28 @@ export default function ContractOcrReviewPage({
                     </Button>
                   ))}
               </Form>
+              {isRetryableMode && (
+                <Button type="primary" loading={isAnalysisRetrying} onClick={handleRetryAnalysis} block>
+                  검수 요청 재시도
+                </Button>
+              )}
             </Space>
           </Card>
         </Col>
       </Row>
     </Space>
+  );
+}
+
+export default function ContractOcrReviewPage({
+  params,
+}: {
+  params: Promise<{ documentId: string }>;
+}) {
+  const { documentId } = use(params);
+  return (
+    <Suspense fallback={<Spin style={{ display: "block", textAlign: "center", margin: "80px 0" }} />}>
+      <ContractOcrReviewPageContent documentId={documentId} />
+    </Suspense>
   );
 }

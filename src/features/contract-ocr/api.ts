@@ -64,3 +64,7 @@ export async function retryContractOcrRegistration(
 ): Promise<void> {
   await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/registration-retry`, body);
 }
+
+export async function retryContractOcrAnalysis(documentId: string): Promise<void> {
+  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/analysis-retry`);
+}

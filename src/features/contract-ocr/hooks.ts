@@ -7,6 +7,7 @@ import {
   fetchContractOcrDraft,
   fetchContractOcrSources,
   rejectContractOcrAnalysis,
+  retryContractOcrAnalysis,
   retryContractOcrRegistration,
 } from "./api";
 import type { ContractOcrAnalysisCompletionRequest, ContractOcrListStatus } from "./types";
@@ -94,5 +95,13 @@ export function useRetryContractOcrRegistration() {
         queryClient.invalidateQueries({ queryKey: ["users"] }),
         queryClient.invalidateQueries({ queryKey: ["properties"] }),
       ]),
+  });
+}
+
+export function useRetryContractOcrAnalysis() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) => retryContractOcrAnalysis(documentId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: contractOcrKeys.all }),
   });
 }

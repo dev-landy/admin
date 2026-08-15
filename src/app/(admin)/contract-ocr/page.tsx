@@ -19,7 +19,8 @@ const STATUS_META: Record<string, { color: string; label: string }> = {
   QUEUED: { color: "gold", label: "대기" },
   PROCESSING: { color: "blue", label: "검수 중" },
   STORING: { color: "geekblue", label: "확정 중" },
-  REVIEW_REQUIRED: { color: "orange", label: "등록 안 됨" },
+  REVIEW_REQUIRED: { color: "orange", label: "재등록 필요" },
+  RETRYABLE_FAILED: { color: "volcano", label: "재시도 필요" },
   FINAL_FAILED: { color: "red", label: "인식 불가" },
 };
 
@@ -108,10 +109,17 @@ function ContractOcrPageContent() {
       render: (_, record) =>
         listStatus === "pending" ? (
           <Button type="primary" onClick={() => router.push(`/contract-ocr/${record.documentId}`)}>
-            검수
+            {record.analysisStatus === "REVIEW_REQUIRED"
+              ? "재등록"
+              : record.analysisStatus === "RETRYABLE_FAILED"
+                ? "재시도"
+                : "검수"}
           </Button>
         ) : (
-          <Button onClick={() => router.push(`/contract-ocr/${record.documentId}`)}>열람</Button>
+          // 완료 탭에서 들어간 상세만 "목록으로"가 완료 탭으로 복귀한다.
+          <Button onClick={() => router.push(`/contract-ocr/${record.documentId}?from=completed`)}>
+            열람
+          </Button>
         ),
     },
   ];
@@ -143,8 +151,8 @@ function ContractOcrPageContent() {
       <Space direction="vertical" size={16} style={{ width: "100%" }}>
         <Text type="secondary">
           {listStatus === "pending"
-            ? "검수 대기 중인 계약서 목록입니다. 계약서 이미지에는 세입자의 개인정보가 포함되어 있으므로 열람 내용은 화면 밖으로 옮기지 마세요."
-            : "검수 완료된 계약서 목록입니다(최신순). 원본 이미지는 업로드 7일 후 자동 삭제되어 열람이 안 될 수 있습니다."}
+            ? "아직 등록 또는 제외 결정이 끝나지 않은 계약서 목록입니다. 재등록·재시도가 필요한 문서도 이 탭에서 처리합니다."
+            : "등록 또는 제외 결정이 완료된 계약서 목록입니다(최신순). 원본 이미지는 업로드 7일 후 자동 삭제되어 열람이 안 될 수 있습니다."}
         </Text>
         <PagedTable
           columns={columns}
