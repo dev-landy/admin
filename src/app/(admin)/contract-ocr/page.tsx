@@ -148,7 +148,7 @@ function ContractOcrPageContent() {
         </Space>
       }
     >
-      <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      <Space orientation="vertical" size={16} style={{ width: "100%" }}>
         <Text type="secondary">
           {listStatus === "pending"
             ? "아직 등록 또는 제외 결정이 끝나지 않은 계약서 목록입니다. 재등록·재시도가 필요한 문서도 이 탭에서 처리합니다."

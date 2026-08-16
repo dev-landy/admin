@@ -227,7 +227,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
       : null;
 
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+    <Space orientation="vertical" size={16} style={{ width: "100%" }}>
       <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(listPath)}>
         목록으로
       </Button>
@@ -241,11 +241,11 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
               </Button>
             }
           >
-            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <Space orientation="vertical" size={12} style={{ width: "100%" }}>
               <Alert
                 type="warning"
                 showIcon
-                message="세입자의 개인정보가 포함된 문서입니다."
+                title="세입자의 개인정보가 포함된 문서입니다."
                 description={
                   <>
                     이미지·URL을 다운로드하거나 다른 곳(Slack 등)으로 옮기지 마세요.
@@ -260,12 +260,12 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
                 <Alert
                   type="error"
                   showIcon
-                  message={sourceProblem?.title ?? "원본을 불러오지 못했습니다."}
+                  title={sourceProblem?.title ?? "원본을 불러오지 못했습니다."}
                   description={sourceProblem?.detail}
                 />
               ) : (
                 <Image.PreviewGroup>
-                  <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                  <Space orientation="vertical" size={12} style={{ width: "100%" }}>
                     {data?.sources.map((source) => (
                       <Image
                         key={source.url}
@@ -288,14 +288,14 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
               </Title>
             }
           >
-            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <Space orientation="vertical" size={12} style={{ width: "100%" }}>
               {stateNotice ? (
-                <Alert type="info" showIcon message={stateNotice} />
+                <Alert type="info" showIcon title={stateNotice} />
               ) : isFallbackMode ? (
                 <Alert
                   type="warning"
                   showIcon
-                  message="자동 등록에 실패한 계약서입니다."
+                  title="자동 등록에 실패한 계약서입니다."
                   description={
                     isDraftError
                       ? "직전 제출 값을 불러오지 못했습니다. 원본을 보고 값을 다시 입력한 뒤 재등록해 주세요."

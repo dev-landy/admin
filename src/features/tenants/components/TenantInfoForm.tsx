@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -12,7 +12,7 @@ import {
   Row,
   Space,
 } from "antd";
-import type { FormInstance } from "antd";
+import type { FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 
@@ -153,6 +153,38 @@ function DateAddonPicker({
   );
 }
 
+function TextInputWithAddon({
+  addon,
+  style,
+  ...inputProps
+}: InputProps & { addon: ReactNode }) {
+  const { status } = Form.Item.useStatus();
+  const addonStatus = status === "error" || status === "warning" ? status : undefined;
+
+  return (
+    <Space.Compact block>
+      <Input {...inputProps} style={{ width: "100%", ...style }} />
+      <Space.Addon status={addonStatus}>{addon}</Space.Addon>
+    </Space.Compact>
+  );
+}
+
+function NumberInputWithAddon({
+  addon,
+  style,
+  ...inputProps
+}: InputNumberProps<number> & { addon: ReactNode }) {
+  const { status } = Form.Item.useStatus();
+  const addonStatus = status === "error" || status === "warning" ? status : undefined;
+
+  return (
+    <Space.Compact block>
+      <InputNumber<number> {...inputProps} style={{ width: "100%", ...style }} />
+      <Space.Addon status={addonStatus}>{addon}</Space.Addon>
+    </Space.Compact>
+  );
+}
+
 export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFormValues> }) {
   const basement = Form.useWatch("basement", form);
   return (
@@ -164,10 +196,10 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
           normalize={(value?: string) => value?.replace(/\D/g, "")}
           rules={[{ required: true, message: "호실을 입력해 주세요." }]}
         >
-          <Input
+          <TextInputWithAddon
             maxLength={10}
             placeholder="123"
-            addonAfter="호"
+            addon="호"
             inputMode="numeric"
             prefix={
               <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
@@ -250,7 +282,7 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
             { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
           ]}
         >
-          <InputNumber min={1} max={31} style={{ width: "100%" }} addonAfter="일" placeholder="25" />
+          <NumberInputWithAddon min={1} max={31} addon="일" placeholder="25" />
         </Form.Item>
       </Col>
       <Col span={12}>
@@ -262,7 +294,7 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
             { type: "number", min: 1, message: "월세는 1만원 이상이어야 합니다." },
           ]}
         >
-          <InputNumber min={1} style={{ width: "100%" }} addonAfter="만원" placeholder="50" />
+          <NumberInputWithAddon min={1} addon="만원" placeholder="50" />
         </Form.Item>
       </Col>
       <Col span={12}>
@@ -271,7 +303,7 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
           name="maintenanceFeeManwon"
           rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} addonAfter="만원" placeholder="0" />
+          <NumberInputWithAddon min={0} addon="만원" placeholder="0" />
         </Form.Item>
       </Col>
       <Col span={12}>
@@ -280,7 +312,7 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
           name="depositManwon"
           rules={[{ type: "number", min: 0, message: "보증금은 0 이상이어야 합니다." }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} addonAfter="만원" placeholder="0" />
+          <NumberInputWithAddon min={0} addon="만원" placeholder="0" />
         </Form.Item>
       </Col>
     </Row>
