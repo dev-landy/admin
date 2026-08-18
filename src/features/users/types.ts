@@ -1,3 +1,5 @@
+import type { BillingTiming } from "@/features/tenants/types";
+
 export type UserRole = "USER" | "ADMIN";
 export type OAuthProvider = "KAKAO" | "GOOGLE";
 export type UserStatus = "DRAFT" | "VERIFIED" | "ONBOARDED";
@@ -33,6 +35,9 @@ export type AdminUserTenant = {
   rentPrice: number;
   depositAmount?: number | null;
   paymentDay: number;
+  // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
+  // paymentDay와 함께 dueDate를 결정한다.
+  billingTiming: BillingTiming;
   startDate: string;
   endDate: string | null;
   notifyEnabled: boolean;

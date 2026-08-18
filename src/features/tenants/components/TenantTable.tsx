@@ -9,6 +9,7 @@ import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { formatManwon } from "@/lib/format/currency";
+import { formatBillingSchedule } from "../billingTiming";
 import { useDeleteTenant } from "../hooks";
 import type { TenantSummary } from "../types";
 
@@ -69,11 +70,12 @@ export function TenantTable({
       render: (v: number | null | undefined) => formatManwon(v),
     },
     {
-      title: "납부일",
-      dataIndex: "paymentDay",
-      width: 90,
+      title: "납부 조건",
+      key: "billingSchedule",
+      width: 140,
       align: "center",
-      render: (v: number) => `매월 ${v}일`,
+      render: (_: unknown, record: TenantSummary) =>
+        formatBillingSchedule(record.billingTiming, record.paymentDay),
     },
     {
       title: "계약 시작일",

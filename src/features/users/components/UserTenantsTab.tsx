@@ -5,6 +5,7 @@ import { Button, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
+import { formatBillingSchedule } from "@/features/tenants/billingTiming";
 import { formatManwon } from "@/lib/format/currency";
 import { useUserTenants } from "../hooks";
 import type { AdminUserTenant } from "../types";
@@ -28,7 +29,12 @@ export function UserTenantsTab({ userId }: { userId: number }) {
       dataIndex: "depositAmount",
       render: (v: number | null | undefined) => formatManwon(v),
     },
-    { title: "납부일", dataIndex: "paymentDay", width: 80, render: (v: number) => `매월 ${v}일` },
+    {
+      title: "납부 조건",
+      key: "billingSchedule",
+      width: 140,
+      render: (_, record) => formatBillingSchedule(record.billingTiming, record.paymentDay),
+    },
     { title: "계약 시작일", dataIndex: "startDate", width: 120 },
     { title: "계약 종료일", dataIndex: "endDate", width: 120, render: (v: string | null) => v ?? "-" },
     {
