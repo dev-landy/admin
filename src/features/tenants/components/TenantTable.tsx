@@ -109,6 +109,7 @@ export function TenantTable({
       dataIndex: "notifyEnabled",
       width: 90,
       align: "center",
+      filteredValue: filters.notifyEnabled === undefined ? null : [filters.notifyEnabled],
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select
