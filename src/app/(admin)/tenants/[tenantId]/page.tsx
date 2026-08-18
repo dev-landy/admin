@@ -25,7 +25,7 @@ export default function TenantDetailPage({ params }: Props) {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/tenants")}>목록으로</Button>
       <TenantDetailCard tenant={tenant} />
     </Space>

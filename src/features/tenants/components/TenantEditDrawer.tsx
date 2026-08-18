@@ -38,19 +38,19 @@ export function TenantEditDrawer({ tenant, open, onClose }: Props) {
       toUpdateTenantRequest(values),
       {
         onSuccess: () => {
-          notification.success({ message: "임차인 정보가 수정됐습니다." });
+          notification.success({ title: "임차인 정보가 수정됐습니다." });
           onClose();
         },
         onError: (err) => {
           const p = parseProblemDetail(err);
-          notification.error({ message: p?.title ?? "수정 실패", description: p?.detail });
+          notification.error({ title: p?.title ?? "수정 실패", description: p?.detail });
         },
       },
     );
   }
 
   return (
-    <Drawer title="임차인 정보 수정" open={open} onClose={onClose} width={480}>
+    <Drawer title="임차인 정보 수정" open={open} onClose={onClose} size={480}>
       <Form
         form={form}
         layout="vertical"
