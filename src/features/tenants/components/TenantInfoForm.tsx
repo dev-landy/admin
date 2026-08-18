@@ -10,13 +10,15 @@ import {
   Input,
   InputNumber,
   Row,
+  Select,
   Space,
 } from "antd";
 import type { FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 
-import type { TenantDetail } from "../types";
+import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
+import type { BillingTiming, TenantDetail, UpdateTenantRequest } from "../types";
 
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다 (금액은 만원 단위).
@@ -28,6 +30,9 @@ export type TenantInfoFormValues = {
   startDate?: Dayjs | null;
   endDate?: Dayjs | null;
   paymentDay?: number | null;
+  // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
+  // paymentDay와 함께 dueDate를 결정한다.
+  billingTiming?: BillingTiming;
   rentManwon?: number | null;
   maintenanceFeeManwon?: number | null;
   depositManwon?: number | null;
@@ -42,8 +47,15 @@ export type TenantInfoValues = {
   maintenanceFee: number | null;
   depositAmount: number | null;
   paymentDay: number | null;
+  // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
+  // paymentDay와 함께 dueDate를 결정한다.
+  billingTiming: BillingTiming;
   startDate: string | null;
   endDate: string | null;
+};
+
+type TenantInfoSourceValues = Omit<TenantInfoValues, "billingTiming"> & {
+  billingTiming?: BillingTiming | null;
 };
 
 function toWon(manwon: number | null | undefined): number | null {
@@ -79,13 +91,14 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
     maintenanceFee: toWon(form.maintenanceFeeManwon) ?? 0,
     depositAmount: toWon(form.depositManwon) ?? 0,
     paymentDay: form.paymentDay ?? null,
+    billingTiming: normalizeBillingTiming(form.billingTiming),
     startDate: form.startDate ? form.startDate.format("YYYY-MM-DD") : null,
     endDate: form.endDate ? form.endDate.format("YYYY-MM-DD") : null,
   };
 }
 
 // 서버 계약 형태의 값을 폼 형태로 되돌린다 (B접두 호실 분해, 원 → 만원, 전화번호 대시 포맷).
-export function fromTenantValues(values: TenantInfoValues): TenantInfoFormValues {
+export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoFormValues {
   const roomNumber = String(values.roomNumber ?? "").trim();
   const basement = roomNumber.startsWith("B");
   return {
@@ -96,6 +109,7 @@ export function fromTenantValues(values: TenantInfoValues): TenantInfoFormValues
     startDate: values.startDate ? dayjs(values.startDate) : null,
     endDate: values.endDate ? dayjs(values.endDate) : null,
     paymentDay: values.paymentDay,
+    billingTiming: normalizeBillingTiming(values.billingTiming),
     rentManwon: values.rentPrice != null ? values.rentPrice / 10_000 : undefined,
     maintenanceFeeManwon: values.maintenanceFee != null ? values.maintenanceFee / 10_000 : undefined,
     depositManwon: values.depositAmount != null ? values.depositAmount / 10_000 : undefined,
@@ -112,6 +126,21 @@ export function fromTenantDetail(tenant: TenantDetail): TenantInfoFormValues {
   });
 }
 
+export function toUpdateTenantRequest(form: TenantInfoFormValues): UpdateTenantRequest {
+  const values = toTenantValues(form);
+  return {
+    name: values.name ?? undefined,
+    roomNumber: values.roomNumber ?? undefined,
+    phone: values.phone ?? undefined,
+    rentPrice: values.rentPrice ?? undefined,
+    maintenanceFee: values.maintenanceFee ?? undefined,
+    depositAmount: values.depositAmount ?? undefined,
+    paymentDay: values.paymentDay ?? undefined,
+    startDate: values.startDate ?? undefined,
+    endDate: values.endDate ?? undefined,
+  };
+}
+
 export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
   return Boolean(
     values?.room?.trim() &&
@@ -119,6 +148,7 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.phone?.trim() &&
       values?.startDate &&
       values?.paymentDay != null &&
+      values?.billingTiming != null &&
       values?.rentManwon != null &&
       values.rentManwon > 0,
   );
@@ -185,7 +215,40 @@ function NumberInputWithAddon({
   );
 }
 
-export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFormValues> }) {
+function BillingScheduleInput({
+  billingTimingEditable,
+  style,
+  ...paymentDayProps
+}: InputNumberProps<number> & { billingTimingEditable: boolean }) {
+  const { status } = Form.Item.useStatus();
+  const addonStatus = status === "error" || status === "warning" ? status : undefined;
+
+  return (
+    <Space.Compact block>
+      <Form.Item name="billingTiming" noStyle>
+        <Select<BillingTiming>
+          aria-label="납부 방식"
+          disabled={!billingTimingEditable}
+          options={BILLING_TIMING_OPTIONS}
+          style={{ width: 100, flexShrink: 0 }}
+        />
+      </Form.Item>
+      <InputNumber<number>
+        {...paymentDayProps}
+        style={{ flex: 1, minWidth: 0, ...style }}
+      />
+      <Space.Addon status={addonStatus}>일</Space.Addon>
+    </Space.Compact>
+  );
+}
+
+export function TenantInfoFormFields({
+  form,
+  billingTimingEditable,
+}: {
+  form: FormInstance<TenantInfoFormValues>;
+  billingTimingEditable: boolean;
+}) {
   const basement = Form.useWatch("basement", form);
   return (
     <Row gutter={12}>
@@ -275,14 +338,20 @@ export function TenantInfoFormFields({ form }: { form: FormInstance<TenantInfoFo
       </Col>
       <Col span={12}>
         <Form.Item
-          label="납부일 (1~31)"
+          label="납부일"
           name="paymentDay"
+          extra="1~31 사이의 날짜를 입력하세요."
           rules={[
             { required: true, message: "납부일을 입력해 주세요." },
             { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
           ]}
         >
-          <NumberInputWithAddon min={1} max={31} addon="일" placeholder="25" />
+          <BillingScheduleInput
+            min={1}
+            max={31}
+            placeholder="25"
+            billingTimingEditable={billingTimingEditable}
+          />
         </Form.Item>
       </Col>
       <Col span={12}>

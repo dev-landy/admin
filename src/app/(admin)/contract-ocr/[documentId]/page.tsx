@@ -36,6 +36,7 @@ import {
   fromTenantValues,
   isTenantFormComplete,
   toTenantValues,
+  toUpdateTenantRequest,
 } from "@/features/tenants/components/TenantInfoForm";
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -160,17 +161,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
     }
     if (isEditMode) {
       patchTenant(
-        {
-          name: draft.name ?? undefined,
-          roomNumber: draft.roomNumber ?? undefined,
-          phone: draft.phone ?? undefined,
-          rentPrice: draft.rentPrice ?? undefined,
-          maintenanceFee: draft.maintenanceFee ?? undefined,
-          depositAmount: draft.depositAmount ?? undefined,
-          paymentDay: draft.paymentDay ?? undefined,
-          startDate: draft.startDate ?? undefined,
-          endDate: draft.endDate ?? undefined,
-        },
+        toUpdateTenantRequest(values),
         {
           onSuccess: () => {
             notification.success({ message: "임차인 정보가 수정됐습니다." });
@@ -314,9 +305,12 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
                 layout="vertical"
                 onFinish={handleSubmit}
                 disabled={isBusy || !formEditable}
-                initialValues={{ basement: false }}
+                initialValues={{ basement: false, billingTiming: "PREPAID" }}
               >
-                <TenantInfoFormFields form={form} />
+                <TenantInfoFormFields
+                  form={form}
+                  billingTimingEditable={isPendingMode || isFallbackMode}
+                />
                 {formEditable &&
                   (isPendingMode ? (
                     <Row gutter={8}>

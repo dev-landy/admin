@@ -1,3 +1,5 @@
+import type { BillingTiming } from "@/features/tenants/types";
+
 export type ContractOcrAnalysisStatus =
   | "QUEUED"
   | "PROCESSING"
@@ -49,6 +51,9 @@ export type ContractOcrDraftValues = {
   maintenanceFee: number | null;
   depositAmount: number | null;
   paymentDay: number | null;
+  // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
+  // paymentDay와 함께 dueDate를 결정한다.
+  billingTiming: BillingTiming | null;
   startDate: string | null;
   endDate: string | null;
 };

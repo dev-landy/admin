@@ -11,6 +11,7 @@ import {
   type TenantInfoFormValues,
   fromTenantDetail,
   toTenantValues,
+  toUpdateTenantRequest,
 } from "./TenantInfoForm";
 
 type Props = { tenant: TenantDetail; open: boolean; onClose: () => void };
@@ -33,19 +34,8 @@ export function TenantEditDrawer({ tenant, open, onClose }: Props) {
     watched !== undefined && JSON.stringify(toTenantValues(watched)) !== initialSnapshot;
 
   function handleFinish(values: TenantInfoFormValues) {
-    const next = toTenantValues(values);
     update(
-      {
-        name: next.name ?? undefined,
-        roomNumber: next.roomNumber ?? undefined,
-        phone: next.phone ?? undefined,
-        rentPrice: next.rentPrice ?? undefined,
-        maintenanceFee: next.maintenanceFee ?? undefined,
-        depositAmount: next.depositAmount ?? undefined,
-        paymentDay: next.paymentDay ?? undefined,
-        startDate: next.startDate ?? undefined,
-        endDate: next.endDate ?? undefined,
-      },
+      toUpdateTenantRequest(values),
       {
         onSuccess: () => {
           notification.success({ message: "임차인 정보가 수정됐습니다." });
@@ -67,7 +57,7 @@ export function TenantEditDrawer({ tenant, open, onClose }: Props) {
         initialValues={fromTenantDetail(tenant)}
         onFinish={handleFinish}
       >
-        <TenantInfoFormFields form={form} />
+        <TenantInfoFormFields form={form} billingTimingEditable={false} />
         <Button type="primary" htmlType="submit" loading={isPending} disabled={!isDirty} block>
           수정
         </Button>
