@@ -1,6 +1,9 @@
 /** 월세 귀속월을 기준으로 납부월이 같은 달(PREPAID)인지 다음 달(POSTPAID)인지 나타낸다. */
 export type BillingTiming = "PREPAID" | "POSTPAID";
 
+/** 임대료가 매월 청구되는 월세인지, 계약 기념월마다 청구되는 연세인지 나타낸다. */
+export type BillingCycle = "MONTHLY" | "YEARLY";
+
 export type TenantSummary = {
   tenantId: number;
   userId: number;
@@ -13,6 +16,8 @@ export type TenantSummary = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming: BillingTiming;
+  // MONTHLY면 rentPrice는 월액, YEARLY면 연액이다.
+  rentBillingCycle: BillingCycle;
   startDate: string;
   endDate: string | null;
   notifyEnabled: boolean;

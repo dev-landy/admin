@@ -5,6 +5,7 @@ import { Button, Modal, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
+import { formatRentSchedule } from "@/features/tenants/billingCycle";
 import { formatBillingSchedule } from "@/features/tenants/billingTiming";
 import { formatManwon } from "@/lib/format/currency";
 import { usePropertyTenants } from "../hooks";
@@ -29,7 +30,11 @@ export function PropertyTenantsModal({
     { title: "이름", dataIndex: "name" },
     { title: "호실", dataIndex: "roomNumber", width: 80 },
     { title: "전화번호", dataIndex: "phone", width: 140 },
-    { title: "월세", dataIndex: "rentPrice", render: (value: number) => formatManwon(value) },
+    {
+      title: "임대료",
+      key: "rentSchedule",
+      render: (_, record) => formatRentSchedule(record.rentBillingCycle, record.rentPrice),
+    },
     {
       title: "관리비",
       dataIndex: "maintenanceFee",

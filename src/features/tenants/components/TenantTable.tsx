@@ -9,6 +9,7 @@ import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { formatManwon } from "@/lib/format/currency";
+import { formatRentSchedule } from "../billingCycle";
 import { formatBillingSchedule } from "../billingTiming";
 import { useDeleteTenant } from "../hooks";
 import type { TenantSummary } from "../types";
@@ -56,7 +57,13 @@ export function TenantTable({
     },
     { title: "이름", dataIndex: "name", align: "center" },
     { title: "호실", dataIndex: "roomNumber", width: 80, align: "center" },
-    { title: "월세", dataIndex: "rentPrice", align: "center", render: (v: number) => formatManwon(v) },
+    {
+      title: "임대료",
+      key: "rentSchedule",
+      align: "center",
+      render: (_: unknown, record: TenantSummary) =>
+        formatRentSchedule(record.rentBillingCycle, record.rentPrice),
+    },
     {
       title: "관리비",
       dataIndex: "maintenanceFee",

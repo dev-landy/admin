@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { formatManwon } from "@/lib/format/currency";
+import { formatRentSchedule } from "../billingCycle";
 import { formatBillingSchedule } from "../billingTiming";
 import { useDeleteTenant } from "../hooks";
 import { TenantEditDrawer } from "./TenantEditDrawer";
@@ -44,7 +45,9 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
           <Descriptions.Item label="유저 ID">{tenant.userId}</Descriptions.Item>
           <Descriptions.Item label="호실">{tenant.roomNumber}</Descriptions.Item>
           <Descriptions.Item label="전화번호">{tenant.phone}</Descriptions.Item>
-          <Descriptions.Item label="월세">{formatManwon(tenant.rentPrice)}</Descriptions.Item>
+          <Descriptions.Item label="임대료">
+            {formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice)}
+          </Descriptions.Item>
           <Descriptions.Item label="관리비">{formatManwon(tenant.maintenanceFee)}</Descriptions.Item>
           <Descriptions.Item label="보증금">{formatManwon(tenant.depositAmount)}</Descriptions.Item>
           <Descriptions.Item label="납부 조건">

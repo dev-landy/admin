@@ -36,7 +36,8 @@ jest.mock("@/features/properties/hooks", () => ({
           rentPrice: 500_000,
           depositAmount: 10_000_000,
           paymentDay: 25,
-          billingTiming: "POSTPAID",
+          billingTiming: "PREPAID",
+          rentBillingCycle: "YEARLY",
           startDate: "2026-07-01",
           endDate: null,
           notifyEnabled: true,
@@ -60,7 +61,9 @@ test("건물 소속 임차인의 납부 조건과 계약 시작일을 표시한�
   );
 
   expect(screen.getByRole("columnheader", { name: "납부 조건" })).toBeInTheDocument();
-  expect(screen.getByText("후불 · 매월 25일")).toBeInTheDocument();
+  expect(screen.getByText("선불 · 매월 25일")).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "임대료" })).toBeInTheDocument();
+  expect(screen.getByText("매년 · 50만원")).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "계약 시작일" })).toBeInTheDocument();
   expect(screen.getByText("2026-07-01")).toBeInTheDocument();
 });
