@@ -57,7 +57,11 @@ export function TenantEditDrawer({ tenant, open, onClose }: Props) {
         initialValues={fromTenantDetail(tenant)}
         onFinish={handleFinish}
       >
-        <TenantInfoFormFields form={form} billingTimingEditable={false} />
+        <TenantInfoFormFields
+          form={form}
+          billingTimingEditable={false}
+          rentBillingCycleEditable={false}
+        />
         <Button type="primary" htmlType="submit" loading={isPending} disabled={!isDirty} block>
           수정
         </Button>

@@ -1,4 +1,4 @@
-import type { BillingTiming } from "@/features/tenants/types";
+import type { BillingCycle, BillingTiming } from "@/features/tenants/types";
 
 export type ContractOcrAnalysisStatus =
   | "QUEUED"
@@ -54,6 +54,8 @@ export type ContractOcrDraftValues = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming: BillingTiming | null;
+  // MONTHLY면 rentPrice는 월액, YEARLY면 연액이다.
+  rentBillingCycle: BillingCycle | null;
   startDate: string | null;
   endDate: string | null;
 };

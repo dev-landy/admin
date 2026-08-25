@@ -305,11 +305,16 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
                 layout="vertical"
                 onFinish={handleSubmit}
                 disabled={isBusy || !formEditable}
-                initialValues={{ basement: false, billingTiming: "PREPAID" }}
+                initialValues={{
+                  basement: false,
+                  billingTiming: "PREPAID",
+                  rentBillingCycle: "MONTHLY",
+                }}
               >
                 <TenantInfoFormFields
                   form={form}
                   billingTimingEditable={isPendingMode || isFallbackMode}
+                  rentBillingCycleEditable={isPendingMode || isFallbackMode}
                 />
                 {formEditable &&
                   (isPendingMode ? (

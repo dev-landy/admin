@@ -17,8 +17,9 @@ import type { FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 
+import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
-import type { BillingTiming, TenantDetail, UpdateTenantRequest } from "../types";
+import type { BillingCycle, BillingTiming, TenantDetail, UpdateTenantRequest } from "../types";
 
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다 (금액은 만원 단위).
@@ -33,6 +34,7 @@ export type TenantInfoFormValues = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming?: BillingTiming;
+  rentBillingCycle?: BillingCycle;
   rentManwon?: number | null;
   maintenanceFeeManwon?: number | null;
   depositManwon?: number | null;
@@ -50,12 +52,14 @@ export type TenantInfoValues = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming: BillingTiming;
+  rentBillingCycle: BillingCycle;
   startDate: string | null;
   endDate: string | null;
 };
 
-type TenantInfoSourceValues = Omit<TenantInfoValues, "billingTiming"> & {
+type TenantInfoSourceValues = Omit<TenantInfoValues, "billingTiming" | "rentBillingCycle"> & {
   billingTiming?: BillingTiming | null;
+  rentBillingCycle?: BillingCycle | null;
 };
 
 function toWon(manwon: number | null | undefined): number | null {
@@ -82,6 +86,7 @@ export function formatPhone(raw?: string): string | undefined {
 
 export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
   const room = form.room?.trim();
+  const rentBillingCycle = normalizeBillingCycle(form.rentBillingCycle);
   return {
     name: form.name?.trim() || null,
     roomNumber: room ? `${form.basement ? "B" : ""}${room}` : null,
@@ -91,7 +96,10 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
     maintenanceFee: toWon(form.maintenanceFeeManwon) ?? 0,
     depositAmount: toWon(form.depositManwon) ?? 0,
     paymentDay: form.paymentDay ?? null,
-    billingTiming: normalizeBillingTiming(form.billingTiming),
+    // 연세 후불은 서버 도메인에서 허용하지 않는다. UI 상태가 어긋나도 writer 경계에서 선불로 보정한다.
+    billingTiming:
+      rentBillingCycle === "YEARLY" ? "PREPAID" : normalizeBillingTiming(form.billingTiming),
+    rentBillingCycle,
     startDate: form.startDate ? form.startDate.format("YYYY-MM-DD") : null,
     endDate: form.endDate ? form.endDate.format("YYYY-MM-DD") : null,
   };
@@ -101,6 +109,7 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
 export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoFormValues {
   const roomNumber = String(values.roomNumber ?? "").trim();
   const basement = roomNumber.startsWith("B");
+  const rentBillingCycle = normalizeBillingCycle(values.rentBillingCycle);
   return {
     room: basement ? roomNumber.slice(1) : roomNumber,
     basement,
@@ -109,7 +118,9 @@ export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoForm
     startDate: values.startDate ? dayjs(values.startDate) : null,
     endDate: values.endDate ? dayjs(values.endDate) : null,
     paymentDay: values.paymentDay,
-    billingTiming: normalizeBillingTiming(values.billingTiming),
+    billingTiming:
+      rentBillingCycle === "YEARLY" ? "PREPAID" : normalizeBillingTiming(values.billingTiming),
+    rentBillingCycle,
     rentManwon: values.rentPrice != null ? values.rentPrice / 10_000 : undefined,
     maintenanceFeeManwon: values.maintenanceFee != null ? values.maintenanceFee / 10_000 : undefined,
     depositManwon: values.depositAmount != null ? values.depositAmount / 10_000 : undefined,
@@ -149,6 +160,8 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.startDate &&
       values?.paymentDay != null &&
       values?.billingTiming != null &&
+      values?.rentBillingCycle != null &&
+      !(values.rentBillingCycle === "YEARLY" && values.billingTiming === "POSTPAID") &&
       values?.rentManwon != null &&
       values.rentManwon > 0,
   );
@@ -157,28 +170,39 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
 // DatePicker에는 Input의 addonAfter가 없어서, "일"·"만원" addon과 같은 룩의
 // 달력 버튼을 Space.Compact로 붙인다. 직접 타이핑(YYYY-MM-DD)은 그대로 동작한다.
 function DateAddonPicker({
+  id,
   value,
   onChange,
   placeholder,
+  disabled,
 }: {
+  id?: string;
   value?: Dayjs | null;
   onChange?: (value: Dayjs | null) => void;
   placeholder: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <Space.Compact style={{ width: "100%" }}>
       <DatePicker
+        id={id}
         value={value ?? null}
         onChange={(next) => onChange?.(next)}
         format="YYYY-MM-DD"
         placeholder={placeholder}
+        disabled={disabled}
         style={{ width: "100%" }}
         open={open}
         onOpenChange={setOpen}
         suffixIcon={null}
       />
-      <Button icon={<CalendarOutlined />} aria-label="날짜 선택" onClick={() => setOpen(true)} />
+      <Button
+        icon={<CalendarOutlined />}
+        aria-label="날짜 선택"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      />
     </Space.Compact>
   );
 }
@@ -217,9 +241,10 @@ function NumberInputWithAddon({
 
 function BillingScheduleInput({
   billingTimingEditable,
+  yearly,
   style,
   ...paymentDayProps
-}: InputNumberProps<number> & { billingTimingEditable: boolean }) {
+}: InputNumberProps<number> & { billingTimingEditable: boolean; yearly: boolean }) {
   const { status } = Form.Item.useStatus();
   const addonStatus = status === "error" || status === "warning" ? status : undefined;
 
@@ -229,7 +254,10 @@ function BillingScheduleInput({
         <Select<BillingTiming>
           aria-label="납부 방식"
           disabled={!billingTimingEditable}
-          options={BILLING_TIMING_OPTIONS}
+          options={BILLING_TIMING_OPTIONS.map((option) => ({
+            ...option,
+            disabled: yearly && option.value === "POSTPAID",
+          }))}
           style={{ width: 100, flexShrink: 0 }}
         />
       </Form.Item>
@@ -242,14 +270,52 @@ function BillingScheduleInput({
   );
 }
 
+function RentScheduleInput({
+  formInstance,
+  rentBillingCycleEditable,
+  style,
+  ...rentProps
+}: InputNumberProps<number> & {
+  formInstance: FormInstance<TenantInfoFormValues>;
+  rentBillingCycleEditable: boolean;
+}) {
+  const { status } = Form.Item.useStatus();
+  const addonStatus = status === "error" || status === "warning" ? status : undefined;
+
+  return (
+    <Space.Compact block>
+      <Form.Item name="rentBillingCycle" noStyle>
+        <Select<BillingCycle>
+          aria-label="임대료 청구 주기"
+          disabled={!rentBillingCycleEditable}
+          options={BILLING_CYCLE_OPTIONS}
+          style={{ width: 100, flexShrink: 0 }}
+          onChange={(cycle) => {
+            if (cycle === "YEARLY") {
+              formInstance.setFieldValue("billingTiming", "PREPAID");
+            }
+          }}
+        />
+      </Form.Item>
+      <InputNumber<number> {...rentProps} style={{ flex: 1, minWidth: 0, ...style }} />
+      <Space.Addon status={addonStatus}>만원</Space.Addon>
+    </Space.Compact>
+  );
+}
+
 export function TenantInfoFormFields({
   form,
   billingTimingEditable,
+  rentBillingCycleEditable,
 }: {
   form: FormInstance<TenantInfoFormValues>;
   billingTimingEditable: boolean;
+  rentBillingCycleEditable: boolean;
 }) {
   const basement = Form.useWatch("basement", form);
+  const rentBillingCycle = normalizeBillingCycle(Form.useWatch("rentBillingCycle", form));
+  const yearlyStartDateImmutable =
+    rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
   return (
     <Row gutter={12}>
       <Col span={16}>
@@ -302,10 +368,16 @@ export function TenantInfoFormFields({
         <Form.Item
           label="계약 시작일"
           name="startDate"
+          extra={
+            yearlyStartDateImmutable
+              ? "연세 계약의 시작일은 등록 후 수정할 수 없습니다."
+              : undefined
+          }
           rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
         >
           <DateAddonPicker
             placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
+            disabled={yearlyStartDateImmutable}
           />
         </Form.Item>
       </Col>
@@ -351,19 +423,25 @@ export function TenantInfoFormFields({
             max={31}
             placeholder="25"
             billingTimingEditable={billingTimingEditable}
+            yearly={rentBillingCycle === "YEARLY"}
           />
         </Form.Item>
       </Col>
       <Col span={12}>
         <Form.Item
-          label="월세"
+          label="임대료"
           name="rentManwon"
           rules={[
-            { required: true, message: "월세를 입력해 주세요." },
-            { type: "number", min: 1, message: "월세는 1만원 이상이어야 합니다." },
+            { required: true, message: "임대료를 입력해 주세요." },
+            { type: "number", min: 1, message: "임대료는 1만원 이상이어야 합니다." },
           ]}
         >
-          <NumberInputWithAddon min={1} addon="만원" placeholder="50" />
+          <RentScheduleInput
+            formInstance={form}
+            min={1}
+            placeholder="50"
+            rentBillingCycleEditable={rentBillingCycleEditable}
+          />
         </Form.Item>
       </Col>
       <Col span={12}>
