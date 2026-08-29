@@ -1,6 +1,6 @@
 "use client";
 
-import { Table, type TableColumnsType } from "antd";
+import { Table, type TableColumnsType, type TableProps } from "antd";
 
 type PagedTableProps<T> = {
   columns: TableColumnsType<T>;
@@ -11,6 +11,7 @@ type PagedTableProps<T> = {
   total: number;
   onPageChange: (page: number, pageSize: number) => void;
   rowKey: keyof T | ((record: T) => string);
+  onRow?: TableProps<T>["onRow"];
 };
 
 export function PagedTable<T extends object>({
@@ -22,6 +23,7 @@ export function PagedTable<T extends object>({
   total,
   onPageChange,
   rowKey,
+  onRow,
 }: PagedTableProps<T>) {
   return (
     <Table
@@ -29,6 +31,7 @@ export function PagedTable<T extends object>({
       dataSource={dataSource}
       loading={loading}
       rowKey={rowKey as string | ((record: T) => string)}
+      onRow={onRow}
       pagination={{
         current: page,
         pageSize,

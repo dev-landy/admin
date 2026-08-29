@@ -4,12 +4,13 @@ export type OutboxStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED";
 export type Notification = {
   notificationId: number;
   userId: number;
-  tenantId: number;
+  tenantId: number | null;
   title: string;
-  content: string;
+  content?: string;
   type: NotificationType;
   targetDate: string;
-  sentAt: string;
+  sentAt?: string;
+  createdAt?: string;
   isRead: boolean;
 };
 
