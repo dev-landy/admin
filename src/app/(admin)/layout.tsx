@@ -37,8 +37,8 @@ const MENU_ITEMS = [
   { key: "/notifications/outbox", icon: <MailOutlined />, label: "알림 Outbox" },
   { key: "/fcm", icon: <SendOutlined />, label: "FCM 테스트" },
   { key: "/release-policies", icon: <DeploymentUnitOutlined />, label: "릴리즈 정책" },
+  { key: "/batch/schedules", icon: <ClockCircleOutlined />, label: "배치 설정" },
   { key: "/batch", icon: <HistoryOutlined />, label: "배치 실행 이력" },
-  { key: "/batch/schedules", icon: <ClockCircleOutlined />, label: "배치 실행 시간" },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

@@ -101,7 +101,6 @@ export type BatchSchedule = {
   jobName: string;
   label: string;
   cronExpression: string;
-  zoneId: string;
   enabled: boolean;
   nextExecutionAt: string | null;
   updatedAt: string;
@@ -111,7 +110,6 @@ export type BatchSchedulesResponse = { schedules: BatchSchedule[] };
 
 export type UpdateBatchScheduleRequest = {
   cronExpression: string;
-  zoneId: string;
   enabled: boolean;
 };
 

@@ -88,7 +88,7 @@ test("배치 스케줄 목록과 Job 이름 목록을 조회한다", async () =>
 });
 
 test("배치 스케줄을 key 경로로 수정한다", async () => {
-  const body = { cronExpression: "0 0 9 * * *", zoneId: "Asia/Seoul", enabled: true };
+  const body = { cronExpression: "0 0 9 * * *", enabled: true };
   mockPatch.mockResolvedValue({ data: { key: "DAILY_NOTIFICATION", ...body } });
 
   await updateBatchSchedule("DAILY_NOTIFICATION", body);
