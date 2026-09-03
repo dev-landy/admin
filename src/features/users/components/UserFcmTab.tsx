@@ -45,10 +45,10 @@ export function UserFcmTab({ userId }: { userId: number }) {
               updateSilentWakeup(
                 { fcmTokenId: record.fcmTokenId, subscribed },
                 {
-                  onSuccess: () => notification.success({ message: "Silent Push 구독 상태가 변경되었습니다." }),
+                  onSuccess: () => notification.success({ title: "Silent Push 구독 상태가 변경되었습니다." }),
                   onError: (err) => {
                     const p = parseProblemDetail(err);
-                    notification.error({ message: p?.title ?? "구독 상태 변경 실패", description: p?.detail });
+                    notification.error({ title: p?.title ?? "구독 상태 변경 실패", description: p?.detail });
                   },
                 },
               )
@@ -76,12 +76,12 @@ export function UserFcmTab({ userId }: { userId: number }) {
                 sendSilentMessage(record.fcmTokenId, {
                   onSuccess: (res) =>
                     notification.success({
-                      message: "Silent 테스트 발송 완료",
+                      title: "Silent 테스트 발송 완료",
                       description: `messageId: ${res.messageId}`,
                     }),
                   onError: (err) => {
                     const p = parseProblemDetail(err);
-                    notification.error({ message: p?.title ?? "Silent 테스트 발송 실패", description: p?.detail });
+                    notification.error({ title: p?.title ?? "Silent 테스트 발송 실패", description: p?.detail });
                   },
                 })
               }
@@ -97,7 +97,7 @@ export function UserFcmTab({ userId }: { userId: number }) {
               deactivate(record.fcmTokenId, {
                 onError: (err) => {
                   const p = parseProblemDetail(err);
-                  notification.error({ message: p?.title ?? "비활성화 실패", description: p?.detail });
+                  notification.error({ title: p?.title ?? "비활성화 실패", description: p?.detail });
                 },
               })
             }

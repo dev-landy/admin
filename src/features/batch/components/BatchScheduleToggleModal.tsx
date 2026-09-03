@@ -45,7 +45,7 @@ export function BatchScheduleToggleModal({
           <Alert
             type="warning"
             showIcon
-            message={
+            title={
               enabled
                 ? `${schedule.label} 트리거가 다시 예약됩니다. 지금부터 ${cronDescription} 일정으로 실행됩니다.`
                 : `${schedule.label} 트리거가 예약에서 빠집니다. 다시 활성화하기 전까지 ${cronDescription} 예정이던 실행이 돌지 않습니다.`

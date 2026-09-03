@@ -145,7 +145,7 @@ export function TenantTable({
               deleteTenant(record.tenantId, {
                 onError: (err) => {
                   const p = parseProblemDetail(err);
-                  notification.error({ message: p?.title ?? "삭제 실패", description: p?.detail });
+                  notification.error({ title: p?.title ?? "삭제 실패", description: p?.detail });
                 },
               })
             }

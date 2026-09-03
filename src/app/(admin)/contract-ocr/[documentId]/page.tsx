@@ -101,7 +101,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
     reject(documentId, {
       onSuccess: () => {
         notification.success({
-          message: "인식 불가로 처리했습니다.",
+          title: "인식 불가로 처리했습니다.",
           description: "사용자에게 등록 실패 푸시가 발송됩니다.",
         });
         router.push("/contract-ocr");
@@ -109,7 +109,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
       onError: (err) => {
         const problem = parseProblemDetail(err);
         notification.error({
-          message: problem?.title ?? "인식 불가 처리 실패",
+          title: problem?.title ?? "인식 불가 처리 실패",
           description: problem?.detail,
         });
       },
@@ -120,7 +120,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
     retryAnalysis(documentId, {
       onSuccess: () => {
         notification.success({
-          message: "검수 요청을 다시 등록했습니다.",
+          title: "검수 요청을 다시 등록했습니다.",
           description: "검수 대기 탭에서 처리 상태를 확인할 수 있습니다.",
         });
         router.push("/contract-ocr");
@@ -128,7 +128,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
       onError: (err) => {
         const problem = parseProblemDetail(err);
         notification.error({
-          message: problem?.title ?? "분석 재시도 실패",
+          title: problem?.title ?? "분석 재시도 실패",
           description: problem?.detail,
         });
       },
@@ -143,7 +143,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
         {
           onSuccess: () => {
             notification.success({
-              message: "임차인으로 재등록했습니다.",
+              title: "임차인으로 재등록했습니다.",
               description: "사용자에게 완료 푸시가 발송됩니다.",
             });
             router.push(listPath);
@@ -151,7 +151,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
           onError: (err) => {
             const problem = parseProblemDetail(err);
             notification.error({
-              message: problem?.title ?? "재등록 실패",
+              title: problem?.title ?? "재등록 실패",
               description: problem?.detail ?? "입력 값을 다시 확인해 주세요.",
             });
           },
@@ -164,12 +164,12 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
         toUpdateTenantRequest(values),
         {
           onSuccess: () => {
-            notification.success({ message: "임차인 정보가 수정됐습니다." });
+            notification.success({ title: "임차인 정보가 수정됐습니다." });
           },
           onError: (err) => {
             const problem = parseProblemDetail(err);
             notification.error({
-              message: problem?.title ?? "수정 실패",
+              title: problem?.title ?? "수정 실패",
               description: problem?.detail,
             });
           },
@@ -182,7 +182,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
       {
         onSuccess: () => {
           notification.success({
-            message: "검수를 제출했습니다.",
+            title: "검수를 제출했습니다.",
             description: "잠시 후 임차인으로 자동 등록되고 사용자에게 완료 푸시가 발송됩니다.",
           });
           router.push("/contract-ocr");
@@ -190,7 +190,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
         onError: (err) => {
           const problem = parseProblemDetail(err);
           notification.error({
-            message: problem?.title ?? "제출 실패",
+            title: problem?.title ?? "제출 실패",
             description: problem?.detail,
           });
         },

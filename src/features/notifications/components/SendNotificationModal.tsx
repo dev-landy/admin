@@ -22,7 +22,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
       send(values, {
         onSuccess: (res: SendCustomNotificationResponse) => {
           notification.success({
-            message: "알림 발송 완료",
+            title: "알림 발송 완료",
             description: (
               <Text>
                 알림 ID {res.notificationId} — 전송 {res.sent} / 실패 {res.failed} / 건너뜀 {res.skipped}
@@ -34,7 +34,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
         },
         onError: (err) => {
           const p = parseProblemDetail(err);
-          notification.error({ message: p?.title ?? "발송 실패", description: p?.detail });
+          notification.error({ title: p?.title ?? "발송 실패", description: p?.detail });
         },
       });
     });

@@ -24,13 +24,13 @@ export function FcmSilentPushCard() {
     sendWakeup(undefined, {
       onSuccess: (res) => {
         notification.success({
-          message: "silent-wakeup 발송 완료",
+          title: "silent-wakeup 발송 완료",
           description: `messageId: ${res.messageId}`,
         });
       },
       onError: (err) => {
         const p = parseProblemDetail(err);
-        notification.error({ message: p?.title ?? "silent-wakeup 발송 실패", description: p?.detail });
+        notification.error({ title: p?.title ?? "silent-wakeup 발송 실패", description: p?.detail });
       },
     });
   }
@@ -43,14 +43,14 @@ export function FcmSilentPushCard() {
         {
           onSuccess: (res) => {
             notification.success({
-              message: "silent push 발송 완료",
+              title: "silent push 발송 완료",
               description: `messageId: ${res.messageId}`,
             });
             form.resetFields();
           },
           onError: (err) => {
             const p = parseProblemDetail(err);
-            notification.error({ message: p?.title ?? "silent push 발송 실패", description: p?.detail });
+            notification.error({ title: p?.title ?? "silent push 발송 실패", description: p?.detail });
           },
         },
       );

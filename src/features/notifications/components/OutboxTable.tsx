@@ -75,10 +75,10 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
             loading={isRequeueing}
             onClick={() =>
               requeue(record.notificationOutboxEventId, {
-                onSuccess: () => notification.success({ message: "재시도 큐에 추가되었습니다." }),
+                onSuccess: () => notification.success({ title: "재시도 큐에 추가되었습니다." }),
                 onError: (err) => {
                   const p = parseProblemDetail(err);
-                  notification.error({ message: p?.title ?? "Requeue 실패", description: p?.detail });
+                  notification.error({ title: p?.title ?? "Requeue 실패", description: p?.detail });
                 },
               })
             }

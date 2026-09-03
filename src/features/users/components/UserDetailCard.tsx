@@ -18,10 +18,10 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
 
   function handleRoleChange(role: "USER" | "ADMIN") {
     updateRole(role, {
-      onSuccess: () => notification.success({ message: "역할이 변경되었습니다." }),
+      onSuccess: () => notification.success({ title: "역할이 변경되었습니다." }),
       onError: (err) => {
         const p = parseProblemDetail(err);
-        notification.error({ message: p?.title ?? "역할 변경 실패", description: p?.detail });
+        notification.error({ title: p?.title ?? "역할 변경 실패", description: p?.detail });
       },
     });
   }
@@ -31,7 +31,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
       onSuccess: () => router.replace("/users"),
       onError: (err) => {
         const p = parseProblemDetail(err);
-        notification.error({ message: p?.title ?? "삭제 실패", description: p?.detail });
+        notification.error({ title: p?.title ?? "삭제 실패", description: p?.detail });
       },
     });
   }

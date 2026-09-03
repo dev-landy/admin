@@ -40,10 +40,10 @@ export function PropertyTable({
 
   function handleDelete(property: PropertySummary) {
     remove(property.propertyId, {
-      onSuccess: () => notification.success({ message: "건물이 삭제되었습니다." }),
+      onSuccess: () => notification.success({ title: "건물이 삭제되었습니다." }),
       onError: (error) => {
         const problem = parseProblemDetail(error);
-        notification.error({ message: problem?.title ?? "삭제 실패", description: problem?.detail });
+        notification.error({ title: problem?.title ?? "삭제 실패", description: problem?.detail });
       },
     });
   }

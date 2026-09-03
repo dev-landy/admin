@@ -21,7 +21,7 @@ export function ImpersonationModal({ open, onClose, userId }: Props) {
       onSuccess: (res) => setTokens(res),
       onError: (err) => {
         const p = parseProblemDetail(err);
-        notification.error({ message: p?.title ?? "토큰 발급 실패", description: p?.detail });
+        notification.error({ title: p?.title ?? "토큰 발급 실패", description: p?.detail });
       },
     });
   }
@@ -48,7 +48,7 @@ export function ImpersonationModal({ open, onClose, userId }: Props) {
       <Alert
         type="warning"
         showIcon
-        message="발급된 토큰은 해당 유저의 실제 세션과 동일하게 동작합니다. 이 토큰으로 logout을 호출하면 유저의 모든 세션이 종료됩니다."
+        title="발급된 토큰은 해당 유저의 실제 세션과 동일하게 동작합니다. 이 토큰으로 logout을 호출하면 유저의 모든 세션이 종료됩니다."
         style={{ marginBottom: 16 }}
       />
       {tokens && (

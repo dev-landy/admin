@@ -22,7 +22,7 @@ export function FcmTestSendModal({ open, onClose, fcmTokenId }: Props) {
         {
           onSuccess: (res) => {
             notification.success({
-              message: "테스트 발송 완료",
+              title: "테스트 발송 완료",
               description: `messageId: ${res.messageId}`,
             });
             form.resetFields();
@@ -30,7 +30,7 @@ export function FcmTestSendModal({ open, onClose, fcmTokenId }: Props) {
           },
           onError: (err) => {
             const p = parseProblemDetail(err);
-            notification.error({ message: p?.title ?? "테스트 발송 실패", description: p?.detail });
+            notification.error({ title: p?.title ?? "테스트 발송 실패", description: p?.detail });
           },
         },
       );

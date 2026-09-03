@@ -53,7 +53,7 @@ function LoginContent() {
         {denied && (
           <Alert
             type="error"
-            message="관리자 권한이 없는 계정입니다."
+            title="관리자 권한이 없는 계정입니다."
             style={{ marginBottom: 16 }}
             showIcon
           />

@@ -58,10 +58,10 @@ function OutboxPageContent() {
             title={`최대 ${dispatchSize}건의 대기 발송을 즉시 처리하시겠습니까? 자동 발송 시간대(09:00~10:00)를 피해 사용하세요.`}
             onConfirm={() =>
               dispatch(dispatchSize, {
-                onSuccess: (res) => notification.success({ message: `${res.processed}건 처리되었습니다.` }),
+                onSuccess: (res) => notification.success({ title: `${res.processed}건 처리되었습니다.` }),
                 onError: (err) => {
                   const p = parseProblemDetail(err);
-                  notification.error({ message: p?.title ?? "Dispatch 실패", description: p?.detail });
+                  notification.error({ title: p?.title ?? "Dispatch 실패", description: p?.detail });
                 },
               })
             }

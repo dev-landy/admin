@@ -25,12 +25,12 @@ export function PropertyEditModal({
       { propertyId: property.propertyId, body: { ...values, address: values.address || null } },
       {
         onSuccess: () => {
-          notification.success({ message: "건물 정보가 수정되었습니다." });
+          notification.success({ title: "건물 정보가 수정되었습니다." });
           onClose();
         },
         onError: (error) => {
           const problem = parseProblemDetail(error);
-          notification.error({ message: problem?.title ?? "수정 실패", description: problem?.detail });
+          notification.error({ title: problem?.title ?? "수정 실패", description: problem?.detail });
         },
       },
     );

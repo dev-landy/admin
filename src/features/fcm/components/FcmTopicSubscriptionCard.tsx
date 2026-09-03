@@ -36,7 +36,7 @@ export function FcmTopicSubscriptionCard() {
           onSuccess: (response) => setResult({ action, response }),
           onError: (err) => {
             const p = parseProblemDetail(err);
-            notification.error({ message: p?.title ?? `토픽 ${action} 실패`, description: p?.detail });
+            notification.error({ title: p?.title ?? `토픽 ${action} 실패`, description: p?.detail });
           },
         },
       );
@@ -83,7 +83,7 @@ export function FcmTopicSubscriptionCard() {
           style={{ marginTop: 16 }}
           type={result.response.failureCount === 0 ? "success" : "warning"}
           showIcon
-          message={`${result.action} 결과 — 성공 ${result.response.successCount} / 실패 ${result.response.failureCount}`}
+          title={`${result.action} 결과 — 성공 ${result.response.successCount} / 실패 ${result.response.failureCount}`}
           description={
             result.response.errors.length > 0 ? (
               <Space direction="vertical" size={0}>

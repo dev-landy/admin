@@ -19,10 +19,10 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
 
   function handleDelete(propertyId: number) {
     remove(propertyId, {
-      onSuccess: () => notification.success({ message: "건물이 삭제되었습니다." }),
+      onSuccess: () => notification.success({ title: "건물이 삭제되었습니다." }),
       onError: (error) => {
         const problem = parseProblemDetail(error);
-        notification.error({ message: problem?.title ?? "삭제 실패", description: problem?.detail });
+        notification.error({ title: problem?.title ?? "삭제 실패", description: problem?.detail });
       },
     });
   }

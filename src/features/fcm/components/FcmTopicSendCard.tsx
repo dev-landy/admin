@@ -25,14 +25,14 @@ export function FcmTopicSendCard() {
         {
           onSuccess: (res) => {
             notification.success({
-              message: "토픽 발송 완료",
+              title: "토픽 발송 완료",
               description: `messageId: ${res.messageId}`,
             });
             form.resetFields();
           },
           onError: (err) => {
             const p = parseProblemDetail(err);
-            notification.error({ message: p?.title ?? "토픽 발송 실패", description: p?.detail });
+            notification.error({ title: p?.title ?? "토픽 발송 실패", description: p?.detail });
           },
         },
       );
