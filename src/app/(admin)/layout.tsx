@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button, Layout, Menu, Space, Typography } from "antd";
+import { Button, Drawer, Grid, Layout, Menu, Typography } from "antd";
 import {
   UserOutlined,
   HomeOutlined,
@@ -16,6 +16,7 @@ import {
   HistoryOutlined,
   ClockCircleOutlined,
   LogoutOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 
 import { AuthGuard } from "@/features/auth/guard";
@@ -45,27 +46,46 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const screens = Grid.useBreakpoint();
   const [collapsed, setCollapsed] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+
+  // useBreakpoint()는 구독이 붙기 전(SSR·첫 렌더)에 빈 객체를 반환한다. 어드민은 데스크톱이
+  // 주 사용 환경이므로 값이 없을 때는 데스크톱 레이아웃을 기본값으로 둔다 — 모바일에서는
+  // 하이드레이션 직후 layout effect가 값을 채워 페인트 전에 모바일 레이아웃으로 정정된다.
+  const isDesktop = screens.lg ?? true;
+
+  const navigate = (key: string) => {
+    router.push(key);
+    setNavOpen(false);
+  };
+
+  const handleLogout = () => {
+    setNavOpen(false);
+    void logout();
+  };
 
   return (
     <AuthGuard>
       <Layout style={{ minHeight: "100vh" }}>
-        <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-          <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {!collapsed && (
-              <Title level={5} style={{ color: "#fff", margin: 0 }}>
-                Landy Admin
-              </Title>
-            )}
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[pathname]}
-            items={MENU_ITEMS}
-            onClick={({ key }) => router.push(key)}
-          />
-        </Sider>
+        {isDesktop && (
+          <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
+            <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {!collapsed && (
+                <Title level={5} style={{ color: "#fff", margin: 0 }}>
+                  Landy Admin
+                </Title>
+              )}
+            </div>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[pathname]}
+              items={MENU_ITEMS}
+              onClick={({ key }) => navigate(key)}
+            />
+          </Sider>
+        )}
         <Layout>
           <Header
             style={{
@@ -73,20 +93,51 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "0 24px",
+              gap: 8,
+              padding: isDesktop ? "0 24px" : "0 12px",
               borderBottom: "1px solid #f0f0f0",
             }}
           >
-            <Space size={8}>
+            {/* 폭이 좁으면 설명만 말줄임 처리해 햄버거가 화면 밖으로 밀리지 않게 한다. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <EnvTag />
-              <Text type="secondary">{appEnvMeta.description}</Text>
-            </Space>
-            <Button icon={<LogoutOutlined />} onClick={logout}>
-              로그아웃
-            </Button>
+              <Text type="secondary" ellipsis style={{ minWidth: 0 }}>
+                {appEnvMeta.description}
+              </Text>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <Button icon={<LogoutOutlined />} onClick={handleLogout}>
+                로그아웃
+              </Button>
+              {isDesktop ? null : (
+                <Button
+                  type="text"
+                  aria-label="메뉴 열기"
+                  icon={<MenuOutlined />}
+                  onClick={() => setNavOpen(true)}
+                />
+              )}
+            </div>
           </Header>
-          <Content style={{ margin: 24 }}>{children}</Content>
+          <Content style={{ margin: isDesktop ? 24 : 12 }}>{children}</Content>
         </Layout>
+        {isDesktop ? null : (
+          <Drawer
+            title="Landy Admin"
+            placement="right"
+            size={240}
+            open={navOpen}
+            onClose={() => setNavOpen(false)}
+            styles={{ body: { padding: 0 } }}
+          >
+            <Menu
+              mode="inline"
+              selectedKeys={[pathname]}
+              items={MENU_ITEMS}
+              onClick={({ key }) => navigate(key)}
+            />
+          </Drawer>
+        )}
       </Layout>
     </AuthGuard>
   );
