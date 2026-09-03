@@ -1,18 +1,15 @@
 "use client";
 
-import { Card, Descriptions, Spin, Tag, Typography } from "antd";
+import { useState } from "react";
+import { Button, Card, Descriptions, Spin, Tag, Typography } from "antd";
+import { CHANNEL_COLOR } from "../channel";
 import { useReleasePolicies } from "../hooks";
 import type { ReleasePolicy } from "../types";
+import { ReleasePolicyEditModal } from "./ReleasePolicyEditModal";
 
 const { Title } = Typography;
 
-const CHANNEL_COLOR: Record<string, string> = {
-  PRODUCTION: "green",
-  PREVIEW: "blue",
-  DEVELOPMENT: "default",
-};
-
-function PolicyCard({ policy }: { policy: ReleasePolicy }) {
+function PolicyCard({ policy, onEdit }: { policy: ReleasePolicy; onEdit: () => void }) {
   return (
     <Card
       style={{ marginBottom: 16 }}
@@ -21,6 +18,12 @@ function PolicyCard({ policy }: { policy: ReleasePolicy }) {
           {policy.platform}{" "}
           <Tag color={CHANNEL_COLOR[policy.channel] ?? "default"}>{policy.channel}</Tag>
         </span>
+      }
+      // 목록이 카드라 액션 열 대신 카드 헤더에 수정 버튼을 둔다.
+      extra={
+        <Button size="small" onClick={onEdit}>
+          수정
+        </Button>
       }
     >
       <Descriptions column={2} bordered size="small">
@@ -42,6 +45,7 @@ function PolicyCard({ policy }: { policy: ReleasePolicy }) {
 
 export function ReleasePolicyList() {
   const { data, isLoading } = useReleasePolicies();
+  const [editing, setEditing] = useState<ReleasePolicy | null>(null);
 
   if (isLoading) {
     return <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 80 }} />;
@@ -51,8 +55,13 @@ export function ReleasePolicyList() {
     <div>
       <Title level={4}>릴리즈 정책</Title>
       {(data?.releasePolicies ?? []).map((policy) => (
-        <PolicyCard key={policy.appReleasePolicyId} policy={policy} />
+        <PolicyCard
+          key={policy.appReleasePolicyId}
+          policy={policy}
+          onEdit={() => setEditing(policy)}
+        />
       ))}
+      <ReleasePolicyEditModal policy={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }
