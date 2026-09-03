@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
+import { formatMillis } from "../dateTime";
 import { formatDurationMillis } from "../duration";
 import { batchExecutionStatusColor } from "../executionStatus";
 import { useBatchExecution } from "../hooks";
@@ -68,14 +69,14 @@ const stepColumns: TableColumnsType<BatchStepExecution> = [
   {
     title: "시작",
     dataIndex: "startTime",
-    width: 180,
-    render: (value: string | null) => value ?? "-",
+    width: 200,
+    render: (value: string | null) => formatMillis(value),
   },
   {
     title: "종료",
     dataIndex: "endTime",
-    width: 180,
-    render: (value: string | null) => value ?? "-",
+    width: 200,
+    render: (value: string | null) => formatMillis(value),
   },
 ];
 
@@ -105,9 +106,9 @@ export function BatchExecutionDetailModal({
           ),
         },
         { key: "exitCode", label: "종료 코드", children: data.exitCode ?? "-" },
-        { key: "createTime", label: "생성", children: data.createTime },
-        { key: "startTime", label: "시작", children: data.startTime ?? "-" },
-        { key: "endTime", label: "종료", children: data.endTime ?? "-" },
+        { key: "createTime", label: "생성", children: formatMillis(data.createTime) },
+        { key: "startTime", label: "시작", children: formatMillis(data.startTime) },
+        { key: "endTime", label: "종료", children: formatMillis(data.endTime) },
         {
           key: "durationMillis",
           label: "소요 시간",

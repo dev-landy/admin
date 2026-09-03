@@ -240,6 +240,52 @@ test("tasklet 스텝은 읽음·씀을 - 로, chunk 스텝은 숫자로 표시�
   expect(taskletCells[8].textContent).toBe("1");
 });
 
+test("목록은 초 단위까지, 상세는 밀리초 3자리까지 시각을 표시한다", async () => {
+  const execution: BatchExecutionSummary = {
+    ...failedExecution,
+    createTime: "2026-09-01T09:00:00.5",
+    startTime: "2026-09-01T09:00:01.123456",
+    endTime: "2026-09-01T09:01:31",
+  };
+  detail = {
+    ...execution,
+    steps: [
+      {
+        stepExecutionId: 55,
+        stepName: "dailyNotificationStep",
+        kind: "CHUNK",
+        status: "FAILED",
+        exitCode: "FAILED",
+        exitMessage: null,
+        readCount: 10,
+        writeCount: 4,
+        commitCount: 1,
+        rollbackCount: 1,
+        startTime: "2026-09-01T09:00:02.7",
+        endTime: null,
+      },
+    ],
+  };
+  renderTable(execution);
+
+  // 실행 ID · Job · 대상 날짜 · 상태 · 종료 코드 · 시작 · 종료 · 소요 시간 · 액션 순서
+  const cells = screen.getAllByRole("cell");
+  expect(cells[5].textContent).toBe("2026-09-01T09:00:01");
+  expect(cells[6].textContent).toBe("2026-09-01T09:01:31");
+
+  fireEvent.click(screen.getByRole("button", { name: "상세" }));
+
+  const dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText("2026-09-01T09:00:00.500")).toBeInTheDocument();
+  expect(within(dialog).getByText("2026-09-01T09:00:01.123")).toBeInTheDocument();
+
+  const stepCells = within(
+    within(dialog).getByText("dailyNotificationStep").closest("tr") as HTMLElement,
+  ).getAllByRole("cell");
+  expect(stepCells[9].textContent).toBe("2026-09-01T09:00:02.700");
+  expect(stepCells[10].textContent).toBe("-");
+});
+
 test("종료 코드 필터에서 값을 고르면 exitCode 필터 변경을 알린다", async () => {
   renderTable();
 

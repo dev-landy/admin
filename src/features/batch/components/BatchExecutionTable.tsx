@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { formatSeconds } from "../dateTime";
 import { formatDurationMillis } from "../duration";
 import {
   BATCH_EXECUTION_STATUS_OPTIONS,
@@ -63,7 +64,7 @@ export function BatchExecutionTable({
       {
         onSuccess: (result) =>
           notification.success({
-            message: "재시도를 요청했습니다.",
+            title: "재시도를 요청했습니다.",
             description:
               result.newExecutionId === null
                 ? `${result.jobName} 재실행이 접수되었습니다.`
@@ -87,7 +88,7 @@ export function BatchExecutionTable({
           }
 
           notification.error({
-            message: problem?.title ?? "재시도 실패",
+            title: problem?.title ?? "재시도 실패",
             description: problem?.detail,
           });
         },
@@ -199,14 +200,14 @@ export function BatchExecutionTable({
       dataIndex: "startTime",
       width: 180,
       filteredValue: null,
-      render: (value: string | null) => value ?? "-",
+      render: (value: string | null) => formatSeconds(value),
     },
     {
       title: "종료",
       dataIndex: "endTime",
       width: 180,
       filteredValue: null,
-      render: (value: string | null) => value ?? "-",
+      render: (value: string | null) => formatSeconds(value),
     },
     {
       title: "소요 시간",

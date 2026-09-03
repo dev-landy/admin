@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, Space, Spin, Typography } from "antd";
+import { Button, Card, Spin, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionTable";
@@ -64,14 +64,9 @@ function BatchExecutionsPageContent() {
     <Card
       title={<Title level={4} style={{ margin: 0 }}>배치 실행 이력</Title>}
       extra={
-        <Space>
-          <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
-            새로고침
-          </Button>
-          <Button type="primary" onClick={() => router.push("/batch/schedules")}>
-            실행 시간 설정
-          </Button>
-        </Space>
+        <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
+          새로고침
+        </Button>
       }
     >
       <BatchExecutionTable
