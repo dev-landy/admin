@@ -69,21 +69,42 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <AuthGuard>
       <Layout style={{ minHeight: "100vh" }}>
         {isDesktop && (
+          // Sider는 트리거 높이만큼 padding-bottom을 갖는다. children을 height 100% 플렉스 컬럼으로
+          // 두면 메뉴가 남는 공간을 차지하고 로그아웃이 트리거 바로 위 바닥에 고정된다.
           <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-            <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {!collapsed && (
-                <Title level={5} style={{ color: "#fff", margin: 0 }}>
-                  Landy Admin
-                </Title>
-              )}
+            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+              <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {!collapsed && (
+                  <Title level={5} style={{ color: "#fff", margin: 0 }}>
+                    Landy Admin
+                  </Title>
+                )}
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+                <Menu
+                  theme="dark"
+                  mode="inline"
+                  selectedKeys={[pathname]}
+                  items={MENU_ITEMS}
+                  onClick={({ key }) => navigate(key)}
+                />
+              </div>
+              <div style={{ padding: 8 }}>
+                <Button
+                  type="text"
+                  block
+                  aria-label="로그아웃"
+                  icon={<LogoutOutlined />}
+                  onClick={handleLogout}
+                  style={{
+                    color: "rgba(255, 255, 255, 0.65)",
+                    textAlign: collapsed ? "center" : "start",
+                  }}
+                >
+                  {collapsed ? null : "로그아웃"}
+                </Button>
+              </div>
             </div>
-            <Menu
-              theme="dark"
-              mode="inline"
-              selectedKeys={[pathname]}
-              items={MENU_ITEMS}
-              onClick={({ key }) => navigate(key)}
-            />
           </Sider>
         )}
         <Layout>
@@ -105,19 +126,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 {appEnvMeta.description}
               </Text>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-                로그아웃
-              </Button>
-              {isDesktop ? null : (
-                <Button
-                  type="text"
-                  aria-label="메뉴 열기"
-                  icon={<MenuOutlined />}
-                  onClick={() => setNavOpen(true)}
-                />
-              )}
-            </div>
+            {isDesktop ? null : (
+              <Button
+                type="text"
+                aria-label="메뉴 열기"
+                icon={<MenuOutlined />}
+                onClick={() => setNavOpen(true)}
+                style={{ flexShrink: 0 }}
+              />
+            )}
           </Header>
           <Content style={{ margin: isDesktop ? 24 : 12 }}>{children}</Content>
         </Layout>
@@ -129,6 +146,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             open={navOpen}
             onClose={() => setNavOpen(false)}
             styles={{ body: { padding: 0 } }}
+            footer={
+              <Button
+                type="text"
+                block
+                aria-label="로그아웃"
+                icon={<LogoutOutlined />}
+                onClick={handleLogout}
+                style={{ textAlign: "start" }}
+              >
+                로그아웃
+              </Button>
+            }
           >
             <Menu
               mode="inline"
