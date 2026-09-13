@@ -6,6 +6,7 @@ import {
   TenantInfoFormFields,
   type TenantInfoFormValues,
   fromTenantValues,
+  isTenantFormComplete,
   toTenantValues,
   toUpdateTenantRequest,
 } from "@/features/tenants/components/TenantInfoForm";
@@ -45,11 +46,15 @@ function TestForm({
   billingTimingEditable = true,
   rentBillingCycleEditable = true,
   initialRentBillingCycle = "MONTHLY",
+  contractTypeEditable = true,
+  initialValues,
 }: {
   onFinish: (values: TenantInfoFormValues) => void;
   billingTimingEditable?: boolean;
   rentBillingCycleEditable?: boolean;
   initialRentBillingCycle?: BillingCycle;
+  contractTypeEditable?: boolean;
+  initialValues?: TenantInfoFormValues;
 }) {
   const [form] = Form.useForm<TenantInfoFormValues>();
 
@@ -57,6 +62,8 @@ function TestForm({
     <Form
       form={form}
       initialValues={{
+        contractType: "ROOM",
+        parkingEnabled: false,
         room: "101",
         basement: false,
         name: "홍길동",
@@ -68,11 +75,13 @@ function TestForm({
         rentManwon: 50,
         maintenanceFeeManwon: 5,
         depositManwon: 1_000,
+        ...initialValues,
       }}
       onFinish={onFinish}
     >
       <TenantInfoFormFields
         form={form}
+        contractTypeEditable={contractTypeEditable}
         billingTimingEditable={billingTimingEditable}
         rentBillingCycleEditable={rentBillingCycleEditable}
       />
@@ -86,6 +95,7 @@ test("납부 방식 Select와 납부일 입력이 Form.Item 값 바인딩을 유
   render(<TestForm onFinish={onFinish} />);
 
   expect(screen.getByLabelText("호실")).toHaveValue("101");
+  expect(screen.getByLabelText("카테고리").closest(".ant-select")).toHaveTextContent("세대");
   expect(screen.getByLabelText("납부일")).toHaveValue("25");
   expect(screen.getByText("선불")).toBeInTheDocument();
   expect(screen.getByText("매월")).toBeInTheDocument();
@@ -206,4 +216,93 @@ test("납부일 입력에 1~31 범위와 도움말을 제공한다", () => {
   expect(screen.getByLabelText("납부일")).toHaveAttribute("aria-valuemin", "1");
   expect(screen.getByLabelText("납부일")).toHaveAttribute("aria-valuemax", "31");
   expect(screen.getByText("1~31 사이의 날짜를 입력하세요.")).toBeInTheDocument();
+});
+
+test("주차 이용을 체크하면 차량번호를 선택 입력하고 해제하면 번호를 제거한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+
+  expect(screen.queryByLabelText("차량 번호 (선택)")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("checkbox", { name: "주차 이용" }));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    contractType: "ROOM", parkingEnabled: true, vehicleNumber: null,
+  });
+
+  fireEvent.change(screen.getByLabelText("차량 번호 (선택)"), { target: { value: "12가3456" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "주차 이용" }));
+  await waitFor(() => expect(screen.queryByLabelText("차량 번호 (선택)")).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("checkbox", { name: "주차 이용" }));
+  expect(await screen.findByLabelText("차량 번호 (선택)")).toHaveValue("");
+});
+
+test.each([
+  ["상가", "호실"],
+  ["기타", "공간 이름"],
+])("%s는 %s 필드의 한글 입력을 그대로 등록한다", async (category, fieldLabel) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  fireEvent.mouseDown(screen.getByLabelText("카테고리"));
+  fireEvent.click(await screen.findByText(category));
+  await waitFor(() => expect(screen.queryByRole("checkbox", { name: "지하" })).not.toBeInTheDocument());
+  fireEvent.change(screen.getByLabelText(fieldLabel), { target: { value: "B동 1층 상가" } });
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const values = toTenantValues(onFinish.mock.calls[0][0]);
+  expect(values).toMatchObject({
+    contractType: category === "상가" ? "COMMERCIAL" : "OTHERS",
+    roomNumber: "B동 1층 상가",
+  });
+  expect(fromTenantValues(values)).toMatchObject({ room: "B동 1층 상가", basement: false });
+});
+
+test.each(["", "12가3456"])("주차 계약은 상단 차량 번호 %s를 제출하고 하단 주차 이용을 숨긴다", async (vehicleNumber) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  fireEvent.mouseDown(screen.getByLabelText("카테고리"));
+  fireEvent.click(await screen.findByText("주차"));
+
+  await waitFor(() => expect(screen.queryByLabelText("호실")).not.toBeInTheDocument());
+  expect(screen.queryByRole("checkbox", { name: "주차 이용" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("차량 번호 (선택)")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("차량 번호")).toHaveValue("");
+  fireEvent.change(screen.getByLabelText("차량 번호"), { target: { value: vehicleNumber } });
+  expect(screen.getByLabelText("주차비")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const formValues = onFinish.mock.calls[0][0];
+  expect(isTenantFormComplete(formValues)).toBe(true);
+  expect(toTenantValues(formValues)).toMatchObject({
+    contractType: "PARKING", roomNumber: null, parkingEnabled: true, vehicleNumber: vehicleNumber || null,
+  });
+
+  fireEvent.mouseDown(screen.getByLabelText("카테고리"));
+  fireEvent.click(await screen.findByText("세대"));
+  expect(await screen.findByLabelText("호실")).toHaveValue("");
+  expect(screen.getByRole("checkbox", { name: "주차 이용" })).not.toBeChecked();
+  expect(screen.queryByLabelText("차량 번호")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("checkbox", { name: "주차 이용" }));
+  expect(await screen.findByLabelText("차량 번호 (선택)")).toHaveValue("");
+});
+
+test("등록된 계약은 유형을 잠그고 차량번호를 비우면 PATCH에 삭제 의도를 보낸다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm
+    onFinish={onFinish}
+    contractTypeEditable={false}
+    initialValues={{ contractType: "PARKING", room: undefined, parkingEnabled: true, vehicleNumber: "12가3456" }}
+  />);
+  expect(screen.getByLabelText("카테고리")).toBeDisabled();
+  expect(screen.queryByRole("checkbox", { name: "주차 이용" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("차량 번호")).toHaveValue("12가3456");
+  fireEvent.change(screen.getByLabelText("차량 번호"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const payload = toUpdateTenantRequest(onFinish.mock.calls[0][0]);
+  expect(payload).toMatchObject({ parkingEnabled: true, clearVehicleNumber: true });
+  expect(payload.vehicleNumber).toBeUndefined();
+  expect(payload.roomNumber).toBeUndefined();
+  expect(payload).not.toHaveProperty("contractType");
 });

@@ -1,4 +1,4 @@
-import type { BillingCycle, BillingTiming } from "@/features/tenants/types";
+import type { BillingCycle, BillingTiming, ContractType } from "@/features/tenants/types";
 
 export type ContractOcrAnalysisStatus =
   | "QUEUED"
@@ -44,6 +44,9 @@ export type ContractOcrSourceViewResponse = {
 };
 
 export type ContractOcrDraftValues = {
+  contractType?: ContractType | null;
+  parkingEnabled?: boolean | null;
+  vehicleNumber?: string | null;
   name: string | null;
   roomNumber: string | null;
   phone: string | null;

@@ -19,11 +19,21 @@ import dayjs, { type Dayjs } from "dayjs";
 
 import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
-import type { BillingCycle, BillingTiming, TenantDetail, UpdateTenantRequest } from "../types";
+import type { BillingCycle, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
+
+const CONTRACT_TYPE_OPTIONS = [
+  { value: "ROOM", label: "세대" },
+  { value: "COMMERCIAL", label: "상가" },
+  { value: "PARKING", label: "주차" },
+  { value: "OTHERS", label: "기타" },
+];
 
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다 (금액은 만원 단위).
 export type TenantInfoFormValues = {
+  contractType?: ContractType;
+  parkingEnabled?: boolean;
+  vehicleNumber?: string;
   room?: string;
   basement?: boolean;
   name?: string;
@@ -42,6 +52,9 @@ export type TenantInfoFormValues = {
 
 // 서버 계약 형태(원 단위, B접두 호실, 대시 포함 전화번호)로 정규화한 값.
 export type TenantInfoValues = {
+  contractType: ContractType;
+  parkingEnabled: boolean;
+  vehicleNumber: string | null;
   name: string | null;
   roomNumber: string | null;
   phone: string | null;
@@ -57,7 +70,13 @@ export type TenantInfoValues = {
   endDate: string | null;
 };
 
-type TenantInfoSourceValues = Omit<TenantInfoValues, "billingTiming" | "rentBillingCycle"> & {
+type TenantInfoSourceValues = Omit<
+  TenantInfoValues,
+  "billingTiming" | "rentBillingCycle" | "contractType" | "parkingEnabled" | "vehicleNumber"
+> & {
+  contractType?: ContractType | null;
+  parkingEnabled?: boolean | null;
+  vehicleNumber?: string | null;
   billingTiming?: BillingTiming | null;
   rentBillingCycle?: BillingCycle | null;
 };
@@ -85,11 +104,19 @@ export function formatPhone(raw?: string): string | undefined {
 }
 
 export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
+  const contractType = form.contractType ?? "ROOM";
+  const parkingEnabled = contractType === "PARKING" || form.parkingEnabled === true;
   const room = form.room?.trim();
   const rentBillingCycle = normalizeBillingCycle(form.rentBillingCycle);
   return {
+    contractType,
+    parkingEnabled,
+    vehicleNumber: parkingEnabled ? form.vehicleNumber?.trim() || null : null,
     name: form.name?.trim() || null,
-    roomNumber: room ? `${form.basement ? "B" : ""}${room}` : null,
+    roomNumber:
+      contractType === "PARKING" || !room
+        ? null
+        : `${contractType === "ROOM" && form.basement ? "B" : ""}${room}`,
     phone: form.phone?.trim() || null,
     rentPrice: toWon(form.rentManwon),
     // 서버 등록 검증이 보증금 null을 거부하므로, 안내 문구대로 비워 두면 0으로 보낸다.
@@ -107,11 +134,16 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
 
 // 서버 계약 형태의 값을 폼 형태로 되돌린다 (B접두 호실 분해, 원 → 만원, 전화번호 대시 포맷).
 export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoFormValues {
+  const contractType = values.contractType ?? "ROOM";
+  const parkingEnabled = contractType === "PARKING" || values.parkingEnabled === true;
   const roomNumber = String(values.roomNumber ?? "").trim();
-  const basement = roomNumber.startsWith("B");
+  const basement = contractType === "ROOM" && roomNumber.startsWith("B");
   const rentBillingCycle = normalizeBillingCycle(values.rentBillingCycle);
   return {
-    room: basement ? roomNumber.slice(1) : roomNumber,
+    contractType,
+    parkingEnabled,
+    vehicleNumber: parkingEnabled ? values.vehicleNumber ?? undefined : undefined,
+    room: contractType === "PARKING" ? undefined : basement ? roomNumber.slice(1) : roomNumber,
     basement,
     name: values.name ?? undefined,
     phone: values.phone ? formatPhone(values.phone) : undefined,
@@ -140,6 +172,9 @@ export function fromTenantDetail(tenant: TenantDetail): TenantInfoFormValues {
 export function toUpdateTenantRequest(form: TenantInfoFormValues): UpdateTenantRequest {
   const values = toTenantValues(form);
   return {
+    parkingEnabled: values.parkingEnabled,
+    vehicleNumber: values.vehicleNumber ?? undefined,
+    clearVehicleNumber: values.parkingEnabled && values.vehicleNumber === null ? true : undefined,
     name: values.name ?? undefined,
     roomNumber: values.roomNumber ?? undefined,
     phone: values.phone ?? undefined,
@@ -154,7 +189,7 @@ export function toUpdateTenantRequest(form: TenantInfoFormValues): UpdateTenantR
 
 export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
   return Boolean(
-    values?.room?.trim() &&
+    (values?.contractType === "PARKING" || values?.room?.trim()) &&
       values?.name?.trim() &&
       values?.phone?.trim() &&
       values?.startDate &&
@@ -305,41 +340,92 @@ function RentScheduleInput({
 
 export function TenantInfoFormFields({
   form,
+  contractTypeEditable = false,
   billingTimingEditable,
   rentBillingCycleEditable,
 }: {
   form: FormInstance<TenantInfoFormValues>;
+  contractTypeEditable?: boolean;
   billingTimingEditable: boolean;
   rentBillingCycleEditable: boolean;
 }) {
+  const contractType: ContractType = Form.useWatch("contractType", form) ?? "ROOM";
+  const parkingEnabled = Form.useWatch("parkingEnabled", form);
+  const isParking = contractType === "PARKING";
+  const isRoom = contractType === "ROOM";
+  const roomLabel = contractType === "OTHERS" ? "공간 이름" : "호실";
   const basement = Form.useWatch("basement", form);
   const rentBillingCycle = normalizeBillingCycle(Form.useWatch("rentBillingCycle", form));
   const yearlyStartDateImmutable =
     rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
   return (
     <Row gutter={12}>
-      <Col span={16}>
+      <Col span={12}>
         <Form.Item
-          label="호실"
-          name="room"
-          normalize={(value?: string) => value?.replace(/\D/g, "")}
-          rules={[{ required: true, message: "호실을 입력해 주세요." }]}
+          label="카테고리"
+          name="contractType"
+          rules={[{ required: true, message: "카테고리를 선택해 주세요." }]}
         >
-          <TextInputWithAddon
-            maxLength={10}
-            placeholder="123"
-            addon="호"
-            inputMode="numeric"
-            prefix={
-              <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
-            }
+          <Select<ContractType>
+            options={CONTRACT_TYPE_OPTIONS}
+            disabled={!contractTypeEditable || undefined}
+            onChange={(nextType) => {
+              form.setFieldsValue({ room: undefined, basement: false });
+              if (nextType === "PARKING" || isParking) {
+                form.setFieldsValue({
+                  parkingEnabled: nextType === "PARKING",
+                  vehicleNumber: undefined,
+                });
+              }
+            }}
           />
         </Form.Item>
       </Col>
-      <Col span={8}>
-        <Form.Item label=" " name="basement" valuePropName="checked">
-          <Checkbox>지하</Checkbox>
-        </Form.Item>
+      <Col span={12}>
+        {isParking ? (
+          <Form.Item label="차량 번호" name="vehicleNumber">
+            <Input maxLength={32} placeholder="예: 12가3456" />
+          </Form.Item>
+        ) : (
+          <Row gutter={12} wrap={false}>
+            <Col flex="1" style={{ minWidth: 0 }}>
+              <Form.Item
+                label={roomLabel}
+                name="room"
+                normalize={(value?: string) => isRoom ? value?.replace(/\D/g, "") : value}
+                rules={[{
+                  required: true,
+                  whitespace: true,
+                  message: `${roomLabel}을 입력해 주세요.`,
+                }]}
+              >
+                {isRoom ? (
+                  <TextInputWithAddon
+                    maxLength={10}
+                    placeholder="123"
+                    addon="호"
+                    inputMode="numeric"
+                    prefix={
+                      <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
+                    }
+                  />
+                ) : (
+                  <Input
+                    maxLength={255}
+                    placeholder={contractType === "COMMERCIAL" ? "예: 101, 1층 상가" : "예: 창고 A"}
+                  />
+                )}
+              </Form.Item>
+            </Col>
+            {isRoom && (
+              <Col flex="72px">
+                <Form.Item label=" " name="basement" valuePropName="checked">
+                  <Checkbox>지하</Checkbox>
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
+        )}
       </Col>
       <Col span={12}>
         <Form.Item
@@ -429,7 +515,7 @@ export function TenantInfoFormFields({
       </Col>
       <Col span={12}>
         <Form.Item
-          label="임대료"
+          label={isParking ? "주차비" : "임대료"}
           name="rentManwon"
           rules={[
             { required: true, message: "임대료를 입력해 주세요." },
@@ -462,6 +548,28 @@ export function TenantInfoFormFields({
           <NumberInputWithAddon min={0} addon="만원" placeholder="0" />
         </Form.Item>
       </Col>
+      {!isParking && (
+        <Col span={24}>
+          <Form.Item name="parkingEnabled" valuePropName="checked">
+            <Checkbox
+              onChange={(event) => {
+                if (!event.target.checked) {
+                  form.setFieldValue("vehicleNumber", undefined);
+                }
+              }}
+            >
+              주차 이용
+            </Checkbox>
+          </Form.Item>
+        </Col>
+      )}
+      {!isParking && parkingEnabled && (
+        <Col span={24}>
+          <Form.Item label="차량 번호 (선택)" name="vehicleNumber">
+            <Input maxLength={32} placeholder="예: 12가3456" />
+          </Form.Item>
+        </Col>
+      )}
     </Row>
   );
 }

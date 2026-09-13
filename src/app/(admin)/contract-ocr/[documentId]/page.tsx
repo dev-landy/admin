@@ -306,6 +306,8 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
                 onFinish={handleSubmit}
                 disabled={isBusy || !formEditable}
                 initialValues={{
+                  contractType: "ROOM",
+                  parkingEnabled: false,
                   basement: false,
                   billingTiming: "PREPAID",
                   rentBillingCycle: "MONTHLY",
@@ -313,6 +315,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
               >
                 <TenantInfoFormFields
                   form={form}
+                  contractTypeEditable={isPendingMode || isFallbackMode}
                   billingTimingEditable={isPendingMode || isFallbackMode}
                   rentBillingCycleEditable={isPendingMode || isFallbackMode}
                 />

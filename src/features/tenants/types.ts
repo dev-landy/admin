@@ -4,11 +4,16 @@ export type BillingTiming = "PREPAID" | "POSTPAID";
 /** 임대료가 매월 청구되는 월세인지, 계약 기념월마다 청구되는 연세인지 나타낸다. */
 export type BillingCycle = "MONTHLY" | "YEARLY";
 
+export type ContractType = "ROOM" | "COMMERCIAL" | "PARKING" | "OTHERS";
+
 export type TenantSummary = {
   tenantId: number;
   userId: number;
   name: string;
-  roomNumber: number;
+  roomNumber: number | string;
+  contractType?: ContractType | null;
+  parkingEnabled?: boolean | null;
+  vehicleNumber?: string | null;
   rentPrice: number;
   maintenanceFee?: number | null;
   depositAmount?: number | null;
@@ -46,6 +51,9 @@ export type TenantsListParams = {
 };
 
 export type UpdateTenantRequest = {
+  parkingEnabled?: boolean;
+  vehicleNumber?: string;
+  clearVehicleNumber?: boolean;
   name?: string;
   roomNumber?: number | string;
   phone?: string;
