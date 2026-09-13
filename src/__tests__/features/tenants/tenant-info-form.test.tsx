@@ -48,6 +48,7 @@ function TestForm({
   initialRentBillingCycle = "MONTHLY",
   contractTypeEditable = true,
   initialValues,
+  disabled = false,
 }: {
   onFinish: (values: TenantInfoFormValues) => void;
   billingTimingEditable?: boolean;
@@ -55,12 +56,14 @@ function TestForm({
   initialRentBillingCycle?: BillingCycle;
   contractTypeEditable?: boolean;
   initialValues?: TenantInfoFormValues;
+  disabled?: boolean;
 }) {
   const [form] = Form.useForm<TenantInfoFormValues>();
 
   return (
     <Form
       form={form}
+      disabled={disabled}
       initialValues={{
         contractType: "ROOM",
         parkingEnabled: false,
@@ -305,4 +308,72 @@ test("등록된 계약은 유형을 잠그고 차량번호를 비우면 PATCH에
   expect(payload.vehicleNumber).toBeUndefined();
   expect(payload.roomNumber).toBeUndefined();
   expect(payload).not.toHaveProperty("contractType");
+});
+
+test("계약 시작일을 선택하면 비어 있는 납부일에 같은 날짜를 기본 입력한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ startDate: null, paymentDay: null }} />);
+  const startInput = screen.getByLabelText("계약 시작일");
+  fireEvent.change(startInput, { target: { value: "2026-10-17" } });
+  fireEvent.blur(startInput);
+
+  await waitFor(() => expect(screen.getByLabelText("납부일")).toHaveValue("17"));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    startDate: "2026-10-17", paymentDay: 17,
+  });
+});
+
+test("시작일을 바꾸면 기존 납부일은 유지하고 기간 칩은 새 시작일을 기준으로 계산한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  const startInput = screen.getByLabelText("계약 시작일");
+  fireEvent.change(startInput, { target: { value: "2026-10-17" } });
+  fireEvent.blur(startInput);
+  await waitFor(() => expect(screen.getByRole("button", { name: "6개월" })).toHaveAttribute(
+    "title", "2027-04-16까지",
+  ));
+  fireEvent.click(screen.getByRole("button", { name: "6개월" }));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    startDate: "2026-10-17", paymentDay: 25, endDate: "2027-04-16",
+  });
+});
+
+test.each([
+  ["2년", "2026-05-17", "2028-05-16"],
+  ["1년", "2026-05-17", "2027-05-16"],
+  ["6개월", "2026-05-17", "2026-11-16"],
+  ["6개월", "2026-08-31", "2027-02-28"],
+  ["1년", "2028-02-29", "2029-02-28"],
+  ["2년", "2026-03-01", "2028-02-29"],
+])("%s 칩은 %s 시작 계약의 종료일을 %s로 입력한다", async (label, start, end) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ startDate: dayjs(start) }} />);
+  fireEvent.click(screen.getByRole("button", { name: label }));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText("계약 종료일")).toHaveValue(end);
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+  });
+  expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).endDate).toBe(end);
+});
+
+test("시작일이 없거나 폼이 비활성화되어 있으면 기간 칩을 누를 수 없다", () => {
+  const { unmount } = render(<TestForm onFinish={jest.fn()} initialValues={{ startDate: null }} />);
+  for (const label of ["2년", "1년", "6개월"]) {
+    expect(screen.getByRole("button", { name: label })).toBeDisabled();
+  }
+  unmount();
+  render(<TestForm onFinish={jest.fn()} disabled />);
+  for (const label of ["2년", "1년", "6개월"]) {
+    expect(screen.getByRole("button", { name: label })).toBeDisabled();
+  }
+  expect(screen.getByLabelText("계약 시작일")).toBeDisabled();
 });

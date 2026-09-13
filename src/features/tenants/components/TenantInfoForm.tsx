@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -27,6 +27,18 @@ const CONTRACT_TYPE_OPTIONS = [
   { value: "PARKING", label: "주차" },
   { value: "OTHERS", label: "기타" },
 ];
+
+const CONTRACT_DURATION_OPTIONS = [
+  { label: "2년", months: 24 },
+  { label: "1년", months: 12 },
+  { label: "6개월", months: 6 },
+];
+
+// 모바일과 같이 시작일을 포함한다. 같은 일자가 없는 달에는 말일을 종료일로 쓴다.
+function getContractEndDate(startDate: Dayjs, months: number): Dayjs {
+  const anniversary = startDate.add(months, "month");
+  return anniversary.date() < startDate.date() ? anniversary : anniversary.subtract(1, "day");
+}
 
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다 (금액은 만원 단위).
@@ -349,12 +361,15 @@ export function TenantInfoFormFields({
   billingTimingEditable: boolean;
   rentBillingCycleEditable: boolean;
 }) {
+  const endDateInputId = useId();
   const contractType: ContractType = Form.useWatch("contractType", form) ?? "ROOM";
   const parkingEnabled = Form.useWatch("parkingEnabled", form);
   const isParking = contractType === "PARKING";
   const isRoom = contractType === "ROOM";
   const roomLabel = contractType === "OTHERS" ? "공간 이름" : "호실";
   const basement = Form.useWatch("basement", form);
+  const startDate: Dayjs | null | undefined = Form.useWatch("startDate", form);
+  const endDate: Dayjs | null | undefined = Form.useWatch("endDate", form);
   const rentBillingCycle = normalizeBillingCycle(Form.useWatch("rentBillingCycle", form));
   const yearlyStartDateImmutable =
     rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
@@ -463,13 +478,54 @@ export function TenantInfoFormFields({
         >
           <DateAddonPicker
             placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
-            disabled={yearlyStartDateImmutable}
+            disabled={yearlyStartDateImmutable || undefined}
+            onChange={(nextDate) => {
+              if (nextDate && form.getFieldValue("paymentDay") == null) {
+                form.setFieldValue("paymentDay", nextDate.date());
+              }
+            }}
           />
         </Form.Item>
       </Col>
       <Col span={12}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <label htmlFor={endDateInputId} style={{ lineHeight: "22px" }}>
+            계약 종료일
+          </label>
+          <Space size={4} wrap>
+            {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
+              const nextEndDate = startDate?.isValid() ? getContractEndDate(startDate, months) : null;
+              const selected = Boolean(nextEndDate && endDate?.isSame(nextEndDate, "day"));
+              return (
+                <Button
+                  key={months}
+                  size="small"
+                  style={{ height: 22 }}
+                  shape="round"
+                  htmlType="button"
+                  color={selected ? "primary" : "default"}
+                  variant={selected ? "filled" : "outlined"}
+                  aria-pressed={selected}
+                  disabled={!nextEndDate || undefined}
+                  title={nextEndDate ? `${nextEndDate.format("YYYY-MM-DD")}까지` : "계약 시작일을 먼저 선택해 주세요."}
+                  onClick={() => form.setFieldValue("endDate", nextEndDate)}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </Space>
+        </div>
         <Form.Item
-          label="계약 종료일"
           name="endDate"
           dependencies={["startDate"]}
           rules={[
@@ -485,6 +541,7 @@ export function TenantInfoFormFields({
           ]}
         >
           <DateAddonPicker
+            id={endDateInputId}
             placeholder={dayjs()
               .add(1, "month")
               .startOf("month")
