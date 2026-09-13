@@ -1,0 +1,9 @@
+.fields :global(.ant-form-item .ant-form-item-label > label.ant-form-item-required)::before {
+  order: 1;
+  margin-inline-start: 4px;
+  margin-inline-end: 0;
+}
+
+.fields :global(.ant-form-item .ant-form-item-label > label.ant-form-item-required)::after {
+  order: 2;
+}

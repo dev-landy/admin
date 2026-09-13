@@ -12,6 +12,7 @@ import {
   Row,
   Select,
   Space,
+  theme,
 } from "antd";
 import type { FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
@@ -20,6 +21,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
 import type { BillingCycle, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
+import styles from "./TenantInfoForm.module.css";
 
 const CONTRACT_TYPE_OPTIONS = [
   { value: "ROOM", label: "세대" },
@@ -304,7 +306,7 @@ function BillingScheduleInput({
             ...option,
             disabled: yearly && option.value === "POSTPAID",
           }))}
-          style={{ width: 100, flexShrink: 0 }}
+          style={{ width: "min(80px, 48%)", flexShrink: 0 }}
         />
       </Form.Item>
       <InputNumber<number>
@@ -335,7 +337,7 @@ function RentScheduleInput({
           aria-label="임대료 청구 주기"
           disabled={!rentBillingCycleEditable}
           options={BILLING_CYCLE_OPTIONS}
-          style={{ width: 100, flexShrink: 0 }}
+          style={{ width: "min(80px, 48%)", flexShrink: 0 }}
           onChange={(cycle) => {
             if (cycle === "YEARLY") {
               formInstance.setFieldValue("billingTiming", "PREPAID");
@@ -361,6 +363,7 @@ export function TenantInfoFormFields({
   rentBillingCycleEditable: boolean;
 }) {
   const endDateInputId = useId();
+  const { token } = theme.useToken();
   const contractType: ContractType = Form.useWatch("contractType", form) ?? "ROOM";
   const parkingEnabled = Form.useWatch("parkingEnabled", form);
   const isParking = contractType === "PARKING";
@@ -373,7 +376,7 @@ export function TenantInfoFormFields({
   const yearlyStartDateImmutable =
     rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
   return (
-    <Row gutter={12}>
+    <Row gutter={12} className={styles.fields}>
       <Col span={12}>
         <Form.Item
           label="카테고리"
@@ -434,7 +437,15 @@ export function TenantInfoFormFields({
             {isRoom && (
               <Col flex="72px">
                 <Form.Item label=" " name="basement" valuePropName="checked">
-                  <Checkbox>지하</Checkbox>
+                  <Checkbox
+                    styles={({ props }) => ({
+                      label: {
+                        color: props.checked || props.disabled ? undefined : token.colorTextTertiary,
+                      },
+                    })}
+                  >
+                    지하
+                  </Checkbox>
                 </Form.Item>
               </Col>
             )}

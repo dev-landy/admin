@@ -275,7 +275,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
           <Card
             title={
               <Title level={5} style={{ margin: 0 }}>
-                {isEditMode ? "임차인 정보 수정" : "임차인 정보 입력"}
+                {isEditMode ? "임차인 정보 수정" : "계약 정보 입력"}
               </Title>
             }
           >
@@ -297,7 +297,7 @@ function ContractOcrReviewPageContent({ documentId }: { documentId: string }) {
                 <Text type="secondary">
                   {isEditMode
                     ? "등록된 임차인 정보입니다. 값을 변경하면 '수정' 버튼이 활성화됩니다."
-                    : "계약서에서 확인한 값만 입력하세요. 필수(*) 항목을 모두 입력하면 제출 즉시 임차인으로 등록됩니다. 관리비·보증금은 비워 두면 0으로 등록됩니다."}
+                    : "필수(*) 항목을 모두 입력하면 제출 즉시 등록됩니다."}
                 </Text>
               )}
               <Form
