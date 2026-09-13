@@ -221,6 +221,29 @@ test("납부일 입력에 1~31 범위와 도움말을 제공한다", () => {
   expect(screen.getByText("1~31 사이의 날짜를 입력하세요.")).toBeInTheDocument();
 });
 
+test.each([undefined, null, 0])("임대료가 %s이면 선택 입력으로 제출하고 0원으로 정규화한다", async (rentManwon) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ rentManwon }} />);
+
+  expect(screen.getByLabelText("임대료")).not.toHaveAttribute("aria-required", "true");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const values = onFinish.mock.calls[0][0];
+  expect(isTenantFormComplete(values)).toBe(true);
+  expect(toTenantValues(values).rentPrice).toBe(0);
+  expect(toUpdateTenantRequest(values).rentPrice).toBe(0);
+});
+
+test("선택 입력인 임대료에도 음수는 허용하지 않는다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ rentManwon: -1 }} />);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+  expect(await screen.findByText("임대료는 0 이상이어야 합니다.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
+});
+
 test("주차 이용을 체크하면 차량번호를 선택 입력하고 해제하면 번호를 제거한다", async () => {
   const onFinish = jest.fn();
   render(<TestForm onFinish={onFinish} />);

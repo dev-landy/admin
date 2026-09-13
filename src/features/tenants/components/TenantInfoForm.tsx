@@ -130,8 +130,8 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
         ? null
         : `${contractType === "ROOM" && form.basement ? "B" : ""}${room}`,
     phone: form.phone?.trim() || null,
-    rentPrice: toWon(form.rentManwon),
-    // 서버 등록 검증이 보증금 null을 거부하므로, 안내 문구대로 비워 두면 0으로 보낸다.
+    // 선택 금액은 비워 두면 0원으로 등록·수정한다.
+    rentPrice: toWon(form.rentManwon) ?? 0,
     maintenanceFee: toWon(form.maintenanceFeeManwon) ?? 0,
     depositAmount: toWon(form.depositManwon) ?? 0,
     paymentDay: form.paymentDay ?? null,
@@ -209,8 +209,7 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.billingTiming != null &&
       values?.rentBillingCycle != null &&
       !(values.rentBillingCycle === "YEARLY" && values.billingTiming === "POSTPAID") &&
-      values?.rentManwon != null &&
-      values.rentManwon > 0,
+      (values.rentManwon ?? 0) >= 0,
   );
 }
 
@@ -574,14 +573,11 @@ export function TenantInfoFormFields({
         <Form.Item
           label={isParking ? "주차비" : "임대료"}
           name="rentManwon"
-          rules={[
-            { required: true, message: "임대료를 입력해 주세요." },
-            { type: "number", min: 1, message: "임대료는 1만원 이상이어야 합니다." },
-          ]}
+          rules={[{ type: "number", min: 0, message: "임대료는 0 이상이어야 합니다." }]}
         >
           <RentScheduleInput
             formInstance={form}
-            min={1}
+            min={0}
             placeholder="50"
             rentBillingCycleEditable={rentBillingCycleEditable}
           />
