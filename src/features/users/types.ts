@@ -21,7 +21,7 @@ export type UserDetail = {
   status: UserStatus;
   notifyDue: boolean;
   notifyOverdue: boolean;
-  // 운영자 전용 차단 스위치다. 임대인이 임차인별로 켜 둔 값 위에서 계정 전체를 덮는다.
+  // 운영자 전용 개방 스위치다. 가입 기본값은 꺼짐이고, 임차인별 설정과 함께 둘 다 켜져야 발송된다.
   alimtalkEnabled: boolean;
   email: string;
   phone: string | null;

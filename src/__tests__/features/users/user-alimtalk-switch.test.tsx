@@ -54,13 +54,13 @@ beforeEach(() => {
   mockUpdateAlimtalk.mockReset();
 });
 
-test("계정 단위 알림톡 허용 상태를 보여준다", () => {
+test("계정 단위 알림톡이 열려 있는 상태를 보여준다", () => {
   render(<UserDetailCard user={user} />);
 
-  expect(screen.getByText("발송 허용")).toBeInTheDocument();
+  expect(screen.getByText("발송 열림")).toBeInTheDocument();
 });
 
-test("차단으로 내리면 계정 단위 차단 요청을 보낸다", async () => {
+test("스위치를 내리면 계정 단위 차단 요청을 보낸다", async () => {
   render(<UserDetailCard user={user} />);
 
   const switches = screen.getAllByRole("switch");
@@ -71,8 +71,8 @@ test("차단으로 내리면 계정 단위 차단 요청을 보낸다", async ()
   });
 });
 
-test("차단된 계정은 상태를 그대로 드러낸다", () => {
+test("아직 열리지 않은 계정은 상태를 그대로 드러낸다", () => {
   render(<UserDetailCard user={{ ...user, alimtalkEnabled: false }} />);
 
-  expect(screen.getByText("발송 차단")).toBeInTheDocument();
+  expect(screen.getByText("발송 닫힘")).toBeInTheDocument();
 });

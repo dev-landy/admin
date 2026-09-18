@@ -83,7 +83,9 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
                 unCheckedChildren="미수신"
                 onChange={handleDueAlimtalkChange}
               />
-              <Typography.Text type="secondary">세입자에게 발송</Typography.Text>
+              <Typography.Text type="secondary">
+                세입자에게 발송 · 유저의 계정 알림톡도 열려 있어야 나갑니다
+              </Typography.Text>
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="계약 시작일">{tenant.startDate}</Descriptions.Item>
