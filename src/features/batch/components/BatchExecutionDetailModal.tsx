@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
-import { formatMillis } from "../dateTime";
+import { formatMillis } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
 import { batchExecutionStatusColor } from "../executionStatus";
 import { useBatchExecution } from "../hooks";

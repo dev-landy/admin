@@ -7,7 +7,7 @@ import dayjs from "dayjs";
 
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
-import { formatSeconds } from "../dateTime";
+import { formatSeconds } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
 import {
   BATCH_EXECUTION_STATUS_OPTIONS,

@@ -6,7 +6,7 @@ import type { TableColumnsType } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { describeCron } from "../cron";
-import { formatSeconds } from "../dateTime";
+import { formatSeconds } from "@/lib/format/date";
 import { useUpdateBatchSchedule } from "../hooks";
 import type { BatchSchedule, BatchScheduleKey } from "../types";
 import { BatchScheduleEditModal } from "./BatchScheduleEditModal";
