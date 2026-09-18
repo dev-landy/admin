@@ -21,7 +21,7 @@ export type UserDetail = {
   status: UserStatus;
   notifyDue: boolean;
   notifyOverdue: boolean;
-  // 운영자 전용 개방 스위치다. 가입 기본값은 꺼짐이고, 임차인별 설정과 함께 둘 다 켜져야 발송된다.
+  // 임대인이 설정 화면에서 켜고 끄는 값이다(기본 켜짐). 실제 발송은 임차인별 설정(기본 꺼짐)이 결정한다.
   alimtalkEnabled: boolean;
   email: string;
   phone: string | null;

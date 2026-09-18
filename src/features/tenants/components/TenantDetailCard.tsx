@@ -84,7 +84,7 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
                 onChange={handleDueAlimtalkChange}
               />
               <Typography.Text type="secondary">
-                세입자에게 발송 · 유저의 계정 알림톡도 열려 있어야 나갑니다
+                세입자에게 발송 · 유저의 세입자 알림톡 설정이 켜져 있어야 나갑니다
               </Typography.Text>
             </Space>
           </Descriptions.Item>

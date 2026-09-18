@@ -37,8 +37,8 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
       onSuccess: () =>
         notification.success({
           title: enabled
-            ? "이 계정의 알림톡을 열었습니다. 임차인별 설정을 켜야 실제로 나갑니다."
-            : "이 계정의 알림톡을 닫았습니다.",
+            ? "세입자 알림톡을 켰습니다. 임차인별 설정을 켜야 실제로 나갑니다."
+            : "세입자 알림톡을 껐습니다. 임차인별 설정과 무관하게 전부 멈춥니다.",
         }),
       onError: (err) => {
         const p = parseProblemDetail(err);
@@ -103,18 +103,18 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
             onChange={(v) => updateNotify({ notifyOverdue: v })}
           />
         </Descriptions.Item>
-        <Descriptions.Item label="알림톡 발송">
-          <Tooltip title="세입자에게 나가는 알림톡을 계정 단위로 여는 운영자 스위치입니다. 가입 기본값은 닫힘이며, 열어도 임차인별 설정을 따로 켜야 실제로 나갑니다. 닫으면 임차인별 설정과 무관하게 아무것도 나가지 않습니다.">
+        <Descriptions.Item label="세입자 알림톡">
+          <Tooltip title="임대인이 설정 화면에서 직접 켜고 끄는 값이며(기본 켜짐), 여기서는 지원 목적으로 대신 바꿉니다. 켜져 있어도 임차인별 설정(기본 꺼짐)을 따로 켜야 실제로 나가고, 끄면 임차인별 설정과 무관하게 전부 멈춥니다.">
             <Space>
               <Switch
                 checked={user.alimtalkEnabled}
                 loading={isAlimtalkPending}
-                checkedChildren="열림"
-                unCheckedChildren="닫힘"
+                checkedChildren="사용"
+                unCheckedChildren="중지"
                 onChange={handleAlimtalkChange}
               />
               <Tag color={user.alimtalkEnabled ? "green" : "default"}>
-                {user.alimtalkEnabled ? "발송 열림" : "발송 닫힘"}
+                {user.alimtalkEnabled ? "세입자 발송 사용" : "세입자 발송 중지"}
               </Tag>
             </Space>
           </Tooltip>

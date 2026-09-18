@@ -59,7 +59,7 @@ export function useUpdateUserNotifySettings(userId: number) {
   });
 }
 
-/** 계정 단위 알림톡은 2단 opt-in의 바깥쪽이다. 닫으면 임차인별 설정과 무관하게 전부 멈춘다. */
+/** 임대인의 세입자 알림톡 마스터 토글이다. 끄면 임차인별 설정과 무관하게 그 계정 발송이 전부 멈춘다. */
 export function useUpdateUserAlimtalkEnabled(userId: number) {
   const qc = useQueryClient();
   return useMutation({
