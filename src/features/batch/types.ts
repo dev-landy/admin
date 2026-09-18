@@ -28,7 +28,9 @@ export type BatchScheduleKey =
   | "SILENT_WAKEUP_RETRY"
   | "SILENT_WAKEUP_RETRY_FINAL"
   | "REFRESH_TOKEN_CLEANUP"
-  | "REFRESH_TOKEN_CLEANUP_RETRY";
+  | "REFRESH_TOKEN_CLEANUP_RETRY"
+  | "DUE_ALIMTALK"
+  | "DUE_ALIMTALK_RETRY";
 
 export type BatchExecutionSummary = {
   executionId: number;
