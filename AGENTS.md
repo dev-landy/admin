@@ -50,7 +50,7 @@ src/
     (admin)/
       layout.tsx        # 클라이언트 AuthGuard + 사이드바·헤더
       users/ properties/ tenants/ contract-ocr/
-      payments/ notifications/ fcm/ release-policies/
+      payments/ notifications/ fcm/ alimtalk/ release-policies/
                         # 상세·운영 하위 라우트는 각 도메인 디렉터리 아래에 둔다
   components/           # 공용 환경 표시·테이블·날짜/ID 필터 컴포넌트
   config/
@@ -59,7 +59,7 @@ src/
     app-env.ts          # 배포 환경(prod/dev/local)별 표시 메타 (라벨/색상)
   features/             # 도메인별 모듈 — 보통 api.ts / hooks.ts / types.ts / components/
                         # auth, users, properties, tenants, contract-ocr, payments,
-                        # notifications, fcm, releasePolicies
+                        # notifications, fcm, alimtalk, releasePolicies
   lib/
     api/
       client.ts         # 공유 axios 인스턴스 (토큰 부착, 401 refresh, admin-forbidden 403 처리)
