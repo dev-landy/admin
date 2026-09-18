@@ -6,6 +6,7 @@ import {
   fetchUserFcmTokens,
   updateUserRole,
   updateUserNotifySettings,
+  updateUserAlimtalkEnabled,
   deleteUser,
   deactivateFcmToken,
   updateFcmTokenSilentWakeupSubscription,
@@ -54,6 +55,15 @@ export function useUpdateUserNotifySettings(userId: number) {
   return useMutation({
     mutationFn: (s: { notifyDue?: boolean; notifyOverdue?: boolean }) =>
       updateUserNotifySettings(userId, s),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.detail(userId) }),
+  });
+}
+
+/** 계정 단위 알림톡 차단은 그 유저의 모든 임차인 발송을 한 번에 멈춘다. */
+export function useUpdateUserAlimtalkEnabled(userId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (alimtalkEnabled: boolean) => updateUserAlimtalkEnabled(userId, alimtalkEnabled),
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.detail(userId) }),
   });
 }

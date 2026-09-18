@@ -132,6 +132,13 @@ export function TenantTable({
       render: (v: boolean) => <Tag color={v ? "green" : "default"}>{v ? "활성" : "비활성"}</Tag>,
     },
     {
+      title: "알림톡",
+      dataIndex: "dueAlimtalkEnabled",
+      width: 90,
+      align: "center",
+      render: (v: boolean) => <Tag color={v ? "green" : "default"}>{v ? "수신" : "미수신"}</Tag>,
+    },
+    {
       title: "액션",
       key: "action",
       width: 160,

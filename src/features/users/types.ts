@@ -21,6 +21,8 @@ export type UserDetail = {
   status: UserStatus;
   notifyDue: boolean;
   notifyOverdue: boolean;
+  // 운영자 전용 차단 스위치다. 임대인이 임차인별로 켜 둔 값 위에서 계정 전체를 덮는다.
+  alimtalkEnabled: boolean;
   email: string;
   phone: string | null;
   createdAt: string;

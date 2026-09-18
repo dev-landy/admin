@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Card, Descriptions, Popconfirm, Space, Tag } from "antd";
+import { App, Button, Card, Descriptions, Popconfirm, Space, Switch, Tag, Typography } from "antd";
 import { useRouter } from "next/navigation";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { formatManwon } from "@/lib/format/currency";
 import { formatRentSchedule } from "../billingCycle";
 import { formatBillingSchedule } from "../billingTiming";
-import { useDeleteTenant } from "../hooks";
+import { useDeleteTenant, useUpdateTenant } from "../hooks";
 import { TenantEditDrawer } from "./TenantEditDrawer";
 import type { TenantDetail } from "../types";
 
@@ -16,7 +16,23 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
   const router = useRouter();
   const { notification } = App.useApp();
   const { mutate: deleteTenant, isPending: isDeleting } = useDeleteTenant();
+  const { mutate: updateTenant, isPending: isUpdating } = useUpdateTenant(tenant.tenantId);
   const [editOpen, setEditOpen] = useState(false);
+
+  // 낙관적 갱신은 하지 않는다. 실패하면 스위치가 서버 값에 남아야 "켠 줄 알았는데 안 갔다"가 생기지 않는다.
+  function handleDueAlimtalkChange(enabled: boolean) {
+    updateTenant(
+      { dueAlimtalkEnabled: enabled },
+      {
+        onSuccess: () =>
+          notification.success({ title: `납부일 알림톡을 ${enabled ? "켰습니다" : "껐습니다"}.` }),
+        onError: (err) => {
+          const p = parseProblemDetail(err);
+          notification.error({ title: p?.title ?? "알림톡 설정 변경 실패", description: p?.detail });
+        },
+      },
+    );
+  }
 
   function handleDelete() {
     deleteTenant(tenant.tenantId, {
@@ -57,6 +73,18 @@ export function TenantDetailCard({ tenant }: { tenant: TenantDetail }) {
             <Tag color={tenant.notifyEnabled ? "green" : "default"}>
               {tenant.notifyEnabled ? "활성" : "비활성"}
             </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="납부일 알림톡">
+            <Space>
+              <Switch
+                checked={tenant.dueAlimtalkEnabled}
+                loading={isUpdating}
+                checkedChildren="수신"
+                unCheckedChildren="미수신"
+                onChange={handleDueAlimtalkChange}
+              />
+              <Typography.Text type="secondary">세입자에게 발송</Typography.Text>
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="계약 시작일">{tenant.startDate}</Descriptions.Item>
           <Descriptions.Item label="계약 종료일">{tenant.endDate ?? "-"}</Descriptions.Item>

@@ -26,6 +26,8 @@ export type TenantSummary = {
   startDate: string;
   endDate: string | null;
   notifyEnabled: boolean;
+  // 이 임차인이 납부일 알림톡을 받을지. 임대인이 받는 notifyEnabled와는 수신자도 채널도 다르다.
+  dueAlimtalkEnabled: boolean;
 };
 
 export type TenantDetail = TenantSummary & {
@@ -63,4 +65,5 @@ export type UpdateTenantRequest = {
   paymentDay?: number;
   startDate?: string;
   endDate?: string;
+  dueAlimtalkEnabled?: boolean;
 };

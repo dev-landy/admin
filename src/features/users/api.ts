@@ -43,6 +43,10 @@ export async function updateUserNotifySettings(
   return data;
 }
 
+export async function updateUserAlimtalkEnabled(userId: number, alimtalkEnabled: boolean): Promise<void> {
+  await apiClient.patch(`/v1/admin/users/${userId}/alimtalk`, { alimtalkEnabled });
+}
+
 export async function deleteUser(userId: number): Promise<void> {
   await apiClient.delete(`/v1/admin/users/${userId}`);
 }
