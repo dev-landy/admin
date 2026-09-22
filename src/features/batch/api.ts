@@ -9,6 +9,8 @@ import type {
   BatchSchedulesResponse,
   RetryBatchExecutionRequest,
   RetryBatchExecutionResponse,
+  RunBatchJobRequest,
+  RunBatchJobResponse,
   UpdateBatchScheduleRequest,
 } from "./types";
 
@@ -54,5 +56,16 @@ export async function updateBatchSchedule(
 
 export async function fetchBatchJobs(): Promise<BatchJobsResponse> {
   const { data } = await apiClient.get<BatchJobsResponse>("/v1/admin/batch/jobs");
+  return data;
+}
+
+export async function runBatchJob(
+  jobName: string,
+  body: RunBatchJobRequest,
+): Promise<RunBatchJobResponse> {
+  const { data } = await apiClient.post<RunBatchJobResponse>(
+    `/v1/admin/batch/jobs/${encodeURIComponent(jobName)}/runs`,
+    body,
+  );
   return data;
 }

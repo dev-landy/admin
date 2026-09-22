@@ -22,13 +22,9 @@ export type BatchStepKind = "CHUNK" | "TASKLET" | "UNKNOWN";
 export type BatchScheduleKey =
   | "DAILY_NOTIFICATION"
   | "DAILY_NOTIFICATION_RETRY"
-  | "DAILY_NOTIFICATION_RETRY_FINAL"
-  | "DAILY_NOTIFICATION_LATE_RETRY"
+  | "DAILY_DISPATCH_AUDIT"
   | "SILENT_WAKEUP"
-  | "SILENT_WAKEUP_RETRY"
-  | "SILENT_WAKEUP_RETRY_FINAL"
   | "REFRESH_TOKEN_HISTORY_CLEANUP"
-  | "REFRESH_TOKEN_CLEANUP_RETRY"
   | "DUE_ALIMTALK"
   | "DUE_ALIMTALK_RETRY";
 
@@ -44,6 +40,7 @@ export type BatchExecutionSummary = {
   startTime: string | null;
   endTime: string | null;
   durationMillis: number | null;
+  jobVersion: string | null;
   retryable: boolean;
   // 종료 신호 없이 오래 STARTED로 남은 실행. 재시도하려면 confirmStale 재확인이 필요하다.
   stale: boolean;
@@ -96,6 +93,15 @@ export type RetryBatchExecutionResponse = {
   targetDate: string | null;
   newExecutionId: number | null;
   status: BatchExecutionStatus;
+};
+
+export type RunBatchJobRequest = { targetDate: string };
+
+export type RunBatchJobResponse = {
+  jobName: string;
+  targetDate: string;
+  newExecutionId: number | null;
+  status: BatchExecutionStatus | null;
 };
 
 export type BatchSchedule = {

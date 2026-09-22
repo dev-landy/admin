@@ -4,6 +4,7 @@ import {
   fetchBatchJobs,
   fetchBatchSchedules,
   retryBatchExecution,
+  runBatchJob,
   updateBatchSchedule,
 } from "@/features/batch/api";
 import { apiClient } from "@/lib/api/client";
@@ -94,4 +95,12 @@ test("배치 스케줄을 key 경로로 수정한다", async () => {
   await updateBatchSchedule("DAILY_NOTIFICATION", body);
 
   expect(mockPatch).toHaveBeenCalledWith("/v1/admin/batch/schedules/DAILY_NOTIFICATION", body);
+});
+
+test("실행 이력이 없는 날짜는 Job 이름과 대상 날짜로 실행을 요청한다", async () => {
+  const response = { jobName: "dailyDispatchAuditJob", targetDate: "2026-09-21", newExecutionId: 99, status: "STARTING" };
+  mockPost.mockResolvedValue({ data: response });
+
+  await expect(runBatchJob("dailyDispatchAuditJob", { targetDate: "2026-09-21" })).resolves.toEqual(response);
+  expect(mockPost).toHaveBeenCalledWith("/v1/admin/batch/jobs/dailyDispatchAuditJob/runs", { targetDate: "2026-09-21" });
 });

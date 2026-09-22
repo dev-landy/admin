@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Typography } from "antd";
+import { Alert, Button, Card, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import { BatchScheduleTable } from "@/features/batch/components/BatchScheduleTable";
@@ -20,6 +20,13 @@ export default function BatchSchedulesPage() {
         </Button>
       }
     >
+      <Alert
+        type="info"
+        showIcon
+        title="실행 시각은 한국 시간입니다"
+        description="변경 사항은 서버별로 최대 1분 뒤 반영됩니다. 납부일 알림톡의 발송 마감은 스케줄을 바꿔도 08:55입니다. 일일 발송 점검은 미해결 건을 보고하며 자동으로 재발송하지 않습니다."
+        style={{ marginBottom: 16 }}
+      />
       <BatchScheduleTable data={data?.schedules ?? []} loading={isLoading} />
     </Card>
   );

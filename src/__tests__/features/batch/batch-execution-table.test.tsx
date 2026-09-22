@@ -51,6 +51,7 @@ const failedExecution: BatchExecutionSummary = {
   startTime: "2026-09-01T09:00:01",
   endTime: "2026-09-01T09:01:31",
   durationMillis: 90_000,
+  jobVersion: "v2",
   retryable: true,
   stale: false,
 };
@@ -179,6 +180,7 @@ test("상세 버튼을 누르면 스텝 목록과 종료 메시지를 보여준�
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("배치 실행 #12")).toBeInTheDocument();
   expect(within(dialog).getByText("dailyNotificationStep")).toBeInTheDocument();
+  expect(within(dialog).getByText("v2")).toBeInTheDocument();
   expect(
     within(dialog).getByText("java.lang.IllegalStateException: boom"),
   ).toBeInTheDocument();

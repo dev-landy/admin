@@ -63,11 +63,11 @@ export function BatchExecutionTable({
       { executionId: execution.executionId, confirmStale },
       {
         onSuccess: (result) =>
-          notification.success({
-            title: "재시도를 요청했습니다.",
+          notification[result.newExecutionId === null ? "info" : "success"]({
+            title: result.newExecutionId === null ? "새 실행을 만들지 않았습니다." : "재시도를 요청했습니다.",
             description:
               result.newExecutionId === null
-                ? `${result.jobName} 재실행이 접수되었습니다.`
+                ? `${result.jobName} 현재 상태: ${result.status}. 실행 이력에서 확인하세요.`
                 : `${result.jobName} 새 실행 ID: ${result.newExecutionId}`,
           }),
         onError: (error) => {
@@ -216,6 +216,12 @@ export function BatchExecutionTable({
       align: "right",
       filteredValue: null,
       render: (value: number | null) => formatDurationMillis(value),
+    },
+    {
+      title: "버전",
+      dataIndex: "jobVersion",
+      width: 90,
+      render: (value: string | null) => value ?? "-",
     },
     {
       title: "액션",

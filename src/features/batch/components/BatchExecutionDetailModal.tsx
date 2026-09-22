@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
+import { Alert, Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
 import { formatMillis } from "@/lib/format/date";
@@ -94,6 +94,7 @@ export function BatchExecutionDetailModal({
         { key: "executionId", label: "실행 ID", children: data.executionId },
         { key: "jobInstanceId", label: "Job 인스턴스 ID", children: data.jobInstanceId },
         { key: "jobName", label: "Job", children: data.jobName },
+        { key: "jobVersion", label: "Job 버전", children: data.jobVersion ?? "-" },
         { key: "targetDate", label: "대상 날짜", children: data.targetDate ?? "-" },
         {
           key: "status",
@@ -137,6 +138,15 @@ export function BatchExecutionDetailModal({
         <Spin size="large" style={{ display: "block", textAlign: "center", margin: "48px 0" }} />
       ) : (
         <>
+          {data.jobName === "dailyDispatchAuditJob" && (
+            <Alert
+              type="info"
+              showIcon
+              title="일일 발송 점검은 미해결 건을 보고합니다"
+              description="잔여 건이 있으면 FAILED로 기록됩니다. 종료 메시지를 확인한 뒤 알림 Outbox에서 재처리하거나 알림톡 발송 이력에서 미결 건을 종결하세요."
+              style={{ marginBottom: 16 }}
+            />
+          )}
           <Descriptions bordered column={2} size="small" items={items} />
 
           <Typography.Title level={5} style={{ marginTop: 24 }}>

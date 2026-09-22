@@ -52,11 +52,11 @@ export function BatchScheduleToggleModal({
             }
             style={{ marginBottom: 16 }}
           />
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Job">{schedule.jobName}</Descriptions.Item>
-            <Descriptions.Item label="작업">{schedule.label}</Descriptions.Item>
-            <Descriptions.Item label="실행 시각">{cronDescription}</Descriptions.Item>
-          </Descriptions>
+          <Descriptions column={1} bordered size="small" items={[
+            { key: "jobName", label: "Job", children: schedule.jobName },
+            { key: "label", label: "작업", children: schedule.label },
+            { key: "cron", label: "실행 시각", children: cronDescription },
+          ]} />
         </>
       )}
     </Modal>
