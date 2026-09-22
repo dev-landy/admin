@@ -26,8 +26,9 @@ export function batchExecutionStatusColor(status: BatchExecutionStatus): string 
   return BATCH_EXECUTION_STATUS_COLOR[status] ?? "default";
 }
 
-// COMPLETED_WITH_USER_FAILURES는 Job 상태가 COMPLETED로 보이지만 일부 사용자의 알림이 실패한
-// 경우다. 운영에서 실제로 찾아보는 값이라 코드만으로는 눈에 띄지 않아 한국어 설명을 붙인다.
+// COMPLETED_WITH_USER_FAILURES는 일부 사용자 알림 생성에 실패한 Step의 종료 코드다.
+// 성공한 사용자의 알림 발송을 처리한 뒤 Job은 FAILED로 남아 재시작할 수 있다.
+// 종료 코드의 의미를 쉽게 구분하도록 한국어 설명을 붙인다.
 export const BATCH_EXIT_CODE_OPTIONS: { label: string; value: BatchExitCode }[] = [
   { label: "COMPLETED (정상 완료)", value: "COMPLETED" },
   { label: "COMPLETED_WITH_USER_FAILURES (일부 사용자 실패)", value: "COMPLETED_WITH_USER_FAILURES" },
