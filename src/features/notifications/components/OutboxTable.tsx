@@ -6,10 +6,11 @@ import type { TableColumnsType } from "antd";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useRequeueOutbox } from "../hooks";
-import type { OutboxEvent, OutboxStatus, OutboxListParams } from "../types";
+import type { OutboxEvent, OutboxStatus } from "../types";
 
 const STATUS_COLOR: Record<OutboxStatus, string> = {
   PENDING: "blue",
+  SENDING: "processing",
   SENT: "green",
   FAILED: "red",
   SKIPPED: "orange",
@@ -24,12 +25,11 @@ type Props = {
   onPageChange: (p: number, s: number) => void;
   filters: { status?: OutboxStatus };
   onFilterChange: (key: string, value: string | undefined) => void;
-  queryParams: OutboxListParams;
 };
 
-export function OutboxTable({ data, loading, page, pageSize, total, onPageChange, filters, onFilterChange, queryParams }: Props) {
+export function OutboxTable({ data, loading, page, pageSize, total, onPageChange, filters, onFilterChange }: Props) {
   const { notification } = App.useApp();
-  const { mutate: requeue, isPending: isRequeueing } = useRequeueOutbox(queryParams);
+  const { mutate: requeue, isPending: isRequeueing } = useRequeueOutbox();
 
   const columns: TableColumnsType<OutboxEvent> = [
     { title: "아웃박스 이벤트 ID", dataIndex: "notificationOutboxEventId", width: 150 },
@@ -40,6 +40,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
       title: "상태",
       dataIndex: "status",
       width: 100,
+      filteredValue: filters.status ? [filters.status] : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select
@@ -50,6 +51,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
             onChange={(v) => onFilterChange("status", v)}
             options={[
               { label: "PENDING", value: "PENDING" },
+              { label: "SENDING", value: "SENDING" },
               { label: "SENT", value: "SENT" },
               { label: "FAILED", value: "FAILED" },
               { label: "SKIPPED", value: "SKIPPED" },
@@ -62,6 +64,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
     { title: "시도 횟수", dataIndex: "attempts", width: 90 },
     { title: "마지막 시도", dataIndex: "lastAttemptedAt", width: 180 },
     { title: "에러 코드", dataIndex: "lastErrorCode" },
+    { title: "에러 메시지", dataIndex: "lastErrorMessage" },
     {
       title: "액션",
       key: "action",
@@ -75,7 +78,10 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
             loading={isRequeueing}
             onClick={() =>
               requeue(record.notificationOutboxEventId, {
-                onSuccess: () => notification.success({ title: "재시도 큐에 추가되었습니다." }),
+                onSuccess: () => notification.success({
+                  title: "재시도 큐에 추가되었습니다.",
+                  description: "발송하려면 수동 Dispatch를 실행하세요. 대상일이 지난 예약 알림은 다시 건너뜁니다.",
+                }),
                 onError: (err) => {
                   const p = parseProblemDetail(err);
                   notification.error({ title: p?.title ?? "Requeue 실패", description: p?.detail });

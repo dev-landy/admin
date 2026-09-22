@@ -15,11 +15,11 @@ export function useOutbox(params: OutboxListParams) {
   return useQuery({ queryKey: notificationKeys.outbox(params), queryFn: () => fetchOutbox(params) });
 }
 
-export function useRequeueOutbox(params: OutboxListParams) {
+export function useRequeueOutbox() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => requeueOutbox(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.outbox(params) }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
   });
 }
 
@@ -27,7 +27,7 @@ export function useDispatchNotifications() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (size?: number) => dispatchNotifications(size),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
   });
 }
 
@@ -35,6 +35,6 @@ export function useSendCustomNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (req: SendCustomNotificationRequest) => sendCustomNotification(req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications", "list"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }

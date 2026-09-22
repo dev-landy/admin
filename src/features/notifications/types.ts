@@ -1,5 +1,12 @@
-export type NotificationType = "DUE" | "OVERDUE" | "CUSTOM" | "PAYMENT_RECORDED";
-export type OutboxStatus = "PENDING" | "SENT" | "FAILED" | "SKIPPED";
+export type NotificationType =
+  | "DUE"
+  | "OVERDUE"
+  | "CONTRACT_EXPIRING"
+  | "CUSTOM"
+  | "PAYMENT_RECORDED"
+  | "CONTRACT_REGISTERED"
+  | "CONTRACT_FAILED";
+export type OutboxStatus = "PENDING" | "SENDING" | "SENT" | "FAILED" | "SKIPPED";
 
 export type Notification = {
   notificationId: number;
@@ -69,7 +76,7 @@ export type SendCustomNotificationResponse = {
   sent: number;
   failed: number;
   skipped: number;
-  // 알림이 커밋된 뒤 이 요청이 outbox를 선점하기 전에 1분 주기 자동 발송기가 먼저 가져간 건수.
+  // 알림이 커밋된 뒤 이 요청이 outbox를 선점하기 전에 다른 발송 경로가 먼저 가져간 건수.
   // 누락이 아니라 이미 발송 중이라는 뜻이라, 발송 결과를 읽을 때 0건과 구분해야 한다.
   alreadyClaimed: number;
 };

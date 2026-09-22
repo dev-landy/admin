@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { NotificationTable } from "@/features/notifications/components/NotificationTable";
 import type { Notification } from "@/features/notifications/types";
@@ -38,6 +38,8 @@ const notification: Notification = {
   isRead: false,
 };
 
+const onFilterChange = jest.fn();
+
 function renderTable(item: Notification = notification) {
   render(
     <NotificationTable
@@ -48,7 +50,7 @@ function renderTable(item: Notification = notification) {
       total={1}
       onPageChange={jest.fn()}
       filters={{}}
-      onFilterChange={jest.fn()}
+      onFilterChange={onFilterChange}
     />,
   );
 }
@@ -83,4 +85,23 @@ test("현재 백엔드 목록 응답에서도 생성일과 본문 누락 상태�
   const dialog = screen.getByRole("dialog");
   expect(within(dialog).getByText("2026-08-29T10:00:00")).toBeInTheDocument();
   expect(within(dialog).getByText("본문 정보가 제공되지 않았습니다.")).toBeInTheDocument();
+});
+
+test.each([
+  ["CONTRACT_EXPIRING", "계약 만료 예정"],
+  ["CONTRACT_REGISTERED", "계약 등록 완료"],
+  ["CONTRACT_FAILED", "계약 등록 실패"],
+] as const)("%s 알림도 유형 필터에서 선택한다", async (type, label) => {
+  onFilterChange.mockClear();
+  renderTable({ ...notification, type });
+  const header = within(document.querySelector("thead")!).getByText("유형").closest("th")!;
+  fireEvent.click(header.querySelector(".ant-table-filter-trigger")!);
+  const dropdown = await waitFor(() => {
+    const element = document.querySelector<HTMLElement>(".ant-table-filter-dropdown");
+    if (!element) throw new Error("필터를 여는 중입니다.");
+    return element;
+  });
+  fireEvent.mouseDown(within(dropdown).getByRole("combobox"));
+  fireEvent.click(await screen.findByText(label));
+  expect(onFilterChange).toHaveBeenCalledWith("type", type);
 });

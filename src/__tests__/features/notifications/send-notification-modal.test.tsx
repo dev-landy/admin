@@ -89,7 +89,7 @@ test("발송된 건이 있으면 전송·실패·건너뜀 건수를 그대로 �
 
   expect(await screen.findByText("알림 발송 완료")).toBeInTheDocument();
   expect(screen.getByText("알림 ID 101 — 전송 2 / 실패 1 / 건너뜀 3")).toBeInTheDocument();
-  expect(screen.queryByText(/자동 발송기/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/다른 발송 경로/)).not.toBeInTheDocument();
   await waitFor(() => expect(onClose).toHaveBeenCalled());
 });
 
@@ -100,24 +100,24 @@ test("모두 0건이고 선점된 건도 없으면 발송 대상이 없었다고
   expect(
     screen.getByText("활성 FCM 토큰이 없어 발송할 대상이 없습니다. 전송된 푸시가 없습니다."),
   ).toBeInTheDocument();
-  expect(screen.queryByText(/자동 발송기/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/다른 발송 경로/)).not.toBeInTheDocument();
 });
 
-test("자동 발송기가 먼저 가져간 건이 있으면 재발송하지 말라고 알린다", async () => {
+test("다른 발송 경로가 먼저 가져간 건이 있으면 재발송하지 말라고 알린다", async () => {
   await send({ ...RESULT, alreadyClaimed: 2 });
 
-  expect(await screen.findByText("이미 자동 발송 중입니다 — 다시 발송하지 마세요")).toBeInTheDocument();
-  expect(screen.getByText(/자동 발송기가 2건을 먼저 가져갔습니다/)).toBeInTheDocument();
-  expect(screen.getByText(/누락이 아닙니다/)).toBeInTheDocument();
+  expect(await screen.findByText("다른 경로에서 발송을 처리 중입니다")).toBeInTheDocument();
+  expect(screen.getByText(/다른 발송 경로가 2건을 먼저 가져갔습니다/)).toBeInTheDocument();
+  expect(screen.getByText(/발송 누락을 뜻하지 않으며/)).toBeInTheDocument();
   expect(screen.getByText(/다시 발송하면 인앱 알림과 푸시가 중복됩니다/)).toBeInTheDocument();
   // 대상이 없어 못 보낸 경우와 같은 0/0/0이지만, 그 문구가 나오면 안 된다.
   expect(screen.queryByText("발송 대상이 없습니다")).not.toBeInTheDocument();
 });
 
-test("일부는 발송되고 일부를 자동 발송기가 가져갔으면 경고와 함께 건수도 알린다", async () => {
+test("일부는 발송되고 일부를 다른 발송 경로가 가져갔으면 경고와 함께 건수도 알린다", async () => {
   await send({ ...RESULT, sent: 1, skipped: 1, alreadyClaimed: 3 });
 
-  expect(await screen.findByText("이미 자동 발송 중입니다 — 다시 발송하지 마세요")).toBeInTheDocument();
+  expect(await screen.findByText("다른 경로에서 발송을 처리 중입니다")).toBeInTheDocument();
   expect(screen.getByText("이번 요청이 처리한 건: 전송 1 / 실패 0 / 건너뜀 1")).toBeInTheDocument();
   expect(screen.queryByText("알림 발송 완료")).not.toBeInTheDocument();
 });

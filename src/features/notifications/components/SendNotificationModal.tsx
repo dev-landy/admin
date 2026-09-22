@@ -16,7 +16,7 @@ type SendFeedback = {
   level: "success" | "warning";
   title: string;
   description: React.ReactNode;
-  // 자동 발송기가 가져간 경우는 읽기 전에 사라지면 안 된다. 0이면 자동으로 닫히지 않는다.
+  // 다른 경로가 선점한 경우는 읽기 전에 사라지면 안 된다. 0이면 자동으로 닫히지 않는다.
   duration?: number;
 };
 
@@ -24,19 +24,19 @@ function formatCounts(result: SendCustomNotificationResponse): string {
   return `전송 ${result.sent} / 실패 ${result.failed} / 건너뜀 ${result.skipped}`;
 }
 
-// 0/0/0은 그 자체로는 "보낼 대상이 없었다"와 "자동 발송기가 이미 가져갔다"를 구분하지 못한다.
+// 0/0/0은 그 자체로는 "보낼 대상이 없었다"와 "다른 경로가 이미 가져갔다"를 구분하지 못한다.
 // 뒤쪽을 앞쪽으로 오해하면 재발송으로 인앱 알림과 푸시가 모두 중복되므로 문구를 따로 만든다.
 function toFeedback(result: SendCustomNotificationResponse): SendFeedback {
   if (result.alreadyClaimed > 0) {
     return {
       level: "warning",
-      title: "이미 자동 발송 중입니다 — 다시 발송하지 마세요",
+      title: "다른 경로에서 발송을 처리 중입니다",
       description: (
         <>
           <div>알림 ID {result.notificationId}</div>
           <div>
-            1분 주기 자동 발송기가 {result.alreadyClaimed}건을 먼저 가져갔습니다. 이 건들은 자동
-            발송기가 그대로 전송하므로 누락이 아닙니다.
+            다른 발송 경로가 {result.alreadyClaimed}건을 먼저 가져갔습니다. 발송 누락을 뜻하지 않으며,
+            결과는 알림 Outbox에서 확인하세요.
           </div>
           <div>같은 알림을 다시 발송하면 인앱 알림과 푸시가 중복됩니다.</div>
           <div>이번 요청이 처리한 건: {formatCounts(result)}</div>
@@ -89,7 +89,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
           notification.error({ title: p?.title ?? "발송 실패", description: p?.detail });
         },
       });
-    });
+    }).catch(() => undefined);
   }
 
   function handleCancel() {

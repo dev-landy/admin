@@ -19,9 +19,10 @@ type Props = {
 };
 
 function notificationTypeColor(type: NotificationType): string {
-  if (type === "OVERDUE") return "red";
+  if (type === "OVERDUE" || type === "CONTRACT_FAILED") return "red";
   if (type === "CUSTOM") return "purple";
-  if (type === "PAYMENT_RECORDED") return "green";
+  if (type === "PAYMENT_RECORDED" || type === "CONTRACT_REGISTERED") return "green";
+  if (type === "CONTRACT_EXPIRING") return "orange";
   return "blue";
 }
 
@@ -57,8 +58,11 @@ export function NotificationTable({
             options={[
               { label: "납부일", value: "DUE" },
               { label: "연체", value: "OVERDUE" },
+              { label: "계약 만료 예정", value: "CONTRACT_EXPIRING" },
               { label: "커스텀", value: "CUSTOM" },
               { label: "납부 확인", value: "PAYMENT_RECORDED" },
+              { label: "계약 등록 완료", value: "CONTRACT_REGISTERED" },
+              { label: "계약 등록 실패", value: "CONTRACT_FAILED" },
             ]}
           />
         </div>
