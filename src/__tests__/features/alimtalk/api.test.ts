@@ -2,6 +2,7 @@ import {
   fetchAlimtalkTemplates,
   fetchAlimtalks,
   fetchRemoteAlimtalkTemplate,
+  resolveAlimtalk,
   sendTestAlimtalk,
   updateAlimtalkTemplate,
 } from "@/features/alimtalk/api";
@@ -70,4 +71,13 @@ test("테스트 발송은 번호와 변수값을 그대로 보낸다", async () 
 
   await expect(sendTestAlimtalk(request)).resolves.toEqual({ status: "SENT" });
   expect(mockPost).toHaveBeenCalledWith("/v1/admin/alimtalks/test-sends", request);
+});
+
+test("미결 종결은 발송 ID와 확인한 결과를 resolution 경로로 보낸다", async () => {
+  const response = { alimtalkId: 51, status: "SENT", providerCode: "MANUAL" };
+  mockPatch.mockResolvedValue({ data: response });
+  const body = { status: "SENT" as const, messageId: "M_123" };
+
+  await expect(resolveAlimtalk(51, body)).resolves.toEqual(response);
+  expect(mockPatch).toHaveBeenCalledWith("/v1/admin/alimtalks/51/resolution", body);
 });

@@ -124,9 +124,9 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           <Input.TextArea rows={6} placeholder="#{세대정보} 임대료 #{납부액}원의 납부일입니다." />
         </Form.Item>
       </Form>
-      <Descriptions column={1} size="small">
-        <Descriptions.Item label="수정일">{formatSeconds(template.updatedAt)}</Descriptions.Item>
-      </Descriptions>
+      <Descriptions column={1} size="small" items={[
+        { key: "updatedAt", label: "수정일", children: formatSeconds(template.updatedAt) },
+      ]} />
       {remoteOpen && remoteProblem && (
         <Alert
           type="error"
@@ -138,11 +138,10 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
       )}
       {remoteOpen && remote && (
         <Card size="small" type="inner" title="공급자 승인 템플릿" style={{ marginTop: 16 }}>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="이름">{remote.name}</Descriptions.Item>
-            <Descriptions.Item label="상태">{remote.status}</Descriptions.Item>
-            <Descriptions.Item label="변수">
-              {remote.variableNames.length === 0 ? (
+          <Descriptions column={1} size="small" bordered items={[
+            { key: "name", label: "이름", children: remote.name },
+            { key: "status", label: "상태", children: remote.status },
+            { key: "variables", label: "변수", children: remote.variableNames.length === 0 ? (
                 "-"
               ) : (
                 <Space wrap>
@@ -152,12 +151,9 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
                     </Text>
                   ))}
                 </Space>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="승인 본문">
-              <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph>
-            </Descriptions.Item>
-          </Descriptions>
+              ) },
+            { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
+          ]} />
           <Alert
             type={remote.storedBodyMatches ? "success" : "warning"}
             showIcon

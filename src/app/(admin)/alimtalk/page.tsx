@@ -18,7 +18,7 @@ function TemplatesTab() {
   const [testSendOpen, setTestSendOpen] = useState(false);
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <Alert
         type="info"
         showIcon
@@ -61,7 +61,7 @@ function HistoryTab() {
     to: searchParams.get("to") ?? undefined,
   };
 
-  const { data, isLoading } = useAlimtalks({ page, size, ...filters });
+  const { data, isLoading, isFetching, refetch } = useAlimtalks({ page, size, ...filters });
 
   function pushParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -70,27 +70,39 @@ function HistoryTab() {
   }
 
   return (
-    <AlimtalkHistoryTable
-      data={data?.alimtalks ?? []}
-      loading={isLoading}
-      page={page}
-      pageSize={size}
-      total={data?.totalElements ?? 0}
-      onPageChange={(nextPage, nextSize) =>
-        pushParams((params) => {
-          params.set("page", String(nextPage));
-          params.set("size", String(nextSize));
-        })
-      }
-      filters={filters}
-      onFilterChange={(key, value) =>
-        pushParams((params) => {
-          params.set("page", "1");
-          if (value === undefined || value === "") params.delete(key);
-          else params.set(key, String(value));
-        })
-      }
-    />
+    <>
+      <Alert
+        type="info"
+        showIcon
+        title="제출 전(READY)과 결과 대기(PENDING)는 미결 건입니다"
+        description="발송 점검에서 발견한 미결 건은 공급자 상태와 실제 실행이 끝났는지 확인한 뒤 종결하세요. 종결은 재발송하지 않으며 같은 날 재요청 제한도 유지됩니다."
+        style={{ marginBottom: 16 }}
+      />
+      <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()} style={{ marginBottom: 16 }}>
+        새로고침
+      </Button>
+      <AlimtalkHistoryTable
+        data={data?.alimtalks ?? []}
+        loading={isLoading}
+        page={page}
+        pageSize={size}
+        total={data?.totalElements ?? 0}
+        onPageChange={(nextPage, nextSize) =>
+          pushParams((params) => {
+            params.set("page", String(nextPage));
+            params.set("size", String(nextSize));
+          })
+        }
+        filters={filters}
+        onFilterChange={(key, value) =>
+          pushParams((params) => {
+            params.set("page", "1");
+            if (value === undefined || value === "") params.delete(key);
+            else params.set(key, String(value));
+          })
+        }
+      />
+    </>
   );
 }
 

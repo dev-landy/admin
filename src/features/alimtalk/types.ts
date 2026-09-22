@@ -8,13 +8,16 @@ export type AlimtalkTrigger = "SCHEDULED" | "MANUAL";
  * `SENT`는 공급자 접수 확인이지 최종 전달 성공이 아니다. `UNKNOWN`은 접수 여부 자체가 불명이라
  * 자동 재전송을 하지 않는다 — 재전송은 곧 이중 발송이자 이중 과금이다.
  */
-export type AlimtalkStatus = "PENDING" | "SENT" | "FAILED" | "UNKNOWN";
+export type AlimtalkStatus = "READY" | "PENDING" | "SENT" | "FAILED" | "UNKNOWN";
+
+export type AlimtalkRecipientType = "TENANT" | "USER";
 
 /** 수신자 이름·전화번호는 이력에 저장하지 않는다. 실제 발송 건은 `messageId`로 공급자 콘솔에서 찾는다. */
 export type AlimtalkSummary = {
-  tenantAlimtalkId: number;
+  alimtalkId: number;
   userId: number;
-  tenantId: number;
+  recipientType: AlimtalkRecipientType;
+  recipientId: number;
   type: AlimtalkType;
   triggerSource: AlimtalkTrigger;
   status: AlimtalkStatus;
@@ -25,6 +28,11 @@ export type AlimtalkSummary = {
   providerCode: string | null;
   requestedAt: string;
   updatedAt: string;
+};
+
+export type ResolveAlimtalkRequest = {
+  status: "SENT" | "FAILED" | "UNKNOWN";
+  messageId?: string;
 };
 
 export type AlimtalksListParams = {

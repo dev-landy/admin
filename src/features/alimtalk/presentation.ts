@@ -14,7 +14,8 @@ export const ALIMTALK_TRIGGER_PRESENTATION: Record<AlimtalkTrigger, Presentation
 
 // SENT는 "전달 완료"가 아니라 공급자가 접수했다는 뜻이다. 화면 문구도 거기까지만 주장한다.
 export const ALIMTALK_STATUS_PRESENTATION: Record<AlimtalkStatus, Presentation> = {
-  PENDING: { label: "제출 대기", color: "default" },
+  READY: { label: "제출 전", color: "blue" },
+  PENDING: { label: "결과 대기", color: "processing" },
   SENT: { label: "발송 요청됨", color: "green" },
   FAILED: { label: "실패", color: "red" },
   UNKNOWN: { label: "접수 불명", color: "orange" },

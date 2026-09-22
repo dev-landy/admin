@@ -81,7 +81,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
       width={560}
       destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
+      <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
         <Alert
           type="warning"
           showIcon
@@ -100,12 +100,10 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
         )}
         {remote && (
           <>
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="템플릿">{remote.name}</Descriptions.Item>
-              <Descriptions.Item label="승인 본문">
-                <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph>
-              </Descriptions.Item>
-            </Descriptions>
+            <Descriptions column={1} size="small" bordered items={[
+              { key: "name", label: "템플릿", children: remote.name },
+              { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
+            ]} />
             <Form form={form} layout="vertical">
               <Form.Item
                 label="수신 번호"
@@ -131,22 +129,14 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
           </>
         )}
         {result && (
-          <Descriptions column={1} size="small" bordered title="발송 결과">
-            <Descriptions.Item label="상태">
-              <Tag color={ALIMTALK_STATUS_PRESENTATION[result.status].color}>
+          <Descriptions column={1} size="small" bordered title="발송 결과" items={[
+            { key: "status", label: "상태", children: <Tag color={ALIMTALK_STATUS_PRESENTATION[result.status].color}>
                 {ALIMTALK_STATUS_PRESENTATION[result.status].label}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="메시지 ID">
-              {result.messageId ? <Text code copyable>{result.messageId}</Text> : "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="결과 코드">{result.providerCode ?? "-"}</Descriptions.Item>
-            <Descriptions.Item label="채워진 내용">
-              <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>
-                {result.renderedContent}
-              </Paragraph>
-            </Descriptions.Item>
-          </Descriptions>
+              </Tag> },
+            { key: "messageId", label: "메시지 ID", children: result.messageId ? <Text code copyable>{result.messageId}</Text> : "-" },
+            { key: "providerCode", label: "결과 코드", children: result.providerCode ?? "-" },
+            { key: "content", label: "채워진 내용", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{result.renderedContent}</Paragraph> },
+          ]} />
         )}
       </Space>
     </Modal>

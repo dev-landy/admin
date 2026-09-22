@@ -5,7 +5,9 @@ import type {
   AlimtalkTemplate,
   AlimtalkTemplatesResponse,
   AlimtalkType,
+  AlimtalkSummary,
   RemoteAlimtalkTemplate,
+  ResolveAlimtalkRequest,
   SendTestAlimtalkRequest,
   SendTestAlimtalkResponse,
   UpdateAlimtalkTemplateRequest,
@@ -13,6 +15,17 @@ import type {
 
 export async function fetchAlimtalks(params: AlimtalksListParams): Promise<AlimtalksListResponse> {
   const { data } = await apiClient.get<AlimtalksListResponse>("/v1/admin/alimtalks", { params });
+  return data;
+}
+
+export async function resolveAlimtalk(
+  alimtalkId: number,
+  body: ResolveAlimtalkRequest,
+): Promise<AlimtalkSummary> {
+  const { data } = await apiClient.patch<AlimtalkSummary>(
+    `/v1/admin/alimtalks/${alimtalkId}/resolution`,
+    body,
+  );
   return data;
 }
 

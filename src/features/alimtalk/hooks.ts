@@ -4,12 +4,14 @@ import {
   fetchAlimtalkTemplates,
   fetchAlimtalks,
   fetchRemoteAlimtalkTemplate,
+  resolveAlimtalk,
   sendTestAlimtalk,
   updateAlimtalkTemplate,
 } from "./api";
 import type {
   AlimtalksListParams,
   AlimtalkType,
+  ResolveAlimtalkRequest,
   SendTestAlimtalkRequest,
   UpdateAlimtalkTemplateRequest,
 } from "./types";
@@ -23,6 +25,16 @@ export const alimtalkKeys = {
 
 export function useAlimtalks(params: AlimtalksListParams) {
   return useQuery({ queryKey: alimtalkKeys.list(params), queryFn: () => fetchAlimtalks(params) });
+}
+
+export function useResolveAlimtalk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ alimtalkId, body }: { alimtalkId: number; body: ResolveAlimtalkRequest }) =>
+      resolveAlimtalk(alimtalkId, body),
+    // 조회 뒤 실제 발송이 먼저 진행되어 409가 나도 최신 상태를 다시 보여준다.
+    onSettled: () => qc.invalidateQueries({ queryKey: ["alimtalks", "list"] }),
+  });
 }
 
 export function useAlimtalkTemplates() {

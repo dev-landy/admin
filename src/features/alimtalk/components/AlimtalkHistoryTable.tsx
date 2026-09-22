@@ -1,6 +1,7 @@
 "use client";
 
-import { Select, Tag, Typography } from "antd";
+import { useState } from "react";
+import { Button, Select, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { DateFilterDropdown } from "@/components/DateFilterDropdown";
@@ -17,6 +18,7 @@ import {
   ALIMTALK_TYPE_PRESENTATION,
 } from "../presentation";
 import type { AlimtalkStatus, AlimtalkSummary, AlimtalkTrigger, AlimtalkType } from "../types";
+import { AlimtalkResolutionModal } from "./AlimtalkResolutionModal";
 
 const { Text } = Typography;
 
@@ -70,8 +72,9 @@ export function AlimtalkHistoryTable({
   filters,
   onFilterChange,
 }: Props) {
+  const [resolving, setResolving] = useState<AlimtalkSummary | null>(null);
   const columns: TableColumnsType<AlimtalkSummary> = [
-    { title: "발송 ID", dataIndex: "tenantAlimtalkId", width: 100, align: "center" },
+    { title: "발송 ID", dataIndex: "alimtalkId", width: 100, align: "center" },
     {
       title: "유저 ID",
       dataIndex: "userId",
@@ -87,10 +90,11 @@ export function AlimtalkHistoryTable({
       ),
     },
     {
-      title: "임차인 ID",
-      dataIndex: "tenantId",
-      width: 120,
+      title: "수신자 (임차인 ID 필터)",
+      key: "recipient",
+      width: 200,
       align: "center",
+      render: (_value, record) => `${record.recipientType === "TENANT" ? "임차인" : "유저"} #${record.recipientId}`,
       filteredValue: filters.tenantId === undefined ? null : [filters.tenantId],
       filterDropdown: () => (
         <IdFilterDropdown
@@ -196,18 +200,42 @@ export function AlimtalkHistoryTable({
       width: 180,
       render: (value: string) => formatSeconds(value),
     },
+    {
+      title: "갱신일",
+      dataIndex: "updatedAt",
+      width: 180,
+      render: (value: string) => formatSeconds(value),
+    },
+    {
+      title: "액션",
+      key: "actions",
+      width: 110,
+      fixed: "right",
+      render: (_value, record) => (
+        <Button
+          size="small"
+          disabled={record.status !== "READY" && record.status !== "PENDING"}
+          onClick={() => setResolving(record)}
+        >
+          미결 종결
+        </Button>
+      ),
+    },
   ];
 
   return (
-    <PagedTable
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      page={page}
-      pageSize={pageSize}
-      total={total}
-      onPageChange={onPageChange}
-      rowKey={(r) => String(r.tenantAlimtalkId)}
-    />
+    <>
+      <PagedTable
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={onPageChange}
+        rowKey={(r) => String(r.alimtalkId)}
+      />
+      <AlimtalkResolutionModal alimtalk={resolving} onClose={() => setResolving(null)} />
+    </>
   );
 }
