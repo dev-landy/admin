@@ -1,7 +1,6 @@
 import type { ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "antd";
-import { AxiosError, AxiosHeaders } from "axios";
 
 import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionTable";
 import type { BatchExecutionDetail, BatchExecutionSummary } from "@/features/batch/types";
@@ -31,11 +30,9 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
-const mockRetry = jest.fn();
 let detail: BatchExecutionDetail | undefined;
 
 jest.mock("@/features/batch/hooks", () => ({
-  useRetryBatchExecution: () => ({ mutate: mockRetry, isPending: false }),
   useBatchExecution: () => ({ data: detail, isLoading: false }),
 }));
 
@@ -52,7 +49,6 @@ const failedExecution: BatchExecutionSummary = {
   endTime: "2026-09-01T09:01:31",
   durationMillis: 90_000,
   jobVersion: "v2",
-  retryable: true,
   stale: false,
 };
 
@@ -65,24 +61,8 @@ function runningStale(): BatchExecutionSummary {
     exitMessage: null,
     endTime: null,
     durationMillis: null,
-    retryable: true,
     stale: true,
   };
-}
-
-function conflict(problemType: string): AxiosError {
-  return new AxiosError("conflict", undefined, undefined, undefined, {
-    data: {
-      type: `https://landy.app/problems/${problemType}`,
-      title: "배치가 실행 중입니다",
-      status: 409,
-      detail: "실행 중인 배치는 재시도할 수 없습니다.",
-    },
-    status: 409,
-    statusText: "Conflict",
-    headers: new AxiosHeaders(),
-    config: { headers: new AxiosHeaders() },
-  });
 }
 
 const onFilterChange = jest.fn();
@@ -130,18 +110,18 @@ async function openFilter(columnTitle: string): Promise<HTMLElement> {
 }
 
 beforeEach(() => {
-  mockRetry.mockReset();
   onFilterChange.mockReset();
   onTargetDateRangeChange.mockReset();
   detail = undefined;
 });
 
-test("실행 이력 행에 상태·소요 시간을 표시하고 재시도 불가 실행은 버튼을 비활성화한다", () => {
-  renderTable({ ...failedExecution, status: "COMPLETED", retryable: false, durationMillis: 1_500 });
+test("실행 이력 행에 상태·소요 시간을 표시하고 상세 조회만 제공한다", () => {
+  renderTable({ ...failedExecution, status: "COMPLETED", durationMillis: 1_500 });
 
   expect(screen.getByText("COMPLETED")).toBeInTheDocument();
   expect(screen.getByText("1.5초")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "재시도" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "상세" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: /재시도/ })).not.toBeInTheDocument();
 });
 
 test("지연된 실행에는 지연 태그를 붙이고 소요 시간을 - 로 표시한다", () => {
@@ -181,6 +161,7 @@ test("상세 버튼을 누르면 스텝 목록과 종료 메시지를 보여준�
   expect(within(dialog).getByText("배치 실행 #12")).toBeInTheDocument();
   expect(within(dialog).getByText("dailyNotificationStep")).toBeInTheDocument();
   expect(within(dialog).getByText("v2")).toBeInTheDocument();
+  expect(within(dialog).queryByText("재시도 가능")).not.toBeInTheDocument();
   expect(
     within(dialog).getByText("java.lang.IllegalStateException: boom"),
   ).toBeInTheDocument();
@@ -340,63 +321,21 @@ test("적용된 종료 코드·대상 날짜 필터는 컬럼 필터 아이콘�
   expect(filterTrigger("Job")).not.toHaveClass("active");
 });
 
-test("재시도는 확인 후 confirmStale 없이 요청한다", async () => {
-  renderTable();
+test.each(["FAILED", "STOPPED", "STARTED"] as const)("%s 실행도 재시도 없이 상세 조회만 제공한다", (status) => {
+  renderTable({ ...failedExecution, status, stale: status === "STARTED" });
 
-  fireEvent.click(screen.getByRole("button", { name: "재시도" }));
-  fireEvent.click(await screen.findByRole("button", { name: "재시도 실행" }));
-
-  await waitFor(() => {
-    expect(mockRetry).toHaveBeenCalledWith(
-      { executionId: 12, confirmStale: false },
-      expect.any(Object),
-    );
-  });
+  expect(screen.getByRole("button", { name: "상세" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: /재시도/ })).not.toBeInTheDocument();
 });
 
-test("실행 중 409를 받은 지연 실행은 중복 발송 위험을 알리고 강제 재시도로 다시 요청한다", async () => {
-  mockRetry.mockImplementation(
-    (
-      variables: { executionId: number; confirmStale: boolean },
-      options: { onError: (error: unknown) => void },
-    ) => {
-      if (!variables.confirmStale) options.onError(conflict("batch-execution-running"));
-    },
-  );
-  renderTable(runningStale());
+test("지연 실행 상세에도 지연 경고를 유지한다", async () => {
+  const execution = runningStale();
+  detail = { ...execution, steps: [] };
+  renderTable(execution);
 
-  fireEvent.click(screen.getByRole("button", { name: "재시도" }));
-  fireEvent.click(await screen.findByRole("button", { name: "재시도 실행" }));
+  fireEvent.click(screen.getByRole("button", { name: "상세" }));
 
-  expect(
-    await screen.findByText(/중복 실행되어 알림이 중복 발송될 수 있습니다/),
-  ).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: "강제 재시도" }));
-
-  await waitFor(() => {
-    expect(mockRetry).toHaveBeenLastCalledWith(
-      { executionId: 21, confirmStale: true },
-      expect.any(Object),
-    );
-  });
-});
-
-test("재시도 불가 문제로 실패하면 강제 재시도를 제안하지 않는다", async () => {
-  mockRetry.mockImplementation(
-    (
-      _variables: { executionId: number; confirmStale: boolean },
-      options: { onError: (error: unknown) => void },
-    ) => {
-      options.onError(conflict("batch-execution-not-retryable"));
-    },
-  );
-  renderTable(runningStale());
-
-  fireEvent.click(screen.getByRole("button", { name: "재시도" }));
-  fireEvent.click(await screen.findByRole("button", { name: "재시도 실행" }));
-
-  expect(await screen.findByText("배치가 실행 중입니다")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "강제 재시도" })).not.toBeInTheDocument();
-  expect(mockRetry).toHaveBeenCalledTimes(1);
+  const dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText("지연")).toBeInTheDocument();
+  expect(within(dialog).queryByText("재시도 가능")).not.toBeInTheDocument();
 });

@@ -3,18 +3,15 @@ import {
   fetchBatchExecutions,
   fetchBatchJobs,
   fetchBatchSchedules,
-  retryBatchExecution,
-  runBatchJob,
   updateBatchSchedule,
 } from "@/features/batch/api";
 import { apiClient } from "@/lib/api/client";
 
 jest.mock("@/lib/api/client", () => ({
-  apiClient: { get: jest.fn(), post: jest.fn(), patch: jest.fn() },
+  apiClient: { get: jest.fn(), patch: jest.fn() },
 }));
 
 const mockGet = jest.mocked(apiClient.get);
-const mockPost = jest.mocked(apiClient.post);
 const mockPatch = jest.mocked(apiClient.patch);
 
 beforeEach(() => {
@@ -64,18 +61,6 @@ test("배치 실행 상세를 실행 ID로 조회한다", async () => {
   expect(mockGet).toHaveBeenCalledWith("/v1/admin/batch/executions/12");
 });
 
-test("재시도는 기본적으로 confirmStale 없이 요청하고, 강제 재시도는 confirmStale을 보낸다", async () => {
-  mockPost.mockResolvedValue({ data: { requestedExecutionId: 12, newExecutionId: 13 } });
-
-  await retryBatchExecution(12);
-  await retryBatchExecution(12, { confirmStale: true });
-
-  expect(mockPost).toHaveBeenNthCalledWith(1, "/v1/admin/batch/executions/12/retry", {});
-  expect(mockPost).toHaveBeenNthCalledWith(2, "/v1/admin/batch/executions/12/retry", {
-    confirmStale: true,
-  });
-});
-
 test("배치 스케줄 목록과 Job 이름 목록을 조회한다", async () => {
   mockGet
     .mockResolvedValueOnce({ data: { schedules: [] } })
@@ -95,12 +80,4 @@ test("배치 스케줄을 key 경로로 수정한다", async () => {
   await updateBatchSchedule("DAILY_NOTIFICATION", body);
 
   expect(mockPatch).toHaveBeenCalledWith("/v1/admin/batch/schedules/DAILY_NOTIFICATION", body);
-});
-
-test("실행 이력이 없는 날짜는 Job 이름과 대상 날짜로 실행을 요청한다", async () => {
-  const response = { jobName: "dailyDispatchAuditJob", targetDate: "2026-09-21", newExecutionId: 99, status: "STARTING" };
-  mockPost.mockResolvedValue({ data: response });
-
-  await expect(runBatchJob("dailyDispatchAuditJob", { targetDate: "2026-09-21" })).resolves.toEqual(response);
-  expect(mockPost).toHaveBeenCalledWith("/v1/admin/batch/jobs/dailyDispatchAuditJob/runs", { targetDate: "2026-09-21" });
 });

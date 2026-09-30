@@ -41,8 +41,7 @@ export type BatchExecutionSummary = {
   endTime: string | null;
   durationMillis: number | null;
   jobVersion: string | null;
-  retryable: boolean;
-  // 종료 신호 없이 오래 STARTED로 남은 실행. 재시도하려면 confirmStale 재확인이 필요하다.
+  // 종료 신호 없이 오래 실행 중으로 남은 이력의 운영 경고다.
   stale: boolean;
 };
 
@@ -81,27 +80,6 @@ export type BatchExecutionsListResponse = {
   page: number;
   size: number;
   totalElements: number;
-};
-
-export type RetryBatchExecutionRequest = {
-  confirmStale?: boolean;
-};
-
-export type RetryBatchExecutionResponse = {
-  requestedExecutionId: number;
-  jobName: string;
-  targetDate: string | null;
-  newExecutionId: number | null;
-  status: BatchExecutionStatus;
-};
-
-export type RunBatchJobRequest = { targetDate: string };
-
-export type RunBatchJobResponse = {
-  jobName: string;
-  targetDate: string;
-  newExecutionId: number | null;
-  status: BatchExecutionStatus | null;
 };
 
 export type BatchSchedule = {

@@ -115,13 +115,6 @@ export function BatchExecutionDetailModal({
           label: "소요 시간",
           children: formatDurationMillis(data.durationMillis),
         },
-        {
-          key: "retryable",
-          label: "재시도 가능",
-          children: (
-            <Tag color={data.retryable ? "blue" : "default"}>{data.retryable ? "가능" : "불가"}</Tag>
-          ),
-        },
       ]
     : [];
 

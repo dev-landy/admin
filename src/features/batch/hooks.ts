@@ -4,15 +4,11 @@ import {
   fetchBatchExecutions,
   fetchBatchJobs,
   fetchBatchSchedules,
-  retryBatchExecution,
-  runBatchJob,
   updateBatchSchedule,
 } from "./api";
 import type {
   BatchExecutionsListParams,
   BatchScheduleKey,
-  RetryBatchExecutionRequest,
-  RunBatchJobRequest,
   UpdateBatchScheduleRequest,
 } from "./types";
 
@@ -45,31 +41,8 @@ export function useBatchJobs() {
   return useQuery({ queryKey: batchKeys.jobs, queryFn: fetchBatchJobs });
 }
 
-export function useRetryBatchExecution() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      executionId,
-      ...body
-    }: RetryBatchExecutionRequest & { executionId: number }) =>
-      retryBatchExecution(executionId, body),
-    // worker가 거절한 재시도도 실행 상태를 바꿀 수 있어 실패 시 목록·상세를 함께 갱신한다.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: batchKeys.executions }),
-  });
-}
-
 export function useBatchSchedules() {
   return useQuery({ queryKey: batchKeys.schedules, queryFn: fetchBatchSchedules });
-}
-
-export function useRunBatchJob() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ jobName, ...body }: RunBatchJobRequest & { jobName: string }) =>
-      runBatchJob(jobName, body),
-    // worker가 거절한 요청도 FAILED 실행 이력을 남길 수 있다.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: batchKeys.executions }),
-  });
 }
 
 export function useUpdateBatchSchedule() {

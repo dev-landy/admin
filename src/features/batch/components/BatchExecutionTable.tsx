@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, DatePicker, Popconfirm, Select, Space, Tag } from "antd";
+import { Button, DatePicker, Select, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 import dayjs from "dayjs";
 
 import { PagedTable } from "@/components/PagedTable";
-import { parseProblemDetail } from "@/lib/api/problem";
 import { formatSeconds } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
 import {
@@ -14,11 +13,9 @@ import {
   BATCH_EXIT_CODE_OPTIONS,
   batchExecutionStatusColor,
 } from "../executionStatus";
-import { useRetryBatchExecution } from "../hooks";
 import type { BatchExecutionStatus, BatchExecutionSummary, BatchExitCode } from "../types";
 import { BatchExecutionDetailModal } from "./BatchExecutionDetailModal";
 
-const RUNNING_PROBLEM_TYPE = "batch-execution-running";
 const DATE_FORMAT = "YYYY-MM-DD";
 
 type Props = {
@@ -54,47 +51,7 @@ export function BatchExecutionTable({
   onTargetDateRangeChange,
   jobNames,
 }: Props) {
-  const { modal, notification } = App.useApp();
-  const { mutate: retry, isPending: isRetrying } = useRetryBatchExecution();
   const [detailExecutionId, setDetailExecutionId] = useState<number | null>(null);
-
-  function runRetry(execution: BatchExecutionSummary, confirmStale: boolean) {
-    retry(
-      { executionId: execution.executionId, confirmStale },
-      {
-        onSuccess: (result) =>
-          notification[result.newExecutionId === null ? "info" : "success"]({
-            title: result.newExecutionId === null ? "새 실행을 만들지 않았습니다." : "재시도를 요청했습니다.",
-            description:
-              result.newExecutionId === null
-                ? `${result.jobName} 현재 상태: ${result.status}. 실행 이력에서 확인하세요.`
-                : `${result.jobName} 새 실행 ID: ${result.newExecutionId}`,
-          }),
-        onError: (error) => {
-          const problem = parseProblemDetail(error);
-
-          // 종료 신호 없이 멈춘 실행은 서버가 한 번 막는다. stale 표시가 있을 때만
-          // 중복 실행 위험을 명시하고 confirmStale로 다시 요청한다.
-          if (!confirmStale && execution.stale && problem?.type.endsWith(RUNNING_PROBLEM_TYPE)) {
-            modal.confirm({
-              title: "실행 중일 수 있는 배치를 강제로 재시도합니다",
-              content: `${execution.jobName} 실행이 종료 신호 없이 남아 있습니다. 실제로 아직 실행 중일 수 있으며, 강제로 재시도하면 같은 작업이 중복 실행되어 알림이 중복 발송될 수 있습니다. 그래도 진행하시겠습니까?`,
-              okText: "강제 재시도",
-              okButtonProps: { danger: true },
-              cancelText: "취소",
-              onOk: () => runRetry(execution, true),
-            });
-            return;
-          }
-
-          notification.error({
-            title: problem?.title ?? "재시도 실패",
-            description: problem?.detail,
-          });
-        },
-      },
-    );
-  }
 
   // 한쪽 끝만 지정된 범위도 필터가 걸린 상태로 표시해야 해서 정의된 값만 모아 쓴다.
   const targetDateFilterValue = [filters.targetDateFrom, filters.targetDateTo].filter(
@@ -226,27 +183,13 @@ export function BatchExecutionTable({
     {
       title: "액션",
       key: "actions",
-      width: 160,
+      width: 90,
       align: "center",
       filteredValue: null,
       render: (_value, execution) => (
-        <Space>
-          <Button size="small" onClick={() => setDetailExecutionId(execution.executionId)}>
-            상세
-          </Button>
-          <Popconfirm
-            title="이 배치를 재시도하시겠습니까?"
-            description={`${execution.jobName}${execution.targetDate ? ` · ${execution.targetDate}` : ""} 작업을 다시 실행합니다.`}
-            okText="재시도 실행"
-            cancelText="취소"
-            disabled={!execution.retryable}
-            onConfirm={() => runRetry(execution, false)}
-          >
-            <Button size="small" danger disabled={!execution.retryable} loading={isRetrying}>
-              재시도
-            </Button>
-          </Popconfirm>
-        </Space>
+        <Button size="small" onClick={() => setDetailExecutionId(execution.executionId)}>
+          상세
+        </Button>
       ),
     },
   ];

@@ -1,12 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, Space, Spin, Typography } from "antd";
+import { Button, Card, Spin, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionTable";
-import { BatchJobRunModal } from "@/features/batch/components/BatchJobRunModal";
 import { useBatchExecutions, useBatchJobs } from "@/features/batch/hooks";
 import type { BatchExecutionStatus, BatchExitCode } from "@/features/batch/types";
 
@@ -15,7 +14,6 @@ const { Title } = Typography;
 function BatchExecutionsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [runOpen, setRunOpen] = useState(false);
 
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
@@ -66,14 +64,9 @@ function BatchExecutionsPageContent() {
     <Card
       title={<Title level={4} style={{ margin: 0 }}>배치 실행 이력</Title>}
       extra={
-        <Space>
-          <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
-            새로고침
-          </Button>
-          <Button type="primary" disabled={!jobsData?.jobNames.length} onClick={() => setRunOpen(true)}>
-            날짜 지정 실행
-          </Button>
-        </Space>
+        <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
+          새로고침
+        </Button>
       }
     >
       <BatchExecutionTable
@@ -88,7 +81,6 @@ function BatchExecutionsPageContent() {
         onTargetDateRangeChange={handleTargetDateRangeChange}
         jobNames={jobsData?.jobNames ?? []}
       />
-      <BatchJobRunModal open={runOpen} jobNames={jobsData?.jobNames ?? []} onClose={() => setRunOpen(false)} />
     </Card>
   );
 }
