@@ -1,52 +1,41 @@
 import type { BillingCycle, BillingTiming, ContractType } from "@/features/tenants/types";
 
-export type ContractOcrAnalysisStatus =
-  | "QUEUED"
-  | "PROCESSING"
-  | "STORING"
-  | "REVIEW_REQUIRED"
-  | "RETRYABLE_FAILED"
-  | "FINAL_FAILED";
+export type ContractDocumentStatus = "PENDING_REVIEW" | "REGISTERED" | "REJECTED";
+export type ContractDocumentListStatus = "PENDING" | "COMPLETED";
+export type ContractDocumentRejectionReason = "UNREADABLE" | "NOT_A_CONTRACT" | "EXPIRED" | "DUPLICATE";
 
-export type ContractOcrDecisionStatus = "PENDING" | "REGISTERED" | "DISCARDED";
-
-export type ContractOcrListStatus = "pending" | "completed";
-
-export type ContractOcrDocumentSummary = {
+export type ContractDocument = {
   documentId: string;
-  jobId: string;
+  uploadId: string;
   userId: number;
   propertyId: number;
-  analysisStatus: ContractOcrAnalysisStatus;
-  decisionStatus: ContractOcrDecisionStatus;
-  tenantId: number | null;
+  status: ContractDocumentStatus;
+  tenantId?: number | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type ContractOcrDocumentListResponse = {
-  documents: ContractOcrDocumentSummary[];
+export type ContractDocumentListResponse = {
+  documents: ContractDocument[];
   page: number;
   size: number;
   totalElements: number;
 };
 
-export type ContractOcrSourceView = {
-  sourceId: string;
-  sourceIndex: number;
+export type ContractDocumentFile = {
+  fileId: string;
+  fileIndex: number;
   contentType: string;
   url: string;
   expiresAt: string;
 };
+export type ContractDocumentFilesResponse = { files: ContractDocumentFile[] };
 
-export type ContractOcrSourceViewResponse = {
-  sources: ContractOcrSourceView[];
-};
-
-export type ContractOcrDraftValues = {
-  contractType?: ContractType | null;
-  parkingEnabled?: boolean | null;
-  vehicleNumber?: string | null;
+// OCR 제안과 과거에 보관한 초안은 일부 값이 없을 수 있다.
+export type RegisterContractDocumentRequest = {
+  contractType: ContractType;
+  parkingEnabled: boolean;
+  vehicleNumber: string | null;
   name: string | null;
   roomNumber: string | null;
   phone: string | null;
@@ -54,20 +43,30 @@ export type ContractOcrDraftValues = {
   maintenanceFee: number | null;
   depositAmount: number | null;
   paymentDay: number | null;
-  // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
-  // paymentDay와 함께 dueDate를 결정한다.
-  billingTiming: BillingTiming | null;
-  // MONTHLY면 rentPrice는 월액, YEARLY면 연액이다.
-  rentBillingCycle: BillingCycle | null;
+  billingTiming: BillingTiming;
+  rentBillingCycle: BillingCycle;
   startDate: string | null;
   endDate: string | null;
 };
-
-export type ContractOcrAnalysisCompletionRequest = {
-  values: ContractOcrDraftValues;
+export type ContractDraftValues = {
+  [Key in keyof RegisterContractDocumentRequest]?: RegisterContractDocumentRequest[Key] | null;
+};
+export type ContractDocumentDraftResponse = { documentId: string; values: ContractDraftValues };
+export type ContractDocumentDecisionResponse = {
+  documentId: string;
+  status: "REGISTERED" | "REJECTED";
+  tenantId?: number | null;
+  uploadStatus: string;
 };
 
-export type ContractOcrDraftResponse = {
+export type ContractOcrAnalysisStatus = "QUEUED" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "TIMED_OUT";
+export type ContractOcrAnalysis = {
+  analysisId: string;
   documentId: string;
-  values: ContractOcrDraftValues;
+  status: ContractOcrAnalysisStatus;
+  deadlineAt: string;
+  values?: ContractDraftValues | null;
+  warnings: { field: string; code: string; message: string }[];
+  failureType?: string | null;
+  requestedAt: string;
 };

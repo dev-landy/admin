@@ -1,70 +1,51 @@
 import { apiClient } from "@/lib/api/client";
 import type {
-  ContractOcrAnalysisCompletionRequest,
-  ContractOcrDocumentListResponse,
-  ContractOcrDocumentSummary,
-  ContractOcrDraftResponse,
-  ContractOcrListStatus,
-  ContractOcrSourceViewResponse,
+  ContractDocument, ContractDocumentDecisionResponse, ContractDocumentDraftResponse,
+  ContractDocumentFilesResponse, ContractDocumentListResponse, ContractDocumentListStatus,
+  ContractDocumentRejectionReason, ContractOcrAnalysis, RegisterContractDocumentRequest,
 } from "./types";
 
-// page는 UI 기준 1-based로 받고 API의 0-based로 변환해 보낸다.
-export async function fetchContractOcrDocuments(
-  status: ContractOcrListStatus,
-  page: number,
-  size: number,
-): Promise<ContractOcrDocumentListResponse> {
-  const { data } = await apiClient.get<ContractOcrDocumentListResponse>(
-    "/v1/admin/contract-ocr/documents",
-    { params: { status, page: page - 1, size } },
-  );
+const DOCUMENTS_PATH = "/v1/admin/contract-documents";
+
+// 화면의 1-based 페이지를 API의 0-based 페이지로 변환한다.
+export async function fetchContractDocuments(status: ContractDocumentListStatus, page: number, size: number) {
+  const { data } = await apiClient.get<ContractDocumentListResponse>(DOCUMENTS_PATH, {
+    params: { status, page: page - 1, size },
+  });
   return data;
 }
 
-export async function fetchContractOcrDocument(
-  documentId: string,
-): Promise<ContractOcrDocumentSummary> {
-  const { data } = await apiClient.get<ContractOcrDocumentSummary>(
-    `/v1/admin/contract-ocr/documents/${documentId}`,
-  );
+export async function fetchContractDocument(documentId: string) {
+  const { data } = await apiClient.get<ContractDocument>(`${DOCUMENTS_PATH}/${documentId}`);
   return data;
 }
 
-export async function fetchContractOcrSources(
-  documentId: string,
-): Promise<ContractOcrSourceViewResponse> {
-  const { data } = await apiClient.get<ContractOcrSourceViewResponse>(
-    `/v1/admin/contract-ocr/documents/${documentId}/sources`,
-  );
+export async function fetchContractDocumentFiles(documentId: string) {
+  const { data } = await apiClient.get<ContractDocumentFilesResponse>(`${DOCUMENTS_PATH}/${documentId}/files`);
   return data;
 }
 
-export async function completeContractOcrAnalysis(
-  documentId: string,
-  body: ContractOcrAnalysisCompletionRequest,
-): Promise<void> {
-  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/analysis-completion`, body);
+export async function fetchContractDocumentDraft(documentId: string) {
+  const response = await apiClient.get<ContractDocumentDraftResponse>(`${DOCUMENTS_PATH}/${documentId}/draft`);
+  return response.status === 204 ? null : response.data;
 }
 
-export async function rejectContractOcrAnalysis(documentId: string): Promise<void> {
-  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/rejection`);
-}
-
-// 폴백(자동 등록 실패) 문서의 직전 제출 값. 재등록 화면 프리필용.
-export async function fetchContractOcrDraft(documentId: string): Promise<ContractOcrDraftResponse> {
-  const { data } = await apiClient.get<ContractOcrDraftResponse>(
-    `/v1/admin/contract-ocr/documents/${documentId}/draft`,
-  );
+export async function registerContractDocument(documentId: string, values: RegisterContractDocumentRequest) {
+  const { data } = await apiClient.post<ContractDocumentDecisionResponse>(`${DOCUMENTS_PATH}/${documentId}/registration`, values);
   return data;
 }
 
-export async function retryContractOcrRegistration(
-  documentId: string,
-  body: ContractOcrAnalysisCompletionRequest,
-): Promise<void> {
-  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/registration-retry`, body);
+export async function rejectContractDocument(documentId: string, reason: ContractDocumentRejectionReason) {
+  const { data } = await apiClient.post<ContractDocumentDecisionResponse>(`${DOCUMENTS_PATH}/${documentId}/rejection`, { reason });
+  return data;
 }
 
-export async function retryContractOcrAnalysis(documentId: string): Promise<void> {
-  await apiClient.post(`/v1/admin/contract-ocr/documents/${documentId}/analysis-retry`);
+export async function requestContractOcrAnalysis(documentId: string) {
+  const { data } = await apiClient.post<ContractOcrAnalysis>(`${DOCUMENTS_PATH}/${documentId}/ocr-analyses`);
+  return data;
+}
+
+export async function fetchLatestContractOcrAnalysis(documentId: string) {
+  const response = await apiClient.get<ContractOcrAnalysis>(`${DOCUMENTS_PATH}/${documentId}/ocr-analyses/latest`);
+  return response.status === 204 ? null : response.data;
 }
