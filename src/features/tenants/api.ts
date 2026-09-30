@@ -11,9 +11,8 @@ export async function fetchTenant(tenantId: number): Promise<TenantDetail> {
   return data;
 }
 
-export async function updateTenant(tenantId: number, body: UpdateTenantRequest): Promise<TenantDetail> {
-  const { data } = await apiClient.patch<TenantDetail>(`/v1/admin/tenants/${tenantId}`, body);
-  return data;
+export async function updateTenant(tenantId: number, body: UpdateTenantRequest): Promise<void> {
+  await apiClient.patch(`/v1/admin/tenants/${tenantId}`, body);
 }
 
 export async function deleteTenant(tenantId: number): Promise<void> {
