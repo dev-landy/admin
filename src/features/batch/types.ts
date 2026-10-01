@@ -26,7 +26,9 @@ export type BatchScheduleKey =
   | "SILENT_WAKEUP"
   | "REFRESH_TOKEN_HISTORY_CLEANUP"
   | "DUE_ALIMTALK"
-  | "DUE_ALIMTALK_RETRY";
+  | "DUE_ALIMTALK_RETRY"
+  | "MAINTENANCE_REQUEST_EXPIRY"
+  | "MAINTENANCE_PHOTO_CLEANUP";
 
 export type BatchExecutionSummary = {
   executionId: number;

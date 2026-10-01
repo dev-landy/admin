@@ -70,6 +70,25 @@ const otherSchedule: BatchSchedule = {
   label: "무음 깨우기",
 };
 
+const maintenanceSchedules: BatchSchedule[] = [
+  {
+    ...schedule,
+    key: "MAINTENANCE_REQUEST_EXPIRY",
+    jobName: "maintenanceRequestExpiryJob",
+    label: "집수리 요청 만료",
+    cronExpression: "0 30 3 * * *",
+    nextExecutionAt: "2026-10-03T03:30:00",
+  },
+  {
+    ...schedule,
+    key: "MAINTENANCE_PHOTO_CLEANUP",
+    jobName: "maintenancePhotoCleanupJob",
+    label: "집수리 사진 정리",
+    cronExpression: "0 0 4 * * *",
+    nextExecutionAt: "2026-10-03T04:00:00",
+  },
+];
+
 function badRequest(): AxiosError {
   return new AxiosError("bad request", undefined, undefined, undefined, {
     data: {
@@ -125,6 +144,37 @@ test("해석할 수 없는 크론 식은 원문만 한 번 보여준다", () => 
 
   expect(screen.getByText("0 0 9 * * MON")).toBeInTheDocument();
 });
+
+test.each(maintenanceSchedules)(
+  "$key는 서버의 작업 이름·실행 시각을 표시하고 해당 키로 변경한다",
+  async (maintenanceSchedule) => {
+    renderTable([maintenanceSchedule]);
+
+    expect(screen.getByText(maintenanceSchedule.label)).toBeInTheDocument();
+    expect(screen.getByText(maintenanceSchedule.jobName)).toBeInTheDocument();
+    expect(screen.getByText(maintenanceSchedule.cronExpression)).toBeInTheDocument();
+    expect(screen.getByText(maintenanceSchedule.nextExecutionAt!)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "수정" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const [, minute, hour] = maintenanceSchedule.cronExpression.split(" ");
+    expect(within(dialog).getByLabelText("시 (0~23)")).toHaveValue(hour);
+    expect(within(dialog).getByLabelText("분 (0~59)")).toHaveValue(minute);
+    fireEvent.change(within(dialog).getByLabelText("분 (0~59)"), { target: { value: "45" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        {
+          key: maintenanceSchedule.key,
+          body: { cronExpression: `0 45 ${hour} * * *`, enabled: true },
+        },
+        expect.any(Object),
+      );
+    });
+  },
+);
 
 test("비활성 스케줄과 예정 시각 없음을 구분해 표시한다", () => {
   renderTable([{ ...schedule, enabled: false, nextExecutionAt: null }]);
