@@ -59,6 +59,8 @@ export type ContractDocumentDecisionResponse = {
   uploadStatus: string;
 };
 
+export type ContractStorageRetryResponse = { attempted: number };
+
 export type ContractOcrAnalysisStatus = "QUEUED" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "TIMED_OUT";
 export type ContractOcrAnalysis = {
   analysisId: string;

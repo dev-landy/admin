@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import type {
   ContractDocument, ContractDocumentDecisionResponse, ContractDocumentDraftResponse,
   ContractDocumentFilesResponse, ContractDocumentListResponse, ContractDocumentListStatus,
-  ContractDocumentRejectionReason, ContractOcrAnalysis, RegisterContractDocumentRequest,
+  ContractDocumentRejectionReason, ContractOcrAnalysis, ContractStorageRetryResponse, RegisterContractDocumentRequest,
 } from "./types";
 
 const DOCUMENTS_PATH = "/v1/admin/contract-documents";
@@ -48,4 +48,9 @@ export async function requestContractOcrAnalysis(documentId: string) {
 export async function fetchLatestContractOcrAnalysis(documentId: string) {
   const response = await apiClient.get<ContractOcrAnalysis>(`${DOCUMENTS_PATH}/${documentId}/ocr-analyses/latest`);
   return response.status === 204 ? null : response.data;
+}
+
+export async function retryContractStorage() {
+  const { data } = await apiClient.post<ContractStorageRetryResponse>("/v1/admin/contract-uploads/storage-retries");
+  return data;
 }

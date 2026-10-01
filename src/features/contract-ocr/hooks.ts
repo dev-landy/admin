@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchContractDocument, fetchContractDocuments, fetchContractDocumentDraft, fetchContractDocumentFiles,
-  fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis,
+  fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
 } from "./api";
 import type {
   ContractDocumentListStatus, ContractDocumentRejectionReason, ContractOcrAnalysis, RegisterContractDocumentRequest,
@@ -72,6 +72,7 @@ export function useRegisterContractDocument() {
       queryClient.invalidateQueries({ queryKey: ["tenants"] }),
       queryClient.invalidateQueries({ queryKey: ["users"] }),
       queryClient.invalidateQueries({ queryKey: ["properties"] }),
+      queryClient.invalidateQueries({ queryKey: ["payments"] }),
     ]),
   });
 }
@@ -81,5 +82,22 @@ export function useRejectContractDocument() {
   return useMutation({
     mutationFn: ({ documentId, reason }: { documentId: string; reason: ContractDocumentRejectionReason }) => rejectContractDocument(documentId, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: contractDocumentKeys.all }),
+  });
+}
+
+export function useRetryContractStorage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: retryContractStorage,
+    // 응답이 유실돼도 일부 작업은 처리됐을 수 있으므로 POST를 자동 재시도하지 않는다.
+    retry: false,
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: contractDocumentKeys.all }),
+      queryClient.invalidateQueries({ queryKey: ["tenants"] }),
+      queryClient.invalidateQueries({ queryKey: ["users"] }),
+      queryClient.invalidateQueries({ queryKey: ["properties"] }),
+      queryClient.invalidateQueries({ queryKey: ["payments"] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]),
   });
 }

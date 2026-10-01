@@ -8,6 +8,7 @@ import { ReloadOutlined } from "@ant-design/icons";
 
 import { PagedTable } from "@/components/PagedTable";
 import { useContractDocuments } from "@/features/contract-ocr/hooks";
+import { ContractStorageRetriesButton } from "@/features/contract-ocr/components/ContractStorageRetriesButton";
 import type {
   ContractDocument,
   ContractDocumentListStatus,
@@ -127,6 +128,7 @@ function ContractOcrPageContent() {
           <Button icon={<ReloadOutlined />} loading={isRefetching} onClick={() => refetch()}>
             새로고침
           </Button>
+          <ContractStorageRetriesButton />
         </Space>
       }
     >

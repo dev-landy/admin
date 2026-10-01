@@ -1,16 +1,17 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { fetchLatestContractOcrAnalysis, registerContractDocument, requestContractOcrAnalysis } from "@/features/contract-ocr/api";
-import { contractDocumentKeys, useLatestContractOcrAnalysis, useRegisterContractDocument, useRequestContractOcrAnalysis } from "@/features/contract-ocr/hooks";
+import { fetchLatestContractOcrAnalysis, registerContractDocument, requestContractOcrAnalysis, retryContractStorage } from "@/features/contract-ocr/api";
+import { contractDocumentKeys, useLatestContractOcrAnalysis, useRegisterContractDocument, useRequestContractOcrAnalysis, useRetryContractStorage } from "@/features/contract-ocr/hooks";
 import { ANALYSIS, VALUES } from "@/test-utils/contractDocumentFixtures";
 
 jest.mock("@/features/contract-ocr/api", () => ({
-  fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(),
+  fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(), retryContractStorage: jest.fn(),
 }));
 const mockLatest = jest.mocked(fetchLatestContractOcrAnalysis);
 const mockRegister = jest.mocked(registerContractDocument);
 const mockRequest = jest.mocked(requestContractOcrAnalysis);
+const mockStorageRetry = jest.mocked(retryContractStorage);
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -19,13 +20,13 @@ function setup() {
 beforeEach(() => jest.resetAllMocks());
 afterEach(() => jest.useRealTimers());
 
-test("등록 후 계약서와 임차인·유저·건물 캐시를 모두 무효화한다", async () => {
+test("등록 후 계약서와 임차인·유저·건물·납부 캐시를 모두 무효화한다", async () => {
   const { client, wrapper } = setup();
   const invalidate = jest.spyOn(client, "invalidateQueries");
   mockRegister.mockResolvedValue({ documentId: "document-1", status: "REGISTERED", tenantId: 9, uploadStatus: "REGISTERED" });
   const { result } = renderHook(() => useRegisterContractDocument(), { wrapper });
   await act(() => result.current.mutateAsync({ documentId: "document-1", values: VALUES }));
-  for (const key of ["contract-documents", "tenants", "users", "properties"]) {
+  for (const key of ["contract-documents", "tenants", "users", "properties", "payments"]) {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] });
   }
   client.clear();
@@ -63,5 +64,23 @@ test("대기/진행 중만 반복 조회하고 완료 응답을 받으면 멈춘
   expect(result.current.data?.status).toBe("SUCCEEDED");
   await act(() => jest.advanceTimersByTimeAsync(12_000));
   expect(mockLatest).toHaveBeenCalledTimes(3);
+  client.clear();
+});
+
+test.each([false, true])("미완료 작업 회수 실패 여부=%s에서도 영향받은 캐시를 갱신하고 POST를 자동 재시도하지 않는다", async (fails) => {
+  const { client, wrapper } = setup();
+  // 앱의 기본 재시도 설정이 있어도 응답 유실 후 전역 회수를 반복하면 안 된다.
+  client.setDefaultOptions({ queries: { retry: false }, mutations: { retry: 2, retryDelay: 0 } });
+  const affectedKeys = ["contract-documents", "tenants", "users", "properties", "payments", "notifications"];
+  for (const key of affectedKeys) client.setQueryData([key, "recovery-test"], { before: true });
+  if (fails) mockStorageRetry.mockRejectedValue(new Error("response lost"));
+  else mockStorageRetry.mockResolvedValue({ attempted: 0 });
+  const { result } = renderHook(() => useRetryContractStorage(), { wrapper });
+  await act(async () => {
+    if (fails) await expect(result.current.mutateAsync()).rejects.toThrow("response lost");
+    else await result.current.mutateAsync();
+  });
+  expect(mockStorageRetry).toHaveBeenCalledTimes(1);
+  for (const key of affectedKeys) expect(client.getQueryState([key, "recovery-test"])?.isInvalidated).toBe(true);
   client.clear();
 });

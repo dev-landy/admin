@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import {
   fetchContractDocument, fetchContractDocuments, fetchContractDocumentDraft, fetchContractDocumentFiles,
-  fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis,
+  fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
 } from "@/features/contract-ocr/api";
 import { ANALYSIS, DOCUMENT, VALUES } from "@/test-utils/contractDocumentFixtures";
 
@@ -55,4 +55,10 @@ test.each([
   await expect(fetcher("document-1")).resolves.toBeNull();
   await expect(fetcher("document-1")).rejects.toThrow("forbidden");
   expect(mockGet).toHaveBeenCalledWith(`${base}/document-1/${path}`);
+});
+
+test("미완료 파일 작업 회수는 본문 없이 요청하고 시도 건수를 반환한다", async () => {
+  mockPost.mockResolvedValue({ data: { attempted: 3 } });
+  await expect(retryContractStorage()).resolves.toEqual({ attempted: 3 });
+  expect(mockPost).toHaveBeenCalledWith("/v1/admin/contract-uploads/storage-retries");
 });
