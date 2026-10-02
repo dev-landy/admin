@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Card, Collapse, Segmented, Space, Spin, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
@@ -15,6 +15,7 @@ import type {
 } from "@/features/contract-ocr/types";
 
 import { parseProblemDetail } from "@/lib/api/problem";
+import { contractListReturnPath, contractReviewPath } from "@/features/contract-ocr/navigation";
 
 const { Title, Text } = Typography;
 
@@ -38,15 +39,25 @@ function formatDateTime(value: string | null | undefined): string {
 function ContractOcrPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const listPath = contractListReturnPath(`/contract-ocr?${searchParams.toString()}`);
+  const listParams = new URLSearchParams(listPath.split("?")[1]);
   const listStatus: ContractDocumentListStatus =
-    searchParams.get("status") === "completed" ? "COMPLETED" : "PENDING";
-  const page = Number(searchParams.get("page") ?? "1") || 1;
-  const pageSize = Number(searchParams.get("size") ?? "20") || 20;
+    listParams.get("status") === "completed" ? "COMPLETED" : "PENDING";
+  const page = Number(listParams.get("page") ?? "1");
+  const pageSize = Number(listParams.get("size") ?? "20");
   const { data, isLoading, error, refetch, isRefetching } = useContractDocuments(
     listStatus,
     page,
     pageSize,
   );
+  useEffect(() => {
+    if (!data || error) return;
+    const lastPage = Math.max(1, Math.ceil(data.totalElements / pageSize));
+    if (page <= lastPage) return;
+    const params = new URLSearchParams(listPath.split("?")[1]);
+    params.set("page", String(lastPage));
+    router.replace(`/contract-ocr?${params.toString()}`);
+  }, [data, error, page, pageSize, listPath, router]);
 
   function navigate(changes: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -93,14 +104,13 @@ function ContractOcrPageContent() {
       key: "action",
       width: 120,
       align: "center",
-      render: (_, record) =>
+      render: (_, record, index) =>
         listStatus === "PENDING" ? (
-          <Button type="primary" onClick={() => router.push(`/contract-ocr/${record.documentId}`)}>
+          <Button type="primary" onClick={() => router.push(contractReviewPath(record.documentId, listPath, index))}>
             검수
           </Button>
         ) : (
-          // 완료 탭에서 들어간 상세만 "목록으로"가 완료 탭으로 복귀한다.
-          <Button onClick={() => router.push(`/contract-ocr/${record.documentId}?from=completed`)}>
+          <Button onClick={() => router.push(contractReviewPath(record.documentId, listPath, index))}>
             열람
           </Button>
         ),

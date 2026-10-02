@@ -24,6 +24,7 @@ import { AuthGuard } from "@/features/auth/guard";
 import { useAuth } from "@/features/auth/context";
 import { EnvTag } from "@/components/EnvIndicator";
 import { appEnvMeta } from "@/config/app-env";
+import { NavigationGuardProvider, useNavigationGuard } from "@/components/NavigationGuard";
 
 const { Sider, Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -45,9 +46,14 @@ const MENU_ITEMS = [
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  return <NavigationGuardProvider><AdminLayoutContent>{children}</AdminLayoutContent></NavigationGuardProvider>;
+}
+
+function AdminLayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const { requestNavigation } = useNavigationGuard();
   const screens = Grid.useBreakpoint();
   const [collapsed, setCollapsed] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -58,13 +64,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const isDesktop = screens.lg ?? true;
 
   const navigate = (key: string) => {
-    router.push(key);
-    setNavOpen(false);
+    requestNavigation(() => {
+      router.push(key);
+      setNavOpen(false);
+    });
   };
 
   const handleLogout = () => {
-    setNavOpen(false);
-    void logout();
+    requestNavigation(() => {
+      setNavOpen(false);
+      void logout();
+    });
   };
 
   return (

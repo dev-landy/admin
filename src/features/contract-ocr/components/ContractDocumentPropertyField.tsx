@@ -1,6 +1,6 @@
 "use client";
 
-import { type Ref, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
+import { type Ref, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { Alert, Button, Form, Input, Modal, Select, Space, Tag, Typography } from "antd";
 import type { RefSelectProps } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
@@ -9,6 +9,7 @@ import { useUserProperties } from "@/features/properties/hooks";
 import { parseProblemDetail } from "@/lib/api/problem";
 import type { ContractPropertyValues, RegisterContractDocumentRequest } from "../types";
 import styles from "./ContractDocumentReview.module.css";
+import { useUnsavedChanges } from "@/components/NavigationGuard";
 
 const { Text } = Typography;
 const NEW_PROPERTY = "new-property";
@@ -35,6 +36,11 @@ function PropertyDraftForm({ initialValues, onFinish, disabled, submitRef }: {
 }) {
   const [form] = Form.useForm<ContractPropertyValues>();
   const formId = useId();
+  const hasUnsavedInput = useCallback(() => {
+    const values = form.getFieldsValue(true);
+    return (values.name ?? "") !== (initialValues.name ?? "") || (values.address ?? "") !== (initialValues.address ?? "");
+  }, [form, initialValues]);
+  useUnsavedChanges(false, hasUnsavedInput);
   useImperativeHandle(submitRef, () => ({ submit: () => form.submit() }), [form]);
   return <Form name={`contract-property-${formId}`} form={form} layout="vertical" initialValues={initialValues} onFinish={onFinish} preserve={false} disabled={disabled} style={{ width: "100%" }}>
     <Form.Item label="건물명" name="name" rules={[{ required: true, whitespace: true, message: "건물명을 입력해 주세요." }, { validator: maxCodePoints("건물명") }]}>
@@ -46,11 +52,12 @@ function PropertyDraftForm({ initialValues, onFinish, disabled, submitRef }: {
   </Form>;
 }
 
-export function ContractDocumentPropertyField({ userId, value, onChange, onAvailabilityChange, disabled }: {
+export function ContractDocumentPropertyField({ userId, value, onChange, onAvailabilityChange, onDirtyChange, disabled }: {
   userId: number;
   value: ContractPropertySelection;
   onChange: (value: ContractPropertySelection) => void;
   onAvailabilityChange: (available: boolean) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   disabled: boolean;
 }) {
   const query = useUserProperties(userId);
@@ -70,6 +77,7 @@ export function ContractDocumentPropertyField({ userId, value, onChange, onAvail
   const pending = value.kind === "new" || !!value.propertyUpdate;
 
   useEffect(() => { onAvailabilityChange(available); }, [available, onAvailabilityChange]);
+  useEffect(() => { onDirtyChange?.(!!newDraft || Object.values(drafts).some(Boolean)); }, [newDraft, drafts, onDirtyChange]);
 
   function selectBuilding(selected: number | typeof NEW_PROPERTY) {
     if (disabled) return;

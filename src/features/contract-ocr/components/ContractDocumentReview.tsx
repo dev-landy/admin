@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Flex, Form, Image, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -21,6 +21,8 @@ import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
 import { ContractDocumentActions } from "./ContractDocumentActions";
 import { ContractDocumentPropertyField, toContractPropertyRequest, type ContractPropertySelection } from "./ContractDocumentPropertyField";
+import { useNavigationGuard, useUnsavedChanges } from "@/components/NavigationGuard";
+import { ContractDocumentCompletion } from "./ContractDocumentCompletion";
 
 const { Text, Title } = Typography;
 const REJECTION_OPTIONS = [
@@ -49,7 +51,7 @@ function errorMessage(error: unknown, fallback: string) {
 function ContractDocumentEditor({ document, initialValues, onCompleted, actionBarRef }: {
   document: ContractDocument;
   initialValues: TenantInfoFormValues;
-  onCompleted: () => void;
+  onCompleted: (status: "REGISTERED" | "REJECTED") => void;
   actionBarRef: RefObject<HTMLDivElement | null>;
 }) {
   const { notification } = App.useApp();
@@ -57,6 +59,8 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const [form] = Form.useForm<TenantInfoFormValues>();
   const [propertySelection, setPropertySelection] = useState<ContractPropertySelection>({ kind: "existing", propertyId: document.propertyId });
   const [propertyAvailable, setPropertyAvailable] = useState(false);
+  const [propertyDraftDirty, setPropertyDraftDirty] = useState(false);
+  const dateInputs = useRef(new Map<"startDate" | "endDate", HTMLInputElement>());
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(toTenantValues(initialValues)));
   const [rejectionReason, setRejectionReason] = useState<ContractDocumentRejectionReason>();
   const [rejectionNotifyUser, setRejectionNotifyUser] = useState(true);
@@ -76,7 +80,20 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const updateTenantMutation = useUpdateTenant(document.tenantId ?? 0);
   const watchedValues = Form.useWatch([], form);
   const canSubmit = isTenantFormComplete(watchedValues) && (!isPendingReview || propertyAvailable);
-  const isDirty = JSON.stringify(toTenantValues(watchedValues ?? {})) !== initialSnapshot;
+  const isDirty = JSON.stringify(toTenantValues(watchedValues ?? initialValues)) !== initialSnapshot;
+  const hasUnsavedTenantInput = useCallback(() => {
+    // useWatch can render after a following click. Read the public form store at the
+    // moment of navigation so even an immediate move after typing is protected.
+    const values = form.getFieldsValue(true);
+    if (JSON.stringify(toTenantValues(values)) !== initialSnapshot) return true;
+    return [...dateInputs.current].some(([field, input]) => {
+      if (!input.isConnected) return false;
+      const committed = values[field]?.format("YYYYMMDD") ?? "";
+      return input.value.replaceAll("-", "").trim() !== committed;
+    });
+  }, [form, initialSnapshot]);
+  const buildingDirty = isPendingReview && (propertyDraftDirty || Object.keys(toContractPropertyRequest(propertySelection, document.propertyId)).length > 0);
+  const clearUnsavedChanges = useUnsavedChanges(buildingDirty, hasUnsavedTenantInput);
   const analysis = analysisQuery.data;
   const analysisRunning = isContractOcrAnalysisRunning(analysis);
   const isBusy = registerMutation.isPending || rejectMutation.isPending || requestAnalysisMutation.isPending || updateTenantMutation.isPending || savedTenantState === "checking" || analysisRechecking;
@@ -133,11 +150,13 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
       if (isPendingReview) {
         const registrationValues = { ...toTenantValues(values), ...toContractPropertyRequest(propertySelection, document.propertyId) };
         await registerMutation.mutateAsync({ documentId: document.documentId, values: registrationValues });
+        clearUnsavedChanges();
         notification.success({ title: "임차인 등록이 완료되었습니다." });
-        onCompleted();
+        onCompleted("REGISTERED");
       } else {
         const request = toUpdateTenantRequest(values);
         await updateTenantMutation.mutateAsync(request);
+        clearUnsavedChanges();
         const synchronized = await syncSavedTenant();
         if (synchronized) notification.success({ title: "임차인 정보가 수정되었습니다." });
       }
@@ -154,9 +173,10 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     setRejectionError(undefined);
     try {
       await rejectMutation.mutateAsync({ documentId: document.documentId, reason: rejectionReason, notifyUser: rejectionNotifyUser });
+      clearUnsavedChanges();
       notification.success({ title: "계약서를 반려했습니다." });
       setRejectionModalOpen(false);
-      onCompleted();
+      onCompleted("REJECTED");
     } catch (error) {
       setRejectionError(errorMessage(error, "문서 상태를 확인한 뒤 다시 시도해 주세요."));
     } finally {
@@ -212,13 +232,19 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     <Space orientation="vertical" size={16} style={{ width: "100%" }}>
       <Card title={isPendingReview ? "임차인 정보" : "등록된 임차인 수정"}>
         {isPendingReview && <ContractDocumentPropertyField userId={document.userId} value={propertySelection}
-          onChange={setPropertySelection} onAvailabilityChange={setPropertyAvailable} disabled={isBusy} />}
+          onChange={setPropertySelection} onAvailabilityChange={setPropertyAvailable} onDirtyChange={setPropertyDraftDirty} disabled={isBusy} />}
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
           <Text type="secondary">{isPendingReview ? "원본과 입력값을 확인한 뒤 등록해 주세요." : "납부 방식과 청구 주기는 변경할 수 없습니다."}</Text>
           {savedTenantState === "failed" && <Alert type="warning" showIcon title="저장 완료 · 저장된 정보 조회 실패"
             description="중복 저장을 막기 위해 입력을 잠시 잠갔습니다. 저장된 정보를 다시 확인해 주세요."
             action={<Button onClick={retrySavedTenantLookup}>저장된 정보 다시 조회</Button>} />}
-          <Form form={form} layout="vertical" initialValues={initialValues} onFinish={handleSubmit} disabled={isBusy || savedTenantState === "failed"}>
+          <Form form={form} layout="vertical" initialValues={initialValues} onFinish={handleSubmit} disabled={isBusy || savedTenantState === "failed"}
+            onInputCapture={(event) => {
+              const input = event.target;
+              if (!(input instanceof HTMLInputElement) || !input.closest(".ant-picker")) return;
+              const field = input.closest("[data-tenant-date-field]")?.getAttribute("data-tenant-date-field");
+              if (field === "startDate" || field === "endDate") dateInputs.current.set(field, input);
+            }}>
             <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentBillingCycleEditable={isPendingReview} />
             {isPendingReview ? <ContractDocumentActions ref={actionBarRef}>
               <Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
@@ -313,7 +339,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   );
 }
 
-function ContractDocumentForm({ document, onCompleted, actionBarRef }: { document: ContractDocument; onCompleted: () => void; actionBarRef: RefObject<HTMLDivElement | null> }) {
+function ContractDocumentForm({ document, onCompleted, actionBarRef }: { document: ContractDocument; onCompleted: (status: "REGISTERED" | "REJECTED") => void; actionBarRef: RefObject<HTMLDivElement | null> }) {
   const isRegistered = document.status === "REGISTERED" && document.tenantId != null;
   const [initialTenantValues, setInitialTenantValues] = useState<TenantInfoFormValues | null>(null);
   const tenantQuery = useQuery({
@@ -334,13 +360,19 @@ function ContractDocumentForm({ document, onCompleted, actionBarRef }: { documen
   return <ContractDocumentEditor key={`${document.documentId}-${document.status}`} document={document} initialValues={initialValues} onCompleted={onCompleted} actionBarRef={actionBarRef} />;
 }
 
-export function ContractDocumentReview({ documentId, onBack }: { documentId: string; onBack: () => void }) {
+export function ContractDocumentReview({ documentId, onBack, continuation }: {
+  documentId: string;
+  onBack: () => void;
+  continuation?: { returnPath: string; position: number; onNavigate: (path: string) => void };
+}) {
   const actionBarRef = useRef<HTMLDivElement>(null);
+  const { requestNavigation } = useNavigationGuard();
+  const [completed, setCompleted] = useState<"REGISTERED" | "REJECTED">();
   const documentQuery = useContractDocument(documentId);
   const filesQuery = useContractDocumentFiles(documentId);
   const document = documentQuery.data;
   return <div className={styles.review}>
-    <Button className={styles.backButton} icon={<ArrowLeftOutlined />} onClick={onBack}>목록으로</Button>
+    <Button className={styles.backButton} aria-label="목록으로" icon={<ArrowLeftOutlined />} onClick={() => requestNavigation(onBack)}>목록으로</Button>
     <Title level={4} style={{ margin: 0 }}>계약서 검수</Title>
     {documentQuery.isPending ? <Spin /> : !document ? <Alert type="error" showIcon
       title={errorMessage(documentQuery.error, "계약서를 불러오지 못했습니다.")}
@@ -356,7 +388,12 @@ export function ContractDocumentReview({ documentId, onBack }: { documentId: str
               <>{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
           </Space>
         </ContractDocumentSourcePanel>
-        <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}><ContractDocumentForm key={`${document.documentId}-${document.tenantId ?? "none"}`} document={document} onCompleted={onBack} actionBarRef={actionBarRef} /></section>
+        <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}>
+          {completed && continuation ? <ContractDocumentCompletion status={completed} documentId={documentId}
+            returnPath={continuation.returnPath} position={continuation.position} onNavigate={continuation.onNavigate} onBack={onBack} />
+            : <ContractDocumentForm key={`${document.documentId}-${document.tenantId ?? "none"}`} document={document}
+              onCompleted={(status) => { if (continuation) setCompleted(status); else onBack(); }} actionBarRef={actionBarRef} />}
+        </section>
       </div>
     </>}
   </div>;

@@ -55,18 +55,50 @@ jest.mock("antd", () => {
 
 import AdminLayout from "@/app/(admin)/layout";
 import { appEnvMeta } from "@/config/app-env";
+import { useUnsavedChanges } from "@/components/NavigationGuard";
 
-function renderLayout() {
+function GuardedContent({ dirty }: { dirty: boolean }) {
+  useUnsavedChanges(dirty);
+  return <div>본문 영역</div>;
+}
+
+function renderLayout(dirty = false) {
   return render(
     <AdminLayout>
-      <div>본문 영역</div>
+      <GuardedContent dirty={dirty} />
     </AdminLayout>,
   );
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(window, "confirm").mockReturnValue(false);
   mockLogout.mockResolvedValue(undefined);
+});
+afterEach(() => jest.restoreAllMocks());
+
+test("작성 중 데스크톱 사이드바 이동은 취소하거나 확인 후 이동할 수 있다", () => {
+  mockScreens = DESKTOP_SCREENS;
+  renderLayout(true);
+  fireEvent.click(screen.getByText("건물 관리"));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(mockPush).not.toHaveBeenCalled();
+  jest.mocked(window.confirm).mockReturnValue(true);
+  fireEvent.click(screen.getByText("건물 관리"));
+  expect(mockPush).toHaveBeenCalledWith("/properties");
+});
+
+test("작성 중 모바일 메뉴 이동을 취소하면 드로어와 현재 화면을 유지한다", async () => {
+  mockScreens = MOBILE_SCREENS;
+  renderLayout(true);
+  fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));
+  fireEvent.click(await screen.findByText("납부 목록"));
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(document.querySelector(".ant-drawer-open")).toBeInTheDocument();
+  jest.mocked(window.confirm).mockReturnValue(true);
+  fireEvent.click(screen.getByText("납부 목록"));
+  expect(mockPush).toHaveBeenCalledWith("/payments");
+  await waitFor(() => expect(document.querySelector(".ant-drawer-open")).not.toBeInTheDocument());
 });
 
 test("데스크톱에서는 사이드바 메뉴가 보이고 햄버거 버튼은 없다", () => {

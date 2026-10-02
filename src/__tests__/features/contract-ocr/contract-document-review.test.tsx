@@ -6,7 +6,7 @@ import { AxiosError, AxiosHeaders } from "axios";
 import { ContractDocumentReview } from "@/features/contract-ocr/components/ContractDocumentReview";
 import { contractDocumentKeys } from "@/features/contract-ocr/hooks";
 import {
-  fetchContractDocument, fetchContractDocumentDraft, fetchContractDocumentFiles, fetchLatestContractOcrAnalysis,
+  fetchContractDocument, fetchContractDocumentDraft, fetchContractDocumentFiles, fetchLatestContractOcrAnalysis, fetchContractDocuments,
   registerContractDocument, rejectContractDocument, requestContractOcrAnalysis,
 } from "@/features/contract-ocr/api";
 import { fetchTenant, updateTenant } from "@/features/tenants/api";
@@ -14,10 +14,12 @@ import { tenantKeys } from "@/features/tenants/hooks";
 import { fetchUserProperties, updateProperty } from "@/features/properties/api";
 import { propertyKeys } from "@/features/properties/hooks";
 import { ANALYSIS, DOCUMENT, TENANT, VALUES } from "@/test-utils/contractDocumentFixtures";
+import { NavigationGuardProvider } from "@/components/NavigationGuard";
 
 jest.mock("@/features/contract-ocr/api", () => ({
   fetchContractDocument: jest.fn(), fetchContractDocumentDraft: jest.fn(), fetchContractDocumentFiles: jest.fn(),
   fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), rejectContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(),
+  fetchContractDocuments: jest.fn(),
 }));
 jest.mock("@/features/tenants/api", () => ({ fetchTenant: jest.fn(), updateTenant: jest.fn() }));
 jest.mock("@/features/properties/api", () => ({ fetchUserProperties: jest.fn(), updateProperty: jest.fn() }));
@@ -32,16 +34,17 @@ const mockTenant = jest.mocked(fetchTenant);
 const mockUpdateTenant = jest.mocked(updateTenant);
 const mockProperties = jest.mocked(fetchUserProperties);
 const mockUpdateProperty = jest.mocked(updateProperty);
+const mockQueue = jest.mocked(fetchContractDocuments);
 const PROPERTIES = [
   { propertyId: 2, name: "내 건물", address: "서울시 원래 주소", isDefault: true, activeTenantCount: 1, createdAt: "2026-09-01", updatedAt: "2026-09-01" },
   { propertyId: 3, name: "다른 건물", address: null, isDefault: false, activeTenantCount: 0, createdAt: "2026-09-01", updatedAt: "2026-09-01" },
 ];
 const onBack = jest.fn();
 let client: QueryClient;
-function renderReview(cachedTenant?: typeof TENANT) {
+function renderReview(cachedTenant?: typeof TENANT, continuation?: { returnPath: string; position: number; onNavigate: (path: string) => void }) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   if (cachedTenant) client.setQueryData(tenantKeys.detail(cachedTenant.tenantId), cachedTenant);
-  render(<QueryClientProvider client={client}><App><ContractDocumentReview documentId={DOCUMENT.documentId} onBack={onBack} /></App></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><App><NavigationGuardProvider><ContractDocumentReview documentId={DOCUMENT.documentId} onBack={onBack} continuation={continuation} /></NavigationGuardProvider></App></QueryClientProvider>);
 }
 async function applyDraft() {
   fireEvent.click(await screen.findByRole("button", { name: "이전 검수 입력 불러오기" }));
@@ -79,6 +82,7 @@ function conflict(detail: string) {
 }
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.spyOn(window, "confirm").mockReturnValue(false);
   mockDocument.mockResolvedValue(DOCUMENT);
   mockDraft.mockResolvedValue(null);
   mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
@@ -89,7 +93,7 @@ beforeEach(() => {
   mockReject.mockResolvedValue({ documentId: DOCUMENT.documentId, status: "REJECTED", uploadStatus: "REJECTED" });
   mockRequest.mockResolvedValue(ANALYSIS);
 });
-afterEach(() => client?.clear());
+afterEach(() => { client?.clear(); jest.restoreAllMocks(); });
 
 test("분석이나 보관 초안이 없어도 수동 검수 화면을 열고 원본 파일을 표시한다", async () => {
   renderReview();
@@ -99,6 +103,190 @@ test("분석이나 보관 초안이 없어도 수동 검수 화면을 열고 원
   expect(screen.queryByText("이전 검수 입력")).not.toBeInTheDocument();
   expect(await openOriginal()).toHaveAttribute("src", "https://example.test/contract.jpg");
   expect(mockRequest).not.toHaveBeenCalled();
+});
+
+test("작성 중 목록 이동을 취소하면 입력을 보존하고 명시적으로 승인하면 이동한다", async () => {
+  renderReview();
+  const name = await screen.findByLabelText("세입자 이름");
+  fireEvent.change(name, { target: { value: "입력 중인 임차인" } });
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  expect(name).toHaveValue("입력 중인 임차인");
+  jest.mocked(window.confirm).mockReturnValue(true);
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(onBack).toHaveBeenCalledTimes(1);
+});
+
+test("건물 선택 변경과 적용한 초안도 이탈을 보호하며 되돌리면 보호를 해제한다", async () => {
+  renderReview();
+  await screen.findByLabelText("세입자 이름");
+  await waitFor(() => expect(screen.getByLabelText("등록할 건물")).toBeEnabled());
+  await selectProperty("다른 건물");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  await selectProperty("내 건물");
+  await applyProperty("변경 예정 건물", "새 주소");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(2);
+  expect(onBack).toHaveBeenCalledTimes(1);
+});
+
+test("적용 전 새 건물 모달 입력도 새로고침을 보호하고 취소하면 초안을 폐기한다", async () => {
+  renderReview();
+  await screen.findByLabelText("세입자 이름");
+  await waitFor(() => expect(screen.getByLabelText("등록할 건물")).toBeEnabled());
+  const dialog = await openPropertyModal("new");
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: "아직 적용하지 않은 건물" } });
+  const dirty = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(dirty);
+  expect(dirty.defaultPrevented).toBe(true);
+  fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  const clean = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(clean);
+  expect(clean.defaultPrevented).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).not.toHaveBeenCalled();
+});
+
+test.each(["계약 시작일", "계약 종료일"])("아직 날짜로 확정하지 않은 %s 직접 입력도 새로고침에서 보호한다", async (label) => {
+  renderReview();
+  const dateInput = await screen.findByLabelText(label);
+  const clean = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(clean);
+  expect(clean.defaultPrevented).toBe(false);
+  fireEvent.focus(dateInput);
+  fireEvent.input(dateInput, { target: { value: "20261" } });
+  const dirty = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(dirty);
+  expect(dirty.defaultPrevented).toBe(true);
+});
+
+test("미확정 종료일만 입력해도 목록 이동 취소 시 확정된 날짜를 유지하고 지우면 보호를 해제한다", async () => {
+  renderReview();
+  const endDate = await screen.findByLabelText("계약 종료일");
+  expect(endDate.id).not.toBe("endDate");
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("");
+  fireEvent.focus(endDate);
+  fireEvent.input(endDate, { target: { value: "20261001" } });
+  const dirty = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(dirty);
+  expect(dirty.defaultPrevented).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  await waitFor(() => expect(endDate).toHaveValue("2026-10-01"));
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("");
+  fireEvent.click(within(endDate.closest(".ant-picker") as HTMLElement).getByRole("button"));
+  await waitFor(() => {
+    expect(endDate).toHaveValue("");
+    const cleared = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(cleared);
+    expect(cleared.defaultPrevented).toBe(false);
+  });
+});
+
+test("미완성 종료일은 기존 blur 동작으로 되돌아간 뒤에는 미저장 입력으로 남지 않는다", async () => {
+  renderReview();
+  const endDate = await screen.findByLabelText("계약 종료일");
+  fireEvent.focus(endDate);
+  fireEvent.input(endDate, { target: { value: "2027" } });
+  fireEvent.blur(endDate, { relatedTarget: screen.getByLabelText("세입자 이름") });
+  await waitFor(() => expect(endDate).toHaveValue(""));
+  const clean = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(clean);
+  expect(clean.defaultPrevented).toBe(false);
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("");
+});
+
+test("완료 탭의 등록된 임차인 변경도 보호하고 저장된 값을 확인한 뒤에는 경고하지 않는다", async () => {
+  mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
+  mockTenant.mockResolvedValueOnce(TENANT).mockResolvedValue({ ...TENANT, name: "저장할 이름" });
+  mockUpdateTenant.mockResolvedValue(undefined);
+  renderReview();
+  await waitFor(() => expect(screen.getByLabelText("세입자 이름")).toHaveValue(TENANT.name));
+  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "저장할 이름" } });
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "수정" }));
+  await screen.findByText("임차인 정보가 수정되었습니다.");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).toHaveBeenCalledTimes(1);
+});
+
+test("등록 성공은 완료 패널로 전환하고 다음 큐 조회 실패를 저장 실패와 구분해 재조회한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  mockQueue.mockRejectedValueOnce(new Error("큐 조회 실패")).mockResolvedValueOnce({ documents: [], page: 1, size: 50, totalElements: 0 })
+    .mockResolvedValueOnce({ documents: [], page: 0, size: 50, totalElements: 0 });
+  const navigate = jest.fn();
+  renderReview(undefined, { returnPath: "/contract-ocr?page=2&size=50", position: 3, onNavigate: navigate });
+  await applyDraft();
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await screen.findByRole("button", { name: "다음 계약서 검수" });
+  expect(onBack).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText("세입자 이름")).not.toBeInTheDocument();
+  const saved = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(saved);
+  expect(saved.defaultPrevented).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "다음 계약서 검수" }));
+  await screen.findByText("처리는 완료되었습니다 · 다음 계약서 조회 실패");
+  expect(screen.queryByText("저장 실패")).not.toBeInTheDocument();
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  expect(navigate).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "다음 계약서 다시 조회" }));
+  await waitFor(() => expect(navigate).toHaveBeenCalledWith("/contract-ocr?page=1&size=50"));
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  expect(window.confirm).not.toHaveBeenCalled();
+});
+
+test("등록 실패 후 입력과 건물 초안을 유지하며 이탈 보호도 유지한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  mockRegister.mockRejectedValue(conflict("등록 상태를 확인해 주세요."));
+  renderReview();
+  await applyDraft();
+  await applyProperty("새 건물 초안", "서울시 초안 주소", "new");
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await screen.findByText("저장 실패");
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("홍길동");
+  expect(screen.getByText("추가 예정")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+});
+
+test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음 계약서로 이어간다", async () => {
+  const next = { ...DOCUMENT, documentId: "document-next" };
+  mockQueue.mockResolvedValue({ documents: [next], page: 0, size: 50, totalElements: 1 });
+  const navigate = jest.fn();
+  renderReview(undefined, { returnPath: "/contract-ocr?size=50", position: 0, onNavigate: navigate });
+  fireEvent.change(await screen.findByLabelText("세입자 이름"), { target: { value: "폐기할 초안" } });
+  fireEvent.click(screen.getByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("중복 제출"));
+  fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
+  await screen.findByRole("button", { name: "다음 계약서 검수" });
+  const saved = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(saved);
+  expect(saved.defaultPrevented).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "다음 계약서 검수" }));
+  await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
+  const url = new URL(navigate.mock.calls[0][0], "https://admin.test");
+  expect(url.pathname).toBe("/contract-ocr/document-next");
+  expect(url.searchParams.get("returnTo")).toBe("/contract-ocr?size=50");
+  expect(window.confirm).not.toHaveBeenCalled();
+  expect(mockRegister).not.toHaveBeenCalled();
+  expect(mockReject).toHaveBeenCalledTimes(1);
 });
 
 test("좁은 화면의 원본은 기본으로 접고 열기·새로고침·닫기 중 임차인 입력을 유지한다", async () => {

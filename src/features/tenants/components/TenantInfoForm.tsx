@@ -224,12 +224,14 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
 // DatePicker에는 Input의 addonAfter가 없어서, "일"·"만원" addon과 같은 룩의
 // 달력 버튼을 Space.Compact로 붙인다. 숫자 8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
 function DateAddonPicker({
+  field,
   id,
   value,
   onChange,
   placeholder,
   disabled,
 }: {
+  field: "startDate" | "endDate";
   id?: string;
   value?: Dayjs | null;
   onChange?: (value: Dayjs | null) => void;
@@ -238,7 +240,7 @@ function DateAddonPicker({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <Space.Compact style={{ width: "100%" }}>
+    <Space.Compact data-tenant-date-field={field} style={{ width: "100%" }}>
       <DatePicker
         id={id}
         value={value ?? null}
@@ -528,6 +530,7 @@ export function TenantInfoFormFields({
           rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
         >
           <DateAddonPicker
+            field="startDate"
             placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
             disabled={yearlyStartDateImmutable || undefined}
             onChange={(nextDate) => {
@@ -592,6 +595,7 @@ export function TenantInfoFormFields({
           ]}
         >
           <DateAddonPicker
+            field="endDate"
             id={endDateInputId}
             placeholder={dayjs()
               .add(1, "month")
