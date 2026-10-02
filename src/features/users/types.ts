@@ -63,8 +63,9 @@ export type UsersListResponse = {
   totalElements: number;
 };
 
-export type UserTenantsResponse = { tenants: AdminUserTenant[] };
-export type UserFcmTokensResponse = { fcmTokens: FcmToken[] };
+export type UserListPageParams = { page?: number; size?: number };
+export type UserTenantsResponse = { tenants: AdminUserTenant[]; page: number; size: number; totalElements: number };
+export type UserFcmTokensResponse = { fcmTokens: FcmToken[]; page: number; size: number; totalElements: number };
 
 export type ImpersonationTokensResponse = {
   accessToken: string;

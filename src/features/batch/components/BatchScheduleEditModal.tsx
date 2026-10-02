@@ -6,7 +6,7 @@ import type { FormRule } from "antd";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { buildCron, describeCron, parseCron } from "../cron";
 import type { CronMode } from "../cron";
-import { useUpdateBatchSchedule } from "../hooks";
+import { useIsBatchScheduleUpdating, useUpdateBatchSchedule } from "../hooks";
 import type { BatchSchedule, UpdateBatchScheduleRequest } from "../types";
 
 const { Text } = Typography;
@@ -129,13 +129,17 @@ function toCronExpression(values: Partial<ScheduleFormValues>): string | null {
 export function BatchScheduleEditModal({
   schedule,
   onClose,
+  disabled = false,
 }: {
   schedule: BatchSchedule | null;
   onClose: () => void;
+  disabled?: boolean;
 }) {
   const [form] = Form.useForm<ScheduleFormValues>();
   const { notification } = App.useApp();
   const { mutate: update, isPending } = useUpdateBatchSchedule();
+  const sharedPending = useIsBatchScheduleUpdating();
+  const isUpdating = sharedPending || isPending;
 
   const initialValues = toFormValues(schedule);
   // 모달은 destroyOnHidden이라 열 때마다 폼이 새로 마운트된다. 첫 렌더에는 watch 값이 없어
@@ -145,7 +149,7 @@ export function BatchScheduleEditModal({
   const preview = toCronExpression(values);
 
   function handleSubmit(submitted: ScheduleFormValues) {
-    if (!schedule) return;
+    if (!schedule || isUpdating || disabled) return;
     const cronExpression = toCronExpression(submitted);
     if (!cronExpression) return;
 
@@ -182,7 +186,12 @@ export function BatchScheduleEditModal({
       okText="저장"
       cancelText="취소"
       confirmLoading={isPending}
-      onCancel={onClose}
+      okButtonProps={{ disabled: isUpdating || disabled }}
+      cancelButtonProps={{ disabled: isUpdating }}
+      closable={!isUpdating}
+      mask={{ closable: !isUpdating }}
+      keyboard={!isUpdating}
+      onCancel={() => { if (!isUpdating) onClose(); }}
       onOk={() => form.submit()}
       destroyOnHidden
     >
@@ -192,6 +201,7 @@ export function BatchScheduleEditModal({
         onFinish={handleSubmit}
         preserve={false}
         initialValues={initialValues}
+        disabled={isUpdating || disabled}
       >
         <Form.Item label="실행 방식" name="mode">
           <Radio.Group options={MODE_OPTIONS} />

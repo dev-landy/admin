@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, Spin, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { useDuplicates } from "@/features/payments/hooks";
 import { DuplicateTable } from "@/features/payments/components/DuplicateTable";
 
@@ -16,7 +18,7 @@ function DuplicatesPageContent() {
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
 
-  const { data, isLoading } = useDuplicates({ page, size });
+  const { data, isLoading, error, isFetching, refetch } = useDuplicates({ page, size });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -27,14 +29,15 @@ function DuplicatesPageContent() {
 
   return (
     <Card title={<Title level={4} style={{ margin: 0 }}>납부 중복 탐지</Title>}>
-      <DuplicateTable
+      <QueryErrorAlert error={error} title="중복 납부 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <DuplicateTable
         data={data?.duplicates ?? []}
         loading={isLoading}
         page={page}
         pageSize={size}
         total={data?.totalElements ?? 0}
         onPageChange={handlePageChange}
-      />
+      />}
     </Card>
   );
 }

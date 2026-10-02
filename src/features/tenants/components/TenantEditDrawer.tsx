@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { App, Button, Drawer, Form } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -14,10 +14,10 @@ import {
   toUpdateTenantRequest,
 } from "./TenantInfoForm";
 
-type Props = { tenant: TenantDetail; open: boolean; onClose: () => void };
+type Props = { tenant: TenantDetail; open: boolean; onClose: () => void; queryError?: ReactNode };
 
 // 계약서 검수의 "임차인 정보 수정" 화면과 같은 폼·활성화 규칙(값이 바뀌어야 수정 가능)을 쓴다.
-export function TenantEditDrawer({ tenant, open, onClose }: Props) {
+export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
   const { notification } = App.useApp();
   const { mutate: update, isPending } = useUpdateTenant(tenant.tenantId);
   const [form] = Form.useForm<TenantInfoFormValues>();
@@ -51,6 +51,7 @@ export function TenantEditDrawer({ tenant, open, onClose }: Props) {
 
   return (
     <Drawer title="임차인 정보 수정" open={open} onClose={onClose} size={480}>
+      {queryError}
       <Form
         form={form}
         layout="vertical"

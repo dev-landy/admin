@@ -51,6 +51,7 @@ const mockUpdate = jest.fn();
 
 jest.mock("@/features/batch/hooks", () => ({
   useUpdateBatchSchedule: () => ({ mutate: mockUpdate, isPending: false }),
+  useIsBatchScheduleUpdating: () => false,
 }));
 
 const schedule: BatchSchedule = {

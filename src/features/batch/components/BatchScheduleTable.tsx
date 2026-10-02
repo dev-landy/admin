@@ -7,7 +7,7 @@ import type { TableColumnsType } from "antd";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { describeCron } from "../cron";
 import { formatSeconds } from "@/lib/format/date";
-import { useUpdateBatchSchedule } from "../hooks";
+import { useIsBatchScheduleUpdating, useUpdateBatchSchedule } from "../hooks";
 import type { BatchSchedule, BatchScheduleKey } from "../types";
 import { BatchScheduleEditModal } from "./BatchScheduleEditModal";
 import { BatchScheduleToggleModal } from "./BatchScheduleToggleModal";
@@ -33,9 +33,10 @@ type ToggleTarget = { schedule: BatchSchedule; enabled: boolean };
 type Props = {
   data: BatchSchedule[];
   loading: boolean;
+  disabled?: boolean;
 };
 
-export function BatchScheduleTable({ data, loading }: Props) {
+export function BatchScheduleTable({ data, loading, disabled = false }: Props) {
   const [editing, setEditing] = useState<BatchSchedule | null>(null);
   // 스위치를 눌러도 바로 반영하지 않는다. 비활성화는 운영 중인 배치 트리거를 멈추는 일이라
   // 확인 모달을 한 번 거치고, 확인 전까지 스위치는 서버 값 그대로 남는다.
@@ -44,10 +45,13 @@ export function BatchScheduleTable({ data, loading }: Props) {
   const [togglingKey, setTogglingKey] = useState<BatchScheduleKey | null>(null);
   const { notification } = App.useApp();
   const { mutate: update, isPending } = useUpdateBatchSchedule();
+  const sharedPending = useIsBatchScheduleUpdating();
+  const isUpdating = sharedPending || isPending || togglingKey !== null;
 
   // PATCH는 크론 식도 함께 요구하므로 행의 현재 값을 그대로 돌려보낸다.
   // 낙관적 갱신은 하지 않아 실패하면 스위치가 서버 값에 남는다.
   function confirmToggle({ schedule, enabled }: ToggleTarget) {
+    if (isUpdating || disabled) return;
     setTogglingKey(schedule.key);
     update(
       {
@@ -119,9 +123,10 @@ export function BatchScheduleTable({ data, loading }: Props) {
         <Switch
           checked={value}
           loading={togglingKey === schedule.key}
+          disabled={isUpdating || disabled || editing !== null}
           checkedChildren="활성"
           unCheckedChildren="비활성"
-          onChange={(checked) => setToggleTarget({ schedule, enabled: checked })}
+          onChange={(checked) => { if (!isUpdating && !disabled) setToggleTarget({ schedule, enabled: checked }); }}
         />
       ),
     },
@@ -131,7 +136,8 @@ export function BatchScheduleTable({ data, loading }: Props) {
       width: 100,
       align: "center",
       render: (_value, schedule) => (
-        <Button size="small" onClick={() => setEditing(schedule)}>
+        <Button size="small" disabled={isUpdating || disabled || toggleTarget !== null}
+          onClick={() => { if (!isUpdating && !disabled) setEditing(schedule); }}>
           수정
         </Button>
       ),
@@ -151,11 +157,12 @@ export function BatchScheduleTable({ data, loading }: Props) {
       <BatchScheduleToggleModal
         schedule={toggleTarget?.schedule ?? null}
         enabled={toggleTarget?.enabled ?? false}
-        loading={isPending}
-        onCancel={() => setToggleTarget(null)}
+        loading={isUpdating}
+        disabled={disabled}
+        onCancel={() => { if (!isUpdating) setToggleTarget(null); }}
         onConfirm={() => toggleTarget && confirmToggle(toggleTarget)}
       />
-      <BatchScheduleEditModal schedule={editing} onClose={() => setEditing(null)} />
+      <BatchScheduleEditModal schedule={editing} disabled={disabled} onClose={() => setEditing(null)} />
     </>
   );
 }

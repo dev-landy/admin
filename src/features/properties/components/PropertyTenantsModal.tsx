@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button, Modal, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
 import { formatRentSchedule } from "@/features/tenants/billingCycle";
 import { formatBillingSchedule } from "@/features/tenants/billingTiming";
@@ -23,7 +25,7 @@ export function PropertyTenantsModal({
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(20);
   const [editingTenantId, setEditingTenantId] = useState<number | null>(null);
-  const { data, isLoading } = usePropertyTenants(propertyId, page, size);
+  const { data, isLoading, error, isFetching, refetch } = usePropertyTenants(propertyId, page, size);
 
   const columns: TableColumnsType<PropertyTenant> = [
     { title: "임차인 ID", dataIndex: "tenantId", width: 110 },
@@ -89,7 +91,8 @@ export function PropertyTenantsModal({
       }}
       destroyOnHidden
     >
-      <Table
+      <QueryErrorAlert error={error} title="건물 소속 임차인 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <Table
         columns={columns}
         dataSource={data?.tenants ?? []}
         loading={isLoading}
@@ -107,7 +110,7 @@ export function PropertyTenantsModal({
           },
         }}
         scroll={{ x: "max-content" }}
-      />
+      />}
       {editingTenantId != null && (
         <TenantEditDrawerById tenantId={editingTenantId} onClose={() => setEditingTenantId(null)} />
       )}

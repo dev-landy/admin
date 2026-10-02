@@ -11,6 +11,7 @@ type Props = {
   // 스위치가 바꾸려는 값. 현재 값이 아니라 적용될 값이다.
   enabled: boolean;
   loading: boolean;
+  disabled?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -19,6 +20,7 @@ export function BatchScheduleToggleModal({
   schedule,
   enabled,
   loading,
+  disabled = false,
   onCancel,
   onConfirm,
 }: Props) {
@@ -29,12 +31,15 @@ export function BatchScheduleToggleModal({
     <Modal
       title={`배치 ${action}`}
       open={schedule !== null}
-      onCancel={onCancel}
+      onCancel={() => { if (!loading) onCancel(); }}
+      closable={!loading}
+      mask={{ closable: !loading }}
+      keyboard={!loading}
       footer={[
-        <Button key="close" onClick={onCancel}>
+        <Button key="close" disabled={loading} onClick={onCancel}>
           닫기
         </Button>,
-        <Button key="confirm" type="primary" loading={loading} onClick={onConfirm}>
+        <Button key="confirm" type="primary" loading={loading} disabled={loading || disabled} onClick={onConfirm}>
           {action}
         </Button>,
       ]}

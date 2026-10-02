@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Input, Popconfirm, Select, Space, Tag } from "antd";
+import { App, Button, Input, Popconfirm, Space } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
@@ -18,7 +18,7 @@ type Props = {
   page: number;
   pageSize: number;
   total: number;
-  filters: { userId?: number; isDefault?: boolean; keyword?: string };
+  filters: { userId?: number; keyword?: string };
   onPageChange: (page: number, size: number) => void;
   onFilterChange: (key: string, value: boolean | number | string | undefined) => void;
 };
@@ -90,26 +90,6 @@ export function PropertyTable({
       render: (value: string | null) => value ?? "-",
     },
     {
-      title: "구분",
-      dataIndex: "isDefault",
-      width: 100,
-      align: "center",
-      filteredValue: filters.isDefault === undefined ? null : [filters.isDefault],
-      filterDropdown: () => (
-        <div style={{ padding: 8 }}>
-          <Select
-            allowClear
-            placeholder="전체"
-            value={filters.isDefault}
-            onChange={(value) => onFilterChange("isDefault", value)}
-            options={[{ label: "기본", value: true }, { label: "일반", value: false }]}
-            style={{ width: 120 }}
-          />
-        </div>
-      ),
-      render: (value: boolean) => <Tag color={value ? "blue" : "default"}>{value ? "기본" : "일반"}</Tag>,
-    },
-    {
       title: "활성 임차인",
       dataIndex: "activeTenantCount",
       width: 110,
@@ -130,7 +110,7 @@ export function PropertyTable({
           <Button size="small" onClick={() => setEditing(property)}>수정</Button>
           <Popconfirm
             title="건물을 삭제하시겠습니까?"
-            description="기본 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다."
+            description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다."
             onConfirm={() => handleDelete(property)}
           >
             <Button size="small" danger loading={isDeleting}>삭제</Button>

@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Card, Empty, Space, Spin, Tabs, Typography } from "antd";
@@ -14,7 +16,7 @@ import type { AlimtalkStatus, AlimtalkTrigger, AlimtalkType } from "@/features/a
 const { Title } = Typography;
 
 function TemplatesTab() {
-  const { data, isLoading, isFetching, refetch } = useAlimtalkTemplates();
+  const { data, isLoading, error, isFetching, refetch } = useAlimtalkTemplates();
   const [testSendOpen, setTestSendOpen] = useState(false);
 
   return (
@@ -33,8 +35,9 @@ function TemplatesTab() {
           테스트 발송
         </Button>
       </Space>
+      <QueryErrorAlert error={error} title="알림톡 템플릿을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
       {isLoading && <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 40 }} />}
-      {!isLoading && (data?.templates.length ?? 0) === 0 && <Empty description="등록된 템플릿이 없습니다." />}
+      {!isLoading && !error && data?.templates.length === 0 && <Empty description="등록된 템플릿이 없습니다." />}
       {data?.templates.map((template) => (
         <AlimtalkTemplateCard key={template.type} template={template} />
       ))}
@@ -61,7 +64,7 @@ function HistoryTab() {
     to: searchParams.get("to") ?? undefined,
   };
 
-  const { data, isLoading, isFetching, refetch } = useAlimtalks({ page, size, ...filters });
+  const { data, isLoading, error, isFetching, refetch } = useAlimtalks({ page, size, ...filters });
 
   function pushParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -81,7 +84,8 @@ function HistoryTab() {
       <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()} style={{ marginBottom: 16 }}>
         새로고침
       </Button>
-      <AlimtalkHistoryTable
+      <QueryErrorAlert error={error} title="알림톡 발송 이력을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <AlimtalkHistoryTable
         data={data?.alimtalks ?? []}
         loading={isLoading}
         page={page}
@@ -101,7 +105,7 @@ function HistoryTab() {
             else params.set(key, String(value));
           })
         }
-      />
+      />}
     </>
   );
 }

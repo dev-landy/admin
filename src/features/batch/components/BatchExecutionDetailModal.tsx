@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import { Alert, Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { formatMillis } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
 import { batchExecutionStatusColor } from "../executionStatus";
@@ -87,7 +89,7 @@ export function BatchExecutionDetailModal({
   executionId: number | null;
   onClose: () => void;
 }) {
-  const { data, isLoading } = useBatchExecution(executionId);
+  const { data, isLoading, error, isFetching, refetch } = useBatchExecution(executionId);
 
   const items: DescriptionsProps["items"] = data
     ? [
@@ -127,9 +129,10 @@ export function BatchExecutionDetailModal({
       onCancel={onClose}
       destroyOnHidden
     >
-      {isLoading || !data ? (
+      <QueryErrorAlert error={error} title="배치 실행 상세를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {isLoading ? (
         <Spin size="large" style={{ display: "block", textAlign: "center", margin: "48px 0" }} />
-      ) : (
+      ) : data ? (
         <>
           {data.jobName === "dailyDispatchAuditJob" && (
             <Alert
@@ -163,7 +166,7 @@ export function BatchExecutionDetailModal({
             <Text type="secondary">종료 메시지가 없습니다.</Text>
           )}
         </>
-      )}
+      ) : null}
     </Modal>
   );
 }

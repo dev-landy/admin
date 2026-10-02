@@ -6,7 +6,6 @@ export type PropertySummary = {
   userEmail: string;
   name: string;
   address: string | null;
-  isDefault: boolean;
   activeTenantCount: number;
   createdAt: string;
   updatedAt: string;
@@ -27,13 +26,13 @@ export type PropertiesListParams = {
   page?: number;
   size?: number;
   userId?: number;
-  isDefault?: boolean;
   keyword?: string;
 };
 
 export type UpdatePropertyRequest = {
   name: string;
   address?: string | null;
+  clearAddress?: boolean;
 };
 
 export type UpdatePropertyResponse = {
@@ -41,7 +40,6 @@ export type UpdatePropertyResponse = {
   userId: number;
   name: string;
   address: string | null;
-  isDefault: boolean;
 };
 
 export type PropertyTenant = {

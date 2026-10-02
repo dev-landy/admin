@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Card, Spin, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionTable";
 import { useBatchExecutions, useBatchJobs } from "@/features/batch/hooks";
 import type { BatchExecutionStatus, BatchExitCode } from "@/features/batch/types";
@@ -23,7 +25,7 @@ function BatchExecutionsPageContent() {
   const targetDateFrom = searchParams.get("targetDateFrom") || undefined;
   const targetDateTo = searchParams.get("targetDateTo") || undefined;
 
-  const { data, isLoading, isFetching, refetch } = useBatchExecutions({
+  const { data, isLoading, error, isFetching, refetch } = useBatchExecutions({
     page,
     size,
     jobName,
@@ -32,7 +34,8 @@ function BatchExecutionsPageContent() {
     targetDateFrom,
     targetDateTo,
   });
-  const { data: jobsData } = useBatchJobs();
+  const jobsQuery = useBatchJobs();
+  const jobsData = jobsQuery.data;
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -69,7 +72,9 @@ function BatchExecutionsPageContent() {
         </Button>
       }
     >
-      <BatchExecutionTable
+      <QueryErrorAlert error={error} title="배치 실행 이력을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      <QueryErrorAlert error={jobsQuery.error} title="배치 작업 필터를 불러오지 못했습니다." onRetry={jobsQuery.refetch} isRetrying={jobsQuery.isFetching} hasData={jobsData !== undefined} />
+      {(!error || data) && <BatchExecutionTable
         data={data?.executions ?? []}
         loading={isLoading}
         page={page}
@@ -80,7 +85,7 @@ function BatchExecutionsPageContent() {
         onFilterChange={handleFilterChange}
         onTargetDateRangeChange={handleTargetDateRangeChange}
         jobNames={jobsData?.jobNames ?? []}
-      />
+      />}
     </Card>
   );
 }

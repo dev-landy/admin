@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Table, Tag } from "antd";
+import { Button, Tag } from "antd";
 import type { TableColumnsType } from "antd";
+
+import { PagedTable } from "@/components/PagedTable";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
 import { formatRentSchedule } from "@/features/tenants/billingCycle";
@@ -12,8 +15,16 @@ import { useUserTenants } from "../hooks";
 import type { AdminUserTenant } from "../types";
 
 export function UserTenantsTab({ userId }: { userId: number }) {
-  const { data, isLoading } = useUserTenants(userId);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(20);
+  const { data, isLoading, error, isFetching, refetch } = useUserTenants(userId, page, size);
   const [editingTenantId, setEditingTenantId] = useState<number | null>(null);
+
+  // 재조회로 마지막 페이지가 사라지면 요청 페이지도 유효 범위로 돌린다.
+  if (data && !error && !isFetching) {
+    const lastPage = Math.max(1, Math.ceil(data.totalElements / data.size));
+    if (page > lastPage) setPage(lastPage);
+  }
 
   const columns: TableColumnsType<AdminUserTenant> = [
     { title: "임차인 ID", dataIndex: "tenantId", width: 120 },
@@ -60,13 +71,17 @@ export function UserTenantsTab({ userId }: { userId: number }) {
 
   return (
     <>
-      <Table
+      <QueryErrorAlert error={error} title="임차인 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <PagedTable
         columns={columns}
         dataSource={data?.tenants ?? []}
         loading={isLoading}
         rowKey={(r) => String(r.tenantId)}
-        pagination={false}
-      />
+        page={data ? data.page + 1 : page}
+        pageSize={data?.size ?? size}
+        total={data?.totalElements ?? 0}
+        onPageChange={(nextPage, nextSize) => { setPage(nextPage); setSize(nextSize); }}
+      />}
       {editingTenantId != null && (
         <TenantEditDrawerById tenantId={editingTenantId} onClose={() => setEditingTenantId(null)} />
       )}

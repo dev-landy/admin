@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, Spin, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { useTenants } from "@/features/tenants/hooks";
 import { TenantTable } from "@/features/tenants/components/TenantTable";
 
@@ -21,7 +23,7 @@ function TenantsPageContent() {
   const startDate = searchParams.get("startDate") || undefined;
   const endDate = searchParams.get("endDate") || undefined;
 
-  const { data, isLoading } = useTenants({ page, size, userId, notifyEnabled, startDate, endDate });
+  const { data, isLoading, error, isFetching, refetch } = useTenants({ page, size, userId, notifyEnabled, startDate, endDate });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -40,7 +42,8 @@ function TenantsPageContent() {
 
   return (
     <Card title={<Title level={4} style={{ margin: 0 }}>임차인 관리</Title>}>
-      <TenantTable
+      <QueryErrorAlert error={error} title="임차인 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <TenantTable
         data={data?.tenants ?? []}
         loading={isLoading}
         page={page}
@@ -49,7 +52,7 @@ function TenantsPageContent() {
         onPageChange={handlePageChange}
         filters={{ userId, notifyEnabled, startDate, endDate }}
         onFilterChange={handleFilterChange}
-      />
+      />}
     </Card>
   );
 }

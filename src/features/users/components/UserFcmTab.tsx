@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Popconfirm, Space, Switch, Table, Tag } from "antd";
+import { App, Button, Popconfirm, Space, Switch, Tag } from "antd";
 import type { TableColumnsType } from "antd";
+
+import { PagedTable } from "@/components/PagedTable";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import {
@@ -16,12 +19,20 @@ import { FcmTestSendModal } from "./FcmTestSendModal";
 
 export function UserFcmTab({ userId }: { userId: number }) {
   const { notification } = App.useApp();
-  const { data, isLoading } = useUserFcmTokens(userId);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(20);
+  const { data, isLoading, error, isFetching, refetch } = useUserFcmTokens(userId, page, size);
   const { mutate: deactivate, isPending } = useDeactivateFcmToken(userId);
   const { mutate: updateSilentWakeup, isPending: isUpdatingSilentWakeup } =
     useUpdateFcmTokenSilentWakeupSubscription(userId);
   const { mutate: sendSilentMessage, isPending: isSendingSilent } = useSendFcmTokenSilentMessage();
   const [testSendTokenId, setTestSendTokenId] = useState<number | null>(null);
+
+  // 마지막 행을 비활성화한 뒤 서버 총수가 줄면 표시와 다음 조회의 페이지를 함께 보정한다.
+  if (data && !error && !isFetching) {
+    const lastPage = Math.max(1, Math.ceil(data.totalElements / data.size));
+    if (page > lastPage) setPage(lastPage);
+  }
 
   const columns: TableColumnsType<FcmToken> = [
     { title: "FCM 토큰 ID", dataIndex: "fcmTokenId", width: 130 },
@@ -111,13 +122,17 @@ export function UserFcmTab({ userId }: { userId: number }) {
 
   return (
     <>
-      <Table
+      <QueryErrorAlert error={error} title="FCM 토큰 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <PagedTable
         columns={columns}
         dataSource={data?.fcmTokens ?? []}
         loading={isLoading}
         rowKey={(r) => String(r.fcmTokenId)}
-        pagination={false}
-      />
+        page={data ? data.page + 1 : page}
+        pageSize={data?.size ?? size}
+        total={data?.totalElements ?? 0}
+        onPageChange={(nextPage, nextSize) => { setPage(nextPage); setSize(nextSize); }}
+      />}
       <FcmTestSendModal
         open={testSendTokenId !== null}
         onClose={() => setTestSendTokenId(null)}

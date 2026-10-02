@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Descriptions, Spin, Tag, Typography } from "antd";
+import { Button, Card, Descriptions, Empty, Spin, Tag, Typography } from "antd";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { CHANNEL_COLOR } from "../channel";
 import { useReleasePolicies } from "../hooks";
 import type { ReleasePolicy } from "../types";
@@ -44,7 +46,7 @@ function PolicyCard({ policy, onEdit }: { policy: ReleasePolicy; onEdit: () => v
 }
 
 export function ReleasePolicyList() {
-  const { data, isLoading } = useReleasePolicies();
+  const { data, isLoading, error, isFetching, refetch } = useReleasePolicies();
   const [editing, setEditing] = useState<ReleasePolicy | null>(null);
 
   if (isLoading) {
@@ -54,6 +56,8 @@ export function ReleasePolicyList() {
   return (
     <div>
       <Title level={4}>릴리즈 정책</Title>
+      <QueryErrorAlert error={error} title="릴리즈 정책을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {!error && data?.releasePolicies.length === 0 && <Empty description="등록된 릴리즈 정책이 없습니다." />}
       {(data?.releasePolicies ?? []).map((policy) => (
         <PolicyCard
           key={policy.appReleasePolicyId}

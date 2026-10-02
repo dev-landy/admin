@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { App, Button, Popconfirm, Space, Table, Tag } from "antd";
+import { App, Button, Popconfirm, Space, Table } from "antd";
 import type { TableColumnsType } from "antd";
+
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useDeleteProperty, useUserProperties } from "../hooks";
@@ -12,7 +14,7 @@ import { PropertyTenantsModal } from "./PropertyTenantsModal";
 
 export function UserPropertiesTab({ userId }: { userId: number }) {
   const { notification } = App.useApp();
-  const { data, isLoading } = useUserProperties(userId);
+  const { data, isLoading, error, isFetching, refetch } = useUserProperties(userId);
   const { mutate: remove, isPending: isDeleting } = useDeleteProperty();
   const [editing, setEditing] = useState<UserPropertySummary | null>(null);
   const [tenantProperty, setTenantProperty] = useState<UserPropertySummary | null>(null);
@@ -31,12 +33,6 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
     { title: "건물 ID", dataIndex: "propertyId", width: 100 },
     { title: "건물명", dataIndex: "name" },
     { title: "주소", dataIndex: "address", render: (value: string | null) => value ?? "-" },
-    {
-      title: "구분",
-      dataIndex: "isDefault",
-      width: 90,
-      render: (value: boolean) => <Tag color={value ? "blue" : "default"}>{value ? "기본" : "일반"}</Tag>,
-    },
     { title: "활성 임차인", dataIndex: "activeTenantCount", width: 110, render: (value: number) => `${value}명` },
     {
       title: "액션",
@@ -46,7 +42,7 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
         <Space>
           <Button size="small" onClick={() => setTenantProperty(property)}>임차인</Button>
           <Button size="small" onClick={() => setEditing(property)}>수정</Button>
-          <Popconfirm title="건물을 삭제하시겠습니까?" onConfirm={() => handleDelete(property.propertyId)}>
+          <Popconfirm description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다." title="건물을 삭제하시겠습니까?" onConfirm={() => handleDelete(property.propertyId)}>
             <Button size="small" danger loading={isDeleting}>삭제</Button>
           </Popconfirm>
         </Space>
@@ -56,14 +52,15 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
 
   return (
     <>
-      <Table
+      <QueryErrorAlert error={error} title="건물 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <Table
         columns={columns}
         dataSource={data?.properties ?? []}
         loading={isLoading}
         rowKey={(property) => String(property.propertyId)}
         pagination={false}
         scroll={{ x: "max-content" }}
-      />
+      />}
       <PropertyEditModal property={editing} onClose={() => setEditing(null)} />
       <PropertyTenantsModal
         propertyId={tenantProperty?.propertyId ?? null}

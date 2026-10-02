@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, Spin, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { usePayments } from "@/features/payments/hooks";
 import { PaymentTable } from "@/features/payments/components/PaymentTable";
 import type { PaymentSource } from "@/features/payments/types";
@@ -22,7 +24,7 @@ function PaymentsPageContent() {
   const userId = searchParams.get("userId") ? Number(searchParams.get("userId")) : undefined;
   const tenantId = searchParams.get("tenantId") ? Number(searchParams.get("tenantId")) : undefined;
 
-  const { data, isLoading } = usePayments({ page, size, source, from, to, userId, tenantId });
+  const { data, isLoading, error, isFetching, refetch } = usePayments({ page, size, source, from, to, userId, tenantId });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -42,7 +44,8 @@ function PaymentsPageContent() {
 
   return (
     <Card title={<Title level={4} style={{ margin: 0 }}>납부 목록</Title>}>
-      <PaymentTable
+      <QueryErrorAlert error={error} title="납부 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <PaymentTable
         data={data?.payments ?? []}
         loading={isLoading}
         page={page}
@@ -51,7 +54,7 @@ function PaymentsPageContent() {
         onPageChange={handlePageChange}
         filters={{ source, userId, tenantId }}
         onFilterChange={handleFilterChange}
-      />
+      />}
     </Card>
   );
 }

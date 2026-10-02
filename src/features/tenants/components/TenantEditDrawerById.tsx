@@ -1,6 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Drawer, Spin } from "antd";
+
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { fetchTenant } from "../api";
 import { tenantKeys } from "../hooks";
@@ -15,13 +18,17 @@ export function TenantEditDrawerById({
   tenantId: number;
   onClose: () => void;
 }) {
-  const { data } = useQuery({
+  const { data, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: tenantKeys.detail(tenantId),
     queryFn: () => fetchTenant(tenantId),
   });
 
   if (!data) {
-    return null;
+    return <Drawer title="임차인 정보 수정" open onClose={onClose} size={480}>
+      {isLoading && <Spin />}
+      <QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} />
+    </Drawer>;
   }
-  return <TenantEditDrawer tenant={data} open onClose={onClose} />;
+  return <TenantEditDrawer tenant={data} open onClose={onClose}
+    queryError={<QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData />} />;
 }

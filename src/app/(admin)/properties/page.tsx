@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, Spin, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { PropertyTable } from "@/features/properties/components/PropertyTable";
 import { useProperties } from "@/features/properties/hooks";
 
@@ -15,13 +17,12 @@ function PropertiesPageContent() {
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
   const userId = searchParams.get("userId") ? Number(searchParams.get("userId")) : undefined;
-  const isDefaultRaw = searchParams.get("isDefault");
-  const isDefault = isDefaultRaw === null ? undefined : isDefaultRaw === "true";
   const keyword = searchParams.get("keyword") || undefined;
-  const { data, isLoading } = useProperties({ page, size, userId, isDefault, keyword });
+  const { data, isLoading, error, isFetching, refetch } = useProperties({ page, size, userId, keyword });
 
   function navigate(changes: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("isDefault");
     for (const [key, value] of Object.entries(changes)) {
       if (value === undefined) params.delete(key);
       else params.set(key, value);
@@ -31,16 +32,17 @@ function PropertiesPageContent() {
 
   return (
     <Card title={<Title level={4} style={{ margin: 0 }}>건물 관리</Title>}>
-      <PropertyTable
+      <QueryErrorAlert error={error} title="건물 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <PropertyTable
         data={data?.properties ?? []}
         loading={isLoading}
         page={page}
         pageSize={size}
         total={data?.totalElements ?? 0}
-        filters={{ userId, isDefault, keyword }}
+        filters={{ userId, keyword }}
         onPageChange={(nextPage, nextSize) => navigate({ page: String(nextPage), size: String(nextSize) })}
         onFilterChange={(key, value) => navigate({ page: "1", [key]: value === undefined ? undefined : String(value) })}
-      />
+      />}
     </Card>
   );
 }

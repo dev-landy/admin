@@ -20,7 +20,9 @@ export const userKeys = {
   list: (p: UsersListParams) => ["users", "list", p] as const,
   detail: (id: number) => ["users", id] as const,
   tenants: (id: number) => ["users", id, "tenants"] as const,
+  tenantPage: (id: number, page: number, size: number) => ["users", id, "tenants", { page, size }] as const,
   fcmTokens: (id: number) => ["users", id, "fcm-tokens"] as const,
+  fcmTokenPage: (id: number, page: number, size: number) => ["users", id, "fcm-tokens", { page, size }] as const,
 };
 
 export function useUsers(params: UsersListParams) {
@@ -31,12 +33,12 @@ export function useUser(userId: number) {
   return useQuery({ queryKey: userKeys.detail(userId), queryFn: () => fetchUser(userId) });
 }
 
-export function useUserTenants(userId: number) {
-  return useQuery({ queryKey: userKeys.tenants(userId), queryFn: () => fetchUserTenants(userId) });
+export function useUserTenants(userId: number, page = 1, size = 20) {
+  return useQuery({ queryKey: userKeys.tenantPage(userId, page, size), queryFn: () => fetchUserTenants(userId, { page, size }) });
 }
 
-export function useUserFcmTokens(userId: number) {
-  return useQuery({ queryKey: userKeys.fcmTokens(userId), queryFn: () => fetchUserFcmTokens(userId) });
+export function useUserFcmTokens(userId: number, page = 1, size = 20) {
+  return useQuery({ queryKey: userKeys.fcmTokenPage(userId, page, size), queryFn: () => fetchUserFcmTokens(userId, { page, size }) });
 }
 
 export function useUpdateUserRole(userId: number) {

@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, Spin, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { useUsers } from "@/features/users/hooks";
 import { UserTable } from "@/features/users/components/UserTable";
 import type { OAuthProvider, UserRole, UserStatus } from "@/features/users/types";
@@ -20,7 +22,7 @@ function UsersPageContent() {
   const role = (searchParams.get("role") as UserRole) || undefined;
   const status = (searchParams.get("status") as UserStatus) || undefined;
 
-  const { data, isLoading } = useUsers({ page, size, provider, role, status });
+  const { data, isLoading, error, isFetching, refetch } = useUsers({ page, size, provider, role, status });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -43,7 +45,8 @@ function UsersPageContent() {
 
   return (
     <Card title={<Title level={4} style={{ margin: 0 }}>유저 관리</Title>}>
-      <UserTable
+      <QueryErrorAlert error={error} title="사용자 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
+      {(!error || data) && <UserTable
         data={data?.users ?? []}
         loading={isLoading}
         page={page}
@@ -52,7 +55,7 @@ function UsersPageContent() {
         onPageChange={handlePageChange}
         filters={{ provider, role, status }}
         onFilterChange={handleFilterChange}
-      />
+      />}
     </Card>
   );
 }

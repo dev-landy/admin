@@ -5,6 +5,8 @@ import { Tabs, Spin, Typography, Space, Button, Flex } from "antd";
 import { ArrowLeftOutlined, UserSwitchOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+
 import { useUser } from "@/features/users/hooks";
 import { UserDetailCard } from "@/features/users/components/UserDetailCard";
 import { UserTenantsTab } from "@/features/users/components/UserTenantsTab";
@@ -18,11 +20,15 @@ export default function UserDetailPage({ params }: Props) {
   const { userId: userIdStr } = use(params);
   const userId = Number(userIdStr);
   const router = useRouter();
-  const { data: user, isLoading } = useUser(userId);
+  const { data: user, isLoading, error, isFetching, refetch } = useUser(userId);
   const [impersonationOpen, setImpersonationOpen] = useState(false);
 
   if (isLoading) {
     return <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 80 }} />;
+  }
+
+  if (error && !user) {
+    return <QueryErrorAlert error={error} title="사용자 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} />;
   }
 
   if (!user) {
@@ -30,21 +36,24 @@ export default function UserDetailPage({ params }: Props) {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <Flex justify="space-between" align="center">
         <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/users")}>
           목록으로
         </Button>
-        <Button icon={<UserSwitchOutlined />} onClick={() => setImpersonationOpen(true)}>
-          유저 토큰 발급
-        </Button>
+        <Space wrap>
+          <Button icon={<UserSwitchOutlined />} onClick={() => setImpersonationOpen(true)}>
+            유저 토큰 발급
+          </Button>
+        </Space>
       </Flex>
+      <QueryErrorAlert error={error} title="사용자 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData />
       <UserDetailCard user={user} />
       <Tabs
         items={[
-          { key: "properties", label: "건물 목록", children: <UserPropertiesTab userId={userId} /> },
-          { key: "tenants", label: "임차인 목록", children: <UserTenantsTab userId={userId} /> },
-          { key: "fcm", label: "FCM 토큰", children: <UserFcmTab userId={userId} /> },
+          { key: "properties", label: "건물 목록", children: <UserPropertiesTab key={userId} userId={userId} /> },
+          { key: "tenants", label: "임차인 목록", children: <UserTenantsTab key={userId} userId={userId} /> },
+          { key: "fcm", label: "FCM 토큰", children: <UserFcmTab key={userId} userId={userId} /> },
         ]}
       />
       <ImpersonationModal
