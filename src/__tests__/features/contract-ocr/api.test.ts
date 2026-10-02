@@ -28,10 +28,21 @@ test("문서와 원본 파일은 uploadId, fileId/fileIndex 계약을 그대로 
 });
 
 test("등록은 values 래퍼 없이 보내고 동기 완료 결과를 반환한다", async () => {
-  const result = { documentId: "document-1", status: "REGISTERED", tenantId: 9, uploadStatus: "REGISTERED" };
+  const result = { documentId: "document-1", status: "REGISTERED", tenantId: 9, propertyId: 2, uploadStatus: "REGISTERED" };
   mockPost.mockResolvedValue({ status: 200, data: result });
   await expect(registerContractDocument("document-1", VALUES)).resolves.toEqual(result);
   expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, VALUES);
+});
+
+test.each([
+  { propertyId: 3 },
+  { propertyId: 2, propertyUpdate: { name: "수정한 건물", address: null } },
+  { newProperty: { name: "새 건물", address: "서울시" } },
+])("건물 선택·수정·추가 %j는 등록의 flat tenant 필드와 함께 전송한다", async (property) => {
+  const values = { ...VALUES, ...property };
+  mockPost.mockResolvedValue({ data: { status: "REGISTERED" } });
+  await registerContractDocument("document-1", values);
+  expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, values);
 });
 
 test.each(["UNREADABLE", "NOT_A_CONTRACT", "EXPIRED", "DUPLICATE"] as const)("반려는 %s 사유와 결과 알림 여부를 각각 명시한다", async (reason) => {

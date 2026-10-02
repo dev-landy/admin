@@ -87,6 +87,14 @@
   box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
 }
 
+.buildingRow { display: flex; align-items: center; gap: 8px; }
+.buildingLabel { flex: 0 0 40px; font-weight: 600; white-space: nowrap; }
+.requiredMark { color: #ff4d4f; font-weight: 400; }
+.buildingSelect { flex: 1 1 0; min-width: 0; }
+.pendingBuilding { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.buildingDivider { border: 0; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+.addBuildingMenu { border-top: 1px solid #e5e7eb; margin-top: 4px; padding-top: 4px; }
+
 @media (min-width: 1200px) {
   .review {
     /* 관리자 헤더(64px)와 콘텐츠 위아래 여백(24px씩)을 제외한다. */

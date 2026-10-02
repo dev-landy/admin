@@ -37,7 +37,7 @@ export type ContractDocumentFile = {
 export type ContractDocumentFilesResponse = { files: ContractDocumentFile[] };
 
 // OCR 제안과 과거에 보관한 초안은 일부 값이 없을 수 있다.
-export type RegisterContractDocumentRequest = {
+export type ContractTenantValues = {
   contractType: ContractType;
   parkingEnabled: boolean;
   vehicleNumber: string | null;
@@ -53,14 +53,21 @@ export type RegisterContractDocumentRequest = {
   startDate: string | null;
   endDate: string | null;
 };
+export type ContractPropertyValues = { name: string; address: string | null };
+export type RegisterContractDocumentRequest = ContractTenantValues & {
+  propertyId?: number;
+  propertyUpdate?: ContractPropertyValues;
+  newProperty?: ContractPropertyValues;
+};
 export type ContractDraftValues = {
-  [Key in keyof RegisterContractDocumentRequest]?: RegisterContractDocumentRequest[Key] | null;
+  [Key in keyof ContractTenantValues]?: ContractTenantValues[Key] | null;
 };
 export type ContractDocumentDraftResponse = { documentId: string; values: ContractDraftValues };
 export type ContractDocumentDecisionResponse = {
   documentId: string;
   status: "REGISTERED" | "REJECTED";
   tenantId?: number | null;
+  propertyId?: number;
   uploadStatus: string;
 };
 

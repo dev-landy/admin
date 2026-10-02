@@ -11,6 +11,8 @@ import {
 } from "@/features/contract-ocr/api";
 import { fetchTenant, updateTenant } from "@/features/tenants/api";
 import { tenantKeys } from "@/features/tenants/hooks";
+import { fetchUserProperties, updateProperty } from "@/features/properties/api";
+import { propertyKeys } from "@/features/properties/hooks";
 import { ANALYSIS, DOCUMENT, TENANT, VALUES } from "@/test-utils/contractDocumentFixtures";
 
 jest.mock("@/features/contract-ocr/api", () => ({
@@ -18,6 +20,7 @@ jest.mock("@/features/contract-ocr/api", () => ({
   fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), rejectContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(),
 }));
 jest.mock("@/features/tenants/api", () => ({ fetchTenant: jest.fn(), updateTenant: jest.fn() }));
+jest.mock("@/features/properties/api", () => ({ fetchUserProperties: jest.fn(), updateProperty: jest.fn() }));
 const mockDocument = jest.mocked(fetchContractDocument);
 const mockDraft = jest.mocked(fetchContractDocumentDraft);
 const mockFiles = jest.mocked(fetchContractDocumentFiles);
@@ -27,6 +30,12 @@ const mockReject = jest.mocked(rejectContractDocument);
 const mockRequest = jest.mocked(requestContractOcrAnalysis);
 const mockTenant = jest.mocked(fetchTenant);
 const mockUpdateTenant = jest.mocked(updateTenant);
+const mockProperties = jest.mocked(fetchUserProperties);
+const mockUpdateProperty = jest.mocked(updateProperty);
+const PROPERTIES = [
+  { propertyId: 2, name: "내 건물", address: "서울시 원래 주소", isDefault: true, activeTenantCount: 1, createdAt: "2026-09-01", updatedAt: "2026-09-01" },
+  { propertyId: 3, name: "다른 건물", address: null, isDefault: false, activeTenantCount: 0, createdAt: "2026-09-01", updatedAt: "2026-09-01" },
+];
 const onBack = jest.fn();
 let client: QueryClient;
 function renderReview(cachedTenant?: typeof TENANT) {
@@ -43,6 +52,25 @@ async function openOriginal() {
   fireEvent.click(await screen.findByRole("button", { name: "계약서 원본 펼치기" }));
   return screen.findByRole("img", { name: "계약서 1페이지" });
 }
+async function selectProperty(name: string) {
+  fireEvent.mouseDown(screen.getByLabelText("등록할 건물"));
+  fireEvent.click(await screen.findByText(name));
+}
+async function openPropertyModal(kind: "edit" | "new") {
+  if (kind === "new") {
+    fireEvent.mouseDown(screen.getByLabelText("등록할 건물"));
+    fireEvent.click(await screen.findByRole("button", { name: "새 건물 추가" }));
+  } else fireEvent.click(screen.getByRole("button", { name: "정보 수정" }));
+  return screen.findByRole("dialog");
+}
+async function applyProperty(name: string, address: string, kind: "edit" | "new" = "edit") {
+  const dialog = await openPropertyModal(kind);
+  if (kind === "edit") await waitFor(() => expect(within(dialog).getByLabelText("건물명")).not.toHaveValue(""));
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: name } });
+  fireEvent.change(within(dialog).getByLabelText("주소 (선택)"), { target: { value: address } });
+  fireEvent.click(within(dialog).getByRole("button", { name: kind === "new" ? "추가하고 선택" : "변경 내용 적용" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+}
 function conflict(detail: string) {
   return new AxiosError("conflict", undefined, undefined, undefined, {
     data: { type: "/problems/conflict", title: "요청 충돌", detail, status: 409 },
@@ -56,6 +84,7 @@ beforeEach(() => {
   mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
   mockLatest.mockResolvedValue(null);
   mockTenant.mockResolvedValue(TENANT);
+  mockProperties.mockResolvedValue({ properties: PROPERTIES });
   mockRegister.mockResolvedValue({ documentId: DOCUMENT.documentId, status: "REGISTERED", tenantId: 9, uploadStatus: "REGISTERED" });
   mockReject.mockResolvedValue({ documentId: DOCUMENT.documentId, status: "REJECTED", uploadStatus: "REJECTED" });
   mockRequest.mockResolvedValue(ANALYSIS);
@@ -127,6 +156,197 @@ test("확인한 초안을 수동 적용하고 동기 등록 완료 후 목록으
   await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, VALUES));
   expect(await screen.findByText("임차인 등록이 완료되었습니다.")).toBeInTheDocument();
   expect(onBack).toHaveBeenCalledTimes(1);
+});
+
+test("해당 임대인의 건물을 선택해 등록하고 목록 재조회와 OCR 도착에도 선택·임차인 입력을 유지한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  expect(mockProperties).toHaveBeenCalledWith(DOCUMENT.userId);
+  await selectProperty("다른 건물");
+  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "수정 중인 이름" } });
+  await act(async () => {
+    client.setQueryData(propertyKeys.user(DOCUMENT.userId), { properties: [...PROPERTIES].reverse() });
+    client.setQueryData(contractDocumentKeys.analysis(DOCUMENT.documentId), { ...ANALYSIS, status: "SUCCEEDED", values: { ...VALUES, name: "OCR 이름" } });
+  });
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("수정 중인 이름");
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, { ...VALUES, name: "수정 중인 이름", propertyId: 3 }));
+  expect(mockUpdateProperty).not.toHaveBeenCalled();
+});
+
+test("건물 정보 수정은 초안으로 표시하고 되돌릴 수 있으며 등록할 때만 주소 비우기를 함께 전송한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  await applyProperty("  랜디빌라  ", "");
+  expect(screen.getByText("수정 예정")).toBeInTheDocument();
+  expect(mockUpdateProperty).not.toHaveBeenCalled();
+  expect(mockRegister).not.toHaveBeenCalled();
+  await selectProperty("다른 건물");
+  expect(screen.queryByText("수정 예정")).not.toBeInTheDocument();
+  await selectProperty("랜디빌라");
+  expect(screen.getByText("수정 예정")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+  expect(screen.queryByText("수정 예정")).not.toBeInTheDocument();
+  const dialog = await openPropertyModal("edit");
+  await waitFor(() => expect(within(dialog).getByLabelText("건물명")).toHaveValue("내 건물"));
+  const buildingName = within(dialog).getByRole("textbox", { name: "건물명" });
+  const nameLabel = within(dialog).getByText("건물명", { selector: "label" }) as HTMLLabelElement;
+  expect(nameLabel.control).toBe(buildingName);
+  expect(buildingName.id).not.toBe(screen.getByLabelText("세입자 이름").id);
+  expect(within(dialog).getByLabelText("주소 (선택)")).toHaveValue("서울시 원래 주소");
+  fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await applyProperty("  랜디빌라  ", "");
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, { ...VALUES, propertyId: 2, propertyUpdate: { name: "랜디빌라", address: null } }));
+});
+
+test("새 건물 추가를 취소해도 건물을 만들지 않고 새 초안은 배타적인 등록 payload로만 저장한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  const dialog = await openPropertyModal("new");
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: "취소한 건물" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.queryByText("추가 예정")).not.toBeInTheDocument();
+  expect(mockRegister).not.toHaveBeenCalled();
+  expect(mockUpdateProperty).not.toHaveBeenCalled();
+  await applyProperty(" 새 건물 ", " 서울시 새 주소 ", "new");
+  expect(screen.getByText("추가 예정")).toBeInTheDocument();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue(VALUES.name);
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, { ...VALUES, newProperty: { name: "새 건물", address: "서울시 새 주소" } }));
+  expect(mockRegister.mock.calls[0][1]).not.toHaveProperty("propertyId");
+  expect(mockRegister.mock.calls[0][1]).not.toHaveProperty("propertyUpdate");
+});
+
+test("새 건물 초안을 되돌리면 원래 건물을 사용하고 건물 필드 없는 기존 등록 요청을 보낸다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  await applyProperty("추가하지 않을 건물", "", "new");
+  fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+  expect(screen.queryByText("추가 예정")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, VALUES));
+});
+
+test("새 건물 초안이 있어도 반려는 건물을 생성하거나 수정하지 않는다", async () => {
+  renderReview();
+  await screen.findByRole("button", { name: "정보 수정" });
+  await waitFor(() => expect(screen.getByRole("button", { name: "정보 수정" })).toBeEnabled());
+  await applyProperty("반려할 건물", "", "new");
+  fireEvent.click(screen.getByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("중복 제출"));
+  fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
+  await waitFor(() => expect(mockReject).toHaveBeenCalledWith(DOCUMENT.documentId, { reason: "DUPLICATE", notifyUser: false }));
+  expect(mockRegister).not.toHaveBeenCalled();
+  expect(mockUpdateProperty).not.toHaveBeenCalled();
+});
+
+test("등록 실패 후에도 새 건물 초안과 임차인 입력을 보존하며 재시도 payload를 유지한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  mockRegister.mockRejectedValueOnce(conflict("다시 확인해 주세요."));
+  renderReview();
+  await applyDraft();
+  await applyProperty("재시도할 건물", "", "new");
+  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "유지할 임차인" } });
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  expect(await screen.findByText("다시 확인해 주세요.")).toBeInTheDocument();
+  expect(screen.getByText("추가 예정")).toBeInTheDocument();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("유지할 임차인");
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledTimes(2));
+  expect(mockRegister.mock.calls[0][1]).toEqual(mockRegister.mock.calls[1][1]);
+  expect(mockRegister.mock.calls[1][1]).toMatchObject({ name: "유지할 임차인", newProperty: { name: "재시도할 건물", address: null } });
+});
+
+test("건물 조회 오류는 등록을 잠그고 재조회 후 원래 건물을 확인하며 반려는 계속 허용한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  mockProperties.mockRejectedValueOnce(new Error("unavailable"));
+  renderReview();
+  await applyDraft();
+  expect(await screen.findByText("건물 정보를 불러오지 못했습니다.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "반려" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  expect(mockRegister).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "건물 다시 조회" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  expect(mockProperties).toHaveBeenCalledTimes(2);
+});
+
+test("문서의 건물이 소유 목록에 없으면 등록을 막고 목록에 있는 건물을 선택해야 등록한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  mockProperties.mockResolvedValue({ properties: [PROPERTIES[1]] });
+  renderReview();
+  await applyDraft();
+  expect(await screen.findByText("등록할 건물을 선택하거나 새 건물을 추가해 주세요.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "정보 수정" })).toBeDisabled();
+  await selectProperty("다른 건물");
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, { ...VALUES, propertyId: 3 }));
+});
+
+test("새 건물 초안은 목록 재조회 실패와 복구 중에도 유지하고 실패 중에는 등록을 잠근다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  await applyProperty("유지할 새 건물", "", "new");
+  mockProperties.mockRejectedValue(new Error("unavailable"));
+  await act(async () => { await client.refetchQueries({ queryKey: propertyKeys.user(DOCUMENT.userId) }); });
+  expect(await screen.findByText("건물 정보를 불러오지 못했습니다.")).toBeInTheDocument();
+  expect(screen.getByText("추가 예정")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled());
+  mockProperties.mockResolvedValue({ properties: PROPERTIES });
+  fireEvent.click(screen.getByRole("button", { name: "건물 다시 조회" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, { ...VALUES, newProperty: { name: "유지할 새 건물", address: null } }));
+});
+
+test("건물 드롭다운의 새 건물 추가는 Tab으로 접근하고 Escape로 닫아 선택 필드로 돌아온다", async () => {
+  renderReview();
+  await waitFor(() => expect(screen.getByRole("button", { name: "정보 수정" })).toBeEnabled());
+  const select = screen.getByLabelText("등록할 건물");
+  fireEvent.mouseDown(select);
+  const add = await screen.findByRole("button", { name: "새 건물 추가" });
+  expect(fireEvent.keyDown(select, { key: "Tab" })).toBe(false);
+  expect(add).toHaveFocus();
+  fireEvent.keyDown(add, { key: "Escape" });
+  await waitFor(() => expect(select).toHaveAttribute("aria-expanded", "false"));
+  expect(select).toHaveFocus();
+  expect(mockRegister).not.toHaveBeenCalled();
+  expect(mockUpdateProperty).not.toHaveBeenCalled();
+});
+
+test("건물명·주소는 Unicode code point 기준 255자까지 허용하고 공백 이름과 초과 입력은 적용하지 않는다", async () => {
+  renderReview();
+  await waitFor(() => expect(screen.getByRole("button", { name: "정보 수정" })).toBeEnabled());
+  const dialog = await openPropertyModal("new");
+  const apply = within(dialog).getByRole("button", { name: "추가하고 선택" });
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: "   " } });
+  fireEvent.click(apply);
+  expect(await within(dialog).findByText("건물명을 입력해 주세요.")).toBeInTheDocument();
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: "😀".repeat(256) } });
+  fireEvent.change(within(dialog).getByLabelText("주소 (선택)"), { target: { value: "😀".repeat(256) } });
+  fireEvent.click(apply);
+  expect(await within(dialog).findByText("건물명 입력은 255자 이하로 입력해 주세요.")).toBeInTheDocument();
+  expect(await within(dialog).findByText("주소 입력은 255자 이하로 입력해 주세요.")).toBeInTheDocument();
+  fireEvent.change(within(dialog).getByLabelText("건물명"), { target: { value: "😀".repeat(255) } });
+  fireEvent.change(within(dialog).getByLabelText("주소 (선택)"), { target: { value: "😀".repeat(255) } });
+  fireEvent.click(apply);
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.getByText("추가 예정")).toBeInTheDocument();
+  expect(mockRegister).not.toHaveBeenCalled();
 });
 
 test.each([false, true])("floating 액션바는 xl=%s에서도 필수 입력에 따라 등록을 잠그고 입력을 복구한 뒤에만 제출한다", async (isDesktop) => {
@@ -326,6 +546,8 @@ test("반려 요청 중에는 취소와 다른 결정 및 중복 요청을 막�
   expect(within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "반려" })).toBeDisabled();
+  expect(screen.getByLabelText("등록할 건물")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "정보 수정" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "OCR 분석 요청" })).toBeDisabled();
   await act(async () => { finishRejection({ documentId: DOCUMENT.documentId, status: "REJECTED", uploadStatus: "COMPLETED" }); });
   await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1));

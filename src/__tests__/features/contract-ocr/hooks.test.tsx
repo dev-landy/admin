@@ -24,9 +24,11 @@ afterEach(() => jest.useRealTimers());
 test("등록 후 계약서와 임차인·유저·건물·납부 캐시를 모두 무효화한다", async () => {
   const { client, wrapper } = setup();
   const invalidate = jest.spyOn(client, "invalidateQueries");
+  const values = { ...VALUES, newProperty: { name: "새 건물", address: null } };
   mockRegister.mockResolvedValue({ documentId: "document-1", status: "REGISTERED", tenantId: 9, uploadStatus: "REGISTERED" });
   const { result } = renderHook(() => useRegisterContractDocument(), { wrapper });
-  await act(() => result.current.mutateAsync({ documentId: "document-1", values: VALUES }));
+  await act(() => result.current.mutateAsync({ documentId: "document-1", values }));
+  expect(mockRegister).toHaveBeenCalledWith("document-1", values);
   for (const key of ["contract-documents", "tenants", "users", "properties", "payments"]) {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] });
   }

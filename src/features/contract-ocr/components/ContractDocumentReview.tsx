@@ -20,6 +20,7 @@ import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
 import { ContractDocumentActions } from "./ContractDocumentActions";
+import { ContractDocumentPropertyField, toContractPropertyRequest, type ContractPropertySelection } from "./ContractDocumentPropertyField";
 
 const { Text, Title } = Typography;
 const REJECTION_OPTIONS = [
@@ -54,6 +55,8 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const { notification } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<TenantInfoFormValues>();
+  const [propertySelection, setPropertySelection] = useState<ContractPropertySelection>({ kind: "existing", propertyId: document.propertyId });
+  const [propertyAvailable, setPropertyAvailable] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(toTenantValues(initialValues)));
   const [rejectionReason, setRejectionReason] = useState<ContractDocumentRejectionReason>();
   const [rejectionNotifyUser, setRejectionNotifyUser] = useState(true);
@@ -72,7 +75,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const requestAnalysisMutation = useRequestContractOcrAnalysis();
   const updateTenantMutation = useUpdateTenant(document.tenantId ?? 0);
   const watchedValues = Form.useWatch([], form);
-  const canSubmit = isTenantFormComplete(watchedValues);
+  const canSubmit = isTenantFormComplete(watchedValues) && (!isPendingReview || propertyAvailable);
   const isDirty = JSON.stringify(toTenantValues(watchedValues ?? {})) !== initialSnapshot;
   const analysis = analysisQuery.data;
   const analysisRunning = isContractOcrAnalysisRunning(analysis);
@@ -124,11 +127,11 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   }
 
   async function handleSubmit(values: TenantInfoFormValues) {
-    if (actionInProgress.current || savedTenantState !== "idle") return;
+    if (actionInProgress.current || savedTenantState !== "idle" || (isPendingReview && !propertyAvailable)) return;
     actionInProgress.current = true;
     try {
       if (isPendingReview) {
-        const registrationValues = toTenantValues(values);
+        const registrationValues = { ...toTenantValues(values), ...toContractPropertyRequest(propertySelection, document.propertyId) };
         await registerMutation.mutateAsync({ documentId: document.documentId, values: registrationValues });
         notification.success({ title: "임차인 등록이 완료되었습니다." });
         onCompleted();
@@ -208,6 +211,8 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   return (
     <Space orientation="vertical" size={16} style={{ width: "100%" }}>
       <Card title={isPendingReview ? "임차인 정보" : "등록된 임차인 수정"}>
+        {isPendingReview && <ContractDocumentPropertyField userId={document.userId} value={propertySelection}
+          onChange={setPropertySelection} onAvailabilityChange={setPropertyAvailable} disabled={isBusy} />}
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
           <Text type="secondary">{isPendingReview ? "원본과 입력값을 확인한 뒤 등록해 주세요." : "납부 방식과 청구 주기는 변경할 수 없습니다."}</Text>
           {savedTenantState === "failed" && <Alert type="warning" showIcon title="저장 완료 · 저장된 정보 조회 실패"
