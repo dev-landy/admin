@@ -1,15 +1,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { fetchLatestContractOcrAnalysis, registerContractDocument, requestContractOcrAnalysis, retryContractStorage } from "@/features/contract-ocr/api";
-import { contractDocumentKeys, useLatestContractOcrAnalysis, useRegisterContractDocument, useRequestContractOcrAnalysis, useRetryContractStorage } from "@/features/contract-ocr/hooks";
+import { fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage } from "@/features/contract-ocr/api";
+import { contractDocumentKeys, useLatestContractOcrAnalysis, useRegisterContractDocument, useRejectContractDocument, useRequestContractOcrAnalysis, useRetryContractStorage } from "@/features/contract-ocr/hooks";
 import { ANALYSIS, VALUES } from "@/test-utils/contractDocumentFixtures";
 
 jest.mock("@/features/contract-ocr/api", () => ({
-  fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(), retryContractStorage: jest.fn(),
+  fetchLatestContractOcrAnalysis: jest.fn(), registerContractDocument: jest.fn(), rejectContractDocument: jest.fn(), requestContractOcrAnalysis: jest.fn(), retryContractStorage: jest.fn(),
 }));
 const mockLatest = jest.mocked(fetchLatestContractOcrAnalysis);
 const mockRegister = jest.mocked(registerContractDocument);
+const mockReject = jest.mocked(rejectContractDocument);
 const mockRequest = jest.mocked(requestContractOcrAnalysis);
 const mockStorageRetry = jest.mocked(retryContractStorage);
 function setup() {
@@ -29,6 +30,17 @@ test("등록 후 계약서와 임차인·유저·건물·납부 캐시를 모두
   for (const key of ["contract-documents", "tenants", "users", "properties", "payments"]) {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] });
   }
+  client.clear();
+});
+
+test.each([true, false])("반려는 notifyUser=%s를 전송하고 계약서 캐시를 무효화한다", async (notifyUser) => {
+  const { client, wrapper } = setup();
+  const invalidate = jest.spyOn(client, "invalidateQueries");
+  mockReject.mockResolvedValue({ documentId: "document-1", status: "REJECTED", uploadStatus: "COMPLETED" });
+  const { result } = renderHook(() => useRejectContractDocument(), { wrapper });
+  await act(() => result.current.mutateAsync({ documentId: "document-1", reason: "DUPLICATE", notifyUser }));
+  expect(mockReject).toHaveBeenCalledWith("document-1", { reason: "DUPLICATE", notifyUser });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: contractDocumentKeys.all });
   client.clear();
 });
 

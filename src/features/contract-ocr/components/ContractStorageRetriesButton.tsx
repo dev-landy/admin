@@ -42,7 +42,7 @@ export function ContractStorageRetriesButton() {
     });
   }
 
-  return <Button loading={retryMutation.isPending} disabled={retryMutation.isPending} onClick={confirmRetry}>
-    미완료 작업 재처리
+  return <Button aria-label="계약서 처리 복구" loading={retryMutation.isPending} disabled={retryMutation.isPending} onClick={confirmRetry}>
+    계약서 처리 복구
   </Button>;
 }

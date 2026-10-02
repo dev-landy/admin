@@ -4,7 +4,7 @@ import {
   fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
 } from "./api";
 import type {
-  ContractDocumentListStatus, ContractDocumentRejectionReason, ContractOcrAnalysis, RegisterContractDocumentRequest,
+  ContractDocumentListStatus, ContractOcrAnalysis, RegisterContractDocumentRequest, RejectContractDocumentRequest,
 } from "./types";
 
 export const contractDocumentKeys = {
@@ -80,7 +80,7 @@ export function useRegisterContractDocument() {
 export function useRejectContractDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ documentId, reason }: { documentId: string; reason: ContractDocumentRejectionReason }) => rejectContractDocument(documentId, reason),
+    mutationFn: ({ documentId, ...request }: { documentId: string } & RejectContractDocumentRequest) => rejectContractDocument(documentId, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: contractDocumentKeys.all }),
   });
 }

@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Button, Card, Segmented, Space, Spin, Tag, Typography } from "antd";
+import { Alert, Button, Card, Collapse, Segmented, Space, Spin, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
@@ -128,7 +128,6 @@ function ContractOcrPageContent() {
           <Button icon={<ReloadOutlined />} loading={isRefetching} onClick={() => refetch()}>
             새로고침
           </Button>
-          <ContractStorageRetriesButton />
         </Space>
       }
     >
@@ -153,6 +152,20 @@ function ContractOcrPageContent() {
             })
           }
           rowKey="documentId"
+        />
+        <Collapse
+          size="small"
+          items={[{
+            key: "operations",
+            label: "운영 도구",
+            children: <Space orientation="vertical" size={12}>
+              <Text type="secondary">
+                전체 계약서의 파일 보관·삭제가 실패했거나 이전 처리 흐름이 멈췄을 때 사용합니다.
+                임차인 등록과 결과 알림이 이어질 수 있습니다.
+              </Text>
+              <ContractStorageRetriesButton />
+            </Space>,
+          }]}
         />
       </Space>
     </Card>

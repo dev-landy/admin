@@ -4,6 +4,11 @@ export type ContractDocumentStatus = "PENDING_REVIEW" | "REGISTERED" | "REJECTED
 export type ContractDocumentListStatus = "PENDING" | "COMPLETED";
 export type ContractDocumentRejectionReason = "UNREADABLE" | "NOT_A_CONTRACT" | "EXPIRED" | "DUPLICATE";
 
+export type RejectContractDocumentRequest = {
+  reason: ContractDocumentRejectionReason;
+  notifyUser: boolean;
+};
+
 export type ContractDocument = {
   documentId: string;
   uploadId: string;

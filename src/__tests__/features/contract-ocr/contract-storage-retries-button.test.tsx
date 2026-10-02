@@ -27,7 +27,7 @@ function renderRecoveryButton() {
 }
 
 function recoveryButton() {
-  return screen.getByRole("button", { name: /미완료 작업 재처리/ });
+  return screen.getByRole("button", { name: "계약서 처리 복구" });
 }
 
 async function openConfirmation() {

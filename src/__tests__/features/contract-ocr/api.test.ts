@@ -34,10 +34,12 @@ test("등록은 values 래퍼 없이 보내고 동기 완료 결과를 반환한
   expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, VALUES);
 });
 
-test.each(["UNREADABLE", "NOT_A_CONTRACT", "EXPIRED", "DUPLICATE"] as const)("반려는 선택한 %s 사유를 전달한다", async (reason) => {
+test.each(["UNREADABLE", "NOT_A_CONTRACT", "EXPIRED", "DUPLICATE"] as const)("반려는 %s 사유와 결과 알림 여부를 각각 명시한다", async (reason) => {
   mockPost.mockResolvedValue({ data: { status: "REJECTED" } });
-  await rejectContractDocument("document-1", reason);
-  expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/rejection`, { reason });
+  for (const notifyUser of [true, false]) {
+    await rejectContractDocument("document-1", { reason, notifyUser });
+    expect(mockPost).toHaveBeenLastCalledWith(`${base}/document-1/rejection`, { reason, notifyUser });
+  }
 });
 
 test("OCR 요청은 별도 analyses 경로의 202 응답을 반환한다", async () => {

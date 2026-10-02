@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import type {
   ContractDocument, ContractDocumentDecisionResponse, ContractDocumentDraftResponse,
   ContractDocumentFilesResponse, ContractDocumentListResponse, ContractDocumentListStatus,
-  ContractDocumentRejectionReason, ContractOcrAnalysis, ContractStorageRetryResponse, RegisterContractDocumentRequest,
+  ContractOcrAnalysis, ContractStorageRetryResponse, RegisterContractDocumentRequest, RejectContractDocumentRequest,
 } from "./types";
 
 const DOCUMENTS_PATH = "/v1/admin/contract-documents";
@@ -35,8 +35,8 @@ export async function registerContractDocument(documentId: string, values: Regis
   return data;
 }
 
-export async function rejectContractDocument(documentId: string, reason: ContractDocumentRejectionReason) {
-  const { data } = await apiClient.post<ContractDocumentDecisionResponse>(`${DOCUMENTS_PATH}/${documentId}/rejection`, { reason });
+export async function rejectContractDocument(documentId: string, request: RejectContractDocumentRequest) {
+  const { data } = await apiClient.post<ContractDocumentDecisionResponse>(`${DOCUMENTS_PATH}/${documentId}/rejection`, request);
   return data;
 }
 
