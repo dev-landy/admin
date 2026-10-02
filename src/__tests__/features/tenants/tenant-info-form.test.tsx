@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Button, Form } from "antd";
 import dayjs from "dayjs";
 
@@ -452,6 +452,144 @@ test("등록된 계약은 유형을 잠그고 차량번호를 비우면 PATCH에
   expect(payload.vehicleNumber).toBeUndefined();
   expect(payload.roomNumber).toBeUndefined();
   expect(payload).not.toHaveProperty("contractType");
+});
+
+test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s로 확정하면 표준 날짜와 Dayjs 폼값으로 유지한다", async (commit) => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={{ startDate: null, endDate: null, paymentDay: null }} />);
+  for (const [label, inputValue, displayValue] of [
+    ["계약 시작일", "20261001", "2026-10-01"],
+    ["계약 종료일", "20280930", "2028-09-30"],
+  ]) {
+    const input = screen.getByLabelText(label);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: inputValue } });
+    if (commit === "Enter") {
+      // jsdom은 implicit form submit을 재현하지 않으므로 브라우저 기본 동작의 취소까지 검증한다.
+      expect(fireEvent.keyDown(input, { key: "Enter", code: "Enter" })).toBe(false);
+    } else fireEvent.blur(input);
+    await waitFor(() => expect(input).toHaveValue(displayValue));
+  }
+  await waitFor(() => expect(screen.getByLabelText("납부일")).toHaveValue("1"));
+  // 입력 표시가 먼저 갱신될 수 있으므로 종료일의 public onChange가 실제 Form 값까지 확정한 뒤 제출한다.
+  await waitFor(() => {
+    const formValues = onValuesChange.mock.calls.at(-1)?.[1];
+    expect(formValues).toBeDefined();
+    expect(dayjs.isDayjs(formValues?.startDate)).toBe(true);
+    expect(dayjs.isDayjs(formValues?.endDate)).toBe(true);
+    expect(toTenantValues(formValues)).toMatchObject({ startDate: "2026-10-01", endDate: "2028-09-30", paymentDay: 1 });
+  });
+  expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const values = onFinish.mock.calls[0][0];
+  expect(dayjs.isDayjs(values.startDate)).toBe(true);
+  expect(dayjs.isDayjs(values.endDate)).toBe(true);
+  expect(toTenantValues(values)).toMatchObject({ startDate: "2026-10-01", endDate: "2028-09-30", paymentDay: 1 });
+});
+
+test.each(["20260230", "202610"])("날짜 입력 %s에서 Enter를 눌러도 폼 기본 제출을 막고 기존 날짜를 유지한다", async (text) => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} />);
+  const input = screen.getByLabelText("계약 시작일");
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: text } });
+  expect(fireEvent.keyDown(input, { key: "Enter", code: "Enter" })).toBe(false);
+  fireEvent.blur(input);
+  await waitFor(() => expect(input).toHaveValue("2026-09-01"));
+  expect(onValuesChange).not.toHaveBeenCalled();
+  expect(onFinish).not.toHaveBeenCalled();
+});
+
+test.each(["20260230", "20260229", "20260431", "20261301", "2026-02-30"])("잘못된 날짜 %s는 다른 날짜로 넘어가지 않고 저장된 날짜를 유지한다", async (text) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ endDate: dayjs("2027-08-31") }} />);
+  for (const label of ["계약 시작일", "계약 종료일"]) {
+    const input = screen.getByLabelText(label);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.blur(input);
+  }
+  await waitFor(() => {
+    expect(screen.getByLabelText("계약 시작일")).toHaveValue("2026-09-01");
+    expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-08-31");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({ startDate: "2026-09-01", endDate: "2027-08-31" });
+});
+
+test("부분 날짜는 적용하지 않고 윤년 숫자 날짜를 입력하면 기존 기간 칩으로 종료일을 계산한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ startDate: null, paymentDay: null }} />);
+  const startInput = screen.getByLabelText("계약 시작일");
+  fireEvent.focus(startInput);
+  fireEvent.change(startInput, { target: { value: "202802" } });
+  fireEvent.blur(startInput);
+  await waitFor(() => expect(startInput).toHaveValue(""));
+  expect(screen.getByRole("button", { name: "1년" })).toBeDisabled();
+  fireEvent.focus(startInput);
+  fireEvent.change(startInput, { target: { value: "20280229" } });
+  fireEvent.keyDown(startInput, { key: "Enter", code: "Enter" });
+  await waitFor(() => expect(startInput).toHaveValue("2028-02-29"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "1년" })).toHaveAttribute("title", "2029-02-28까지"));
+  fireEvent.click(screen.getByRole("button", { name: "1년" }));
+  await waitFor(() => expect(screen.getByLabelText("계약 종료일")).toHaveValue("2029-02-28"));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({ startDate: "2028-02-29", endDate: "2029-02-28", paymentDay: 29 });
+});
+
+test("숫자 종료일도 시작일보다 빠르면 기존 계약 기간 검증을 유지한다", async () => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} />);
+  const endInput = screen.getByLabelText("계약 종료일");
+  fireEvent.change(endInput, { target: { value: "20260831" } });
+  fireEvent.blur(endInput);
+  await waitFor(() => expect(onValuesChange).toHaveBeenCalledWith(
+    { endDate: expect.anything() }, expect.objectContaining({ endDate: expect.anything() }),
+  ));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("종료일은 시작일보다 빠를 수 없습니다.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
+});
+
+test("달력 선택과 종료일 지우기는 숫자 날짜 입력 지원 이후에도 Dayjs와 null을 저장한다", async () => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={{ endDate: dayjs("2027-08-31") }} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "날짜 선택" })[0]);
+  fireEvent.click(await screen.findByTitle("2026-09-20"));
+  await waitFor(() => expect(onValuesChange).toHaveBeenCalledWith(
+    { startDate: expect.anything() }, expect.objectContaining({ startDate: expect.anything() }),
+  ));
+  expect(screen.getByLabelText("계약 시작일")).toHaveValue("2026-09-20");
+  const endPicker = screen.getByLabelText("계약 종료일").closest(".ant-picker");
+  expect(endPicker).not.toBeNull();
+  fireEvent.click(within(endPicker as HTMLElement).getByRole("button"));
+  await waitFor(() => expect(screen.getByLabelText("계약 종료일")).toHaveValue(""));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const values = onFinish.mock.calls[0][0];
+  expect(dayjs.isDayjs(values.startDate)).toBe(true);
+  expect(values.endDate).toBeNull();
+  expect(toTenantValues(values)).toMatchObject({ startDate: "2026-09-20", endDate: null });
+});
+
+test("필수 시작일을 지우면 기간 칩을 비활성화하고 저장을 막는다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  const startPicker = screen.getByLabelText("계약 시작일").closest(".ant-picker");
+  expect(startPicker).not.toBeNull();
+  fireEvent.click(within(startPicker as HTMLElement).getByRole("button"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "1년" })).toBeDisabled());
+  expect(screen.getByLabelText("계약 시작일")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("계약 시작일을 선택해 주세요.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
 });
 
 test("계약 시작일을 선택하면 비어 있는 납부일에 같은 날짜를 기본 입력한다", async () => {

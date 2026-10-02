@@ -222,7 +222,7 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
 }
 
 // DatePicker에는 Input의 addonAfter가 없어서, "일"·"만원" addon과 같은 룩의
-// 달력 버튼을 Space.Compact로 붙인다. 직접 타이핑(YYYY-MM-DD)은 그대로 동작한다.
+// 달력 버튼을 Space.Compact로 붙인다. 숫자 8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
 function DateAddonPicker({
   id,
   value,
@@ -243,7 +243,11 @@ function DateAddonPicker({
         id={id}
         value={value ?? null}
         onChange={(next) => onChange?.(next)}
-        format="YYYY-MM-DD"
+        format={["YYYY-MM-DD", "YYYYMMDD"]}
+        onKeyDown={(event) => {
+          // DatePicker의 날짜 확정은 유지하고 Enter로 폼 전체가 제출되는 기본 동작만 막는다.
+          if (event.key === "Enter") event.preventDefault();
+        }}
         placeholder={placeholder}
         disabled={disabled}
         style={{ width: "100%" }}
