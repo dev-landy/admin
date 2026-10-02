@@ -5,6 +5,7 @@ import { App, Button, Drawer, Form } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUpdateTenant } from "../hooks";
+import { useContractOverlapConfirmation } from "../useContractOverlapConfirmation";
 import type { TenantDetail } from "../types";
 import {
   TenantInfoFormFields,
@@ -19,7 +20,8 @@ type Props = { tenant: TenantDetail; open: boolean; onClose: () => void; queryEr
 // 계약서 검수의 "임차인 정보 수정" 화면과 같은 폼·활성화 규칙(값이 바뀌어야 수정 가능)을 쓴다.
 export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
   const { notification } = App.useApp();
-  const { mutate: update, isPending } = useUpdateTenant(tenant.tenantId);
+  const { mutateAsync: update, isPending } = useUpdateTenant(tenant.tenantId);
+  const { submit, isSubmitting } = useContractOverlapConfirmation(`${tenant.tenantId}-${open}`);
   const [form] = Form.useForm<TenantInfoFormValues>();
 
   useEffect(() => {
@@ -33,20 +35,16 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
   const isDirty =
     watched !== undefined && JSON.stringify(toTenantValues(watched)) !== initialSnapshot;
 
-  function handleFinish(values: TenantInfoFormValues) {
-    update(
-      toUpdateTenantRequest(values),
-      {
-        onSuccess: () => {
-          notification.success({ title: "임차인 정보가 수정됐습니다." });
-          onClose();
-        },
-        onError: (err) => {
-          const p = parseProblemDetail(err);
-          notification.error({ title: p?.title ?? "수정 실패", description: p?.detail });
-        },
-      },
-    );
+  async function handleFinish(values: TenantInfoFormValues) {
+    if (!open) return;
+    try {
+      if (!await submit(toUpdateTenantRequest(values), update, "수정")) return;
+      notification.success({ title: "임차인 정보가 수정됐습니다." });
+      onClose();
+    } catch (err) {
+      const p = parseProblemDetail(err);
+      notification.error({ title: p?.title ?? "수정 실패", description: p?.detail });
+    }
   }
 
   return (
@@ -57,13 +55,14 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
         layout="vertical"
         initialValues={fromTenantDetail(tenant)}
         onFinish={handleFinish}
+        disabled={isSubmitting || isPending}
       >
         <TenantInfoFormFields
           form={form}
           billingTimingEditable={false}
           rentBillingCycleEditable={false}
         />
-        <Button type="primary" htmlType="submit" loading={isPending} disabled={!isDirty} block>
+        <Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || isSubmitting || isPending} block>
           수정
         </Button>
       </Form>

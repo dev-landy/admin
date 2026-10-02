@@ -53,6 +53,7 @@ export type TenantsListParams = {
 };
 
 export type UpdateTenantRequest = {
+  allowContractOverlap?: boolean;
   parkingEnabled?: boolean;
   vehicleNumber?: string;
   clearVehicleNumber?: boolean;

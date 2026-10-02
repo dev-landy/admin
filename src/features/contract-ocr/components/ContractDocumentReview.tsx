@@ -9,13 +9,14 @@ import {
   isContractOcrAnalysisRunning, useContractDocument, useContractDocumentDraft, useContractDocumentFiles,
   useLatestContractOcrAnalysis, useRegisterContractDocument, useRejectContractDocument, useRequestContractOcrAnalysis,
 } from "../hooks";
-import type { ContractDocument, ContractDocumentRejectionReason, ContractDraftValues } from "../types";
+import type { ContractDocument, ContractDocumentRejectionReason, ContractDraftValues, RegisterContractDocumentRequest } from "../types";
 import { fetchTenant } from "@/features/tenants/api";
 import {
   TenantInfoFormFields, type TenantInfoFormValues, fromTenantDetail, fromTenantValues,
   isTenantFormComplete, toTenantValues, toUpdateTenantRequest,
 } from "@/features/tenants/components/TenantInfoForm";
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
+import { useContractOverlapConfirmation } from "@/features/tenants/useContractOverlapConfirmation";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
@@ -78,6 +79,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const rejectMutation = useRejectContractDocument();
   const requestAnalysisMutation = useRequestContractOcrAnalysis();
   const updateTenantMutation = useUpdateTenant(document.tenantId ?? 0);
+  const { submit: submitWithOverlapConfirmation, isSubmitting } = useContractOverlapConfirmation(`${document.documentId}-${document.tenantId ?? "none"}`);
   const watchedValues = Form.useWatch([], form);
   const canSubmit = isTenantFormComplete(watchedValues) && (!isPendingReview || propertyAvailable);
   const isDirty = JSON.stringify(toTenantValues(watchedValues ?? initialValues)) !== initialSnapshot;
@@ -96,7 +98,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const clearUnsavedChanges = useUnsavedChanges(buildingDirty, hasUnsavedTenantInput);
   const analysis = analysisQuery.data;
   const analysisRunning = isContractOcrAnalysisRunning(analysis);
-  const isBusy = registerMutation.isPending || rejectMutation.isPending || requestAnalysisMutation.isPending || updateTenantMutation.isPending || savedTenantState === "checking" || analysisRechecking;
+  const isBusy = isSubmitting || registerMutation.isPending || rejectMutation.isPending || requestAnalysisMutation.isPending || updateTenantMutation.isPending || savedTenantState === "checking" || analysisRechecking;
   const analysisRequestDisabled = isBusy || analysisRunning || analysisQuery.isFetching || analysisQuery.isPending || analysisQuery.isError || analysisRequestUncertain;
 
   // PATCH는 본문 없이 성공한다. 생략한 필드를 서버가 유지할 수 있으므로 저장 이후에만 확정값을 다시 읽는다.
@@ -148,14 +150,15 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     actionInProgress.current = true;
     try {
       if (isPendingReview) {
-        const registrationValues = { ...toTenantValues(values), ...toContractPropertyRequest(propertySelection, document.propertyId) };
-        await registerMutation.mutateAsync({ documentId: document.documentId, values: registrationValues });
+        const registrationValues: RegisterContractDocumentRequest = { ...toTenantValues(values), ...toContractPropertyRequest(propertySelection, document.propertyId) };
+        if (!await submitWithOverlapConfirmation(registrationValues,
+          (request) => registerMutation.mutateAsync({ documentId: document.documentId, values: request }), "등록")) return;
         clearUnsavedChanges();
         notification.success({ title: "임차인 등록이 완료되었습니다." });
         onCompleted("REGISTERED");
       } else {
         const request = toUpdateTenantRequest(values);
-        await updateTenantMutation.mutateAsync(request);
+        if (!await submitWithOverlapConfirmation(request, updateTenantMutation.mutateAsync, "수정")) return;
         clearUnsavedChanges();
         const synchronized = await syncSavedTenant();
         if (synchronized) notification.success({ title: "임차인 정보가 수정되었습니다." });

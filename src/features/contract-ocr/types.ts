@@ -55,6 +55,7 @@ export type ContractTenantValues = {
 };
 export type ContractPropertyValues = { name: string; address: string | null };
 export type RegisterContractDocumentRequest = ContractTenantValues & {
+  allowContractOverlap?: boolean;
   propertyId?: number;
   propertyUpdate?: ContractPropertyValues;
   newProperty?: ContractPropertyValues;

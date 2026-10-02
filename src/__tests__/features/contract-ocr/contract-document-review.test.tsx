@@ -900,3 +900,102 @@ test("OCR 접수 재확인도 실패하면 상태 확인 전까지 새 요청을
   await waitFor(() => expect(screen.getByRole("button", { name: "OCR 분석 요청" })).toBeEnabled());
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
+
+function overlapError(status = 409, type = "/problems/tenant-room-number-duplicated") {
+  return new AxiosError("contract overlap", undefined, undefined, undefined, {
+    data: { type, title: "계약 기간 중복", detail: "기존 계약과 기간이 겹칩니다.", status },
+    status, statusText: "Conflict", headers: new AxiosHeaders(), config: { headers: new AxiosHeaders() },
+  });
+}
+
+async function prepareRegistration() {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  await applyDraft();
+  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
+}
+
+test("계약 기간 중복 시 입력과 건물 초안을 잠그고 승인한 동일 요청만 한 번 재시도한다", async () => {
+  mockRegister.mockRejectedValueOnce(overlapError());
+  await prepareRegistration();
+  await applyProperty("확인할 건물", "확인할 주소");
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  const dialog = (await screen.findByRole("button", { name: "겹쳐도 등록" })).closest('[role="dialog"]') as HTMLElement;
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  const request = mockRegister.mock.calls[0][1];
+  expect(request).toEqual({ ...VALUES, propertyId: DOCUMENT.propertyId, propertyUpdate: { name: "확인할 건물", address: "확인할 주소" } });
+  expect(request).not.toHaveProperty("allowContractOverlap");
+  expect(screen.getByLabelText("세입자 이름")).toBeDisabled();
+  expect(screen.getByLabelText("등록할 건물")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "반려" })).toBeDisabled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "겹쳐도 등록" }));
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledTimes(2));
+  expect(mockRegister.mock.calls[1]).toEqual([DOCUMENT.documentId, { ...request, allowContractOverlap: true }]);
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1));
+});
+
+test("중복 확인을 취소하면 건물 초안과 입력을 유지하고 다음 저장을 새로 확인한다", async () => {
+  mockRegister.mockRejectedValue(overlapError());
+  await prepareRegistration();
+  await applyProperty("유지할 건물", "유지할 주소");
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  const dialog = (await screen.findByRole("button", { name: "겹쳐도 등록" })).closest('[role="dialog"]') as HTMLElement;
+  fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue(VALUES.name);
+  expect(screen.getByText("수정 예정")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "다음 입력" } });
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  (await screen.findByRole("button", { name: "겹쳐도 등록" })).closest('[role="dialog"]') as HTMLElement;
+  expect(mockRegister).toHaveBeenCalledTimes(2);
+  expect(mockRegister.mock.calls[1][1]).toMatchObject({ name: "다음 입력", propertyUpdate: { name: "유지할 건물", address: "유지할 주소" } });
+  expect(mockRegister.mock.calls[1][1]).not.toHaveProperty("allowContractOverlap");
+});
+
+test("승인 후에도 중복 오류가 오면 확인창을 반복하지 않고 저장 오류와 입력을 유지한다", async () => {
+  mockRegister.mockRejectedValue(overlapError());
+  await prepareRegistration();
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  const dialog = (await screen.findByRole("button", { name: "겹쳐도 등록" })).closest('[role="dialog"]') as HTMLElement;
+  fireEvent.click(within(dialog).getByRole("button", { name: "겹쳐도 등록" }));
+  expect(await screen.findByText("저장 실패")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(mockRegister).toHaveBeenCalledTimes(2);
+  expect(onBack).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue(VALUES.name);
+  expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled();
+});
+
+test.each([
+  [400, "/problems/tenant-room-number-duplicated"],
+  [403, "/problems/tenant-room-number-duplicated"],
+  [500, "/problems/tenant-room-number-duplicated"],
+  [409, "/problems/contract-document-already-registered"],
+])("다른 오류(%s, %s)는 기간 중복 승인 없이 기존 오류를 표시한다", async (status, type) => {
+  mockRegister.mockRejectedValueOnce(overlapError(status, type));
+  await prepareRegistration();
+  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
+  expect(await screen.findByText("저장 실패")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+});
+
+test("등록된 계약서의 임차인 수정도 동일 요청의 기간 중복을 확인하고 재시도한다", async () => {
+  mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
+  mockUpdateTenant.mockRejectedValueOnce(overlapError());
+  renderReview();
+  const name = await screen.findByLabelText("세입자 이름");
+  fireEvent.change(name, { target: { value: "수정할 이름" } });
+  const update = screen.getByRole("button", { name: "수정" });
+  await waitFor(() => expect(update).toBeEnabled());
+  fireEvent.click(update);
+  const dialog = (await screen.findByRole("button", { name: "겹쳐도 수정" })).closest('[role="dialog"]') as HTMLElement;
+  const request = mockUpdateTenant.mock.calls[0][1];
+  fireEvent.click(within(dialog).getByRole("button", { name: "겹쳐도 수정" }));
+  await waitFor(() => expect(mockUpdateTenant).toHaveBeenCalledTimes(2));
+  expect(mockUpdateTenant.mock.calls[1]).toEqual([TENANT.tenantId, { ...request, allowContractOverlap: true }]);
+  expect(await screen.findByText("임차인 정보가 수정되었습니다.")).toBeInTheDocument();
+});
