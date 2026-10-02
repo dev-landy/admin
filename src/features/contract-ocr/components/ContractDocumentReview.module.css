@@ -19,6 +19,54 @@
   min-width: 0;
 }
 
+.sourceToggleDetail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.sourceStatus {
+  color: #8c8c8c;
+}
+
+.sourceErrorStatus {
+  color: #cf1322;
+}
+
+.sourceRefresh {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1199px) {
+  .sourcePane {
+    position: sticky;
+    /* 최상단 환경 표시 스트립(4px) 아래에서 원본을 다시 열 수 있다. */
+    top: 4px;
+    z-index: 5;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .sourceBody {
+    /* 원본을 열고 닫아도 입력폼과 페이지 스크롤 위치를 밀지 않는다. */
+    position: absolute;
+    top: 100%;
+    left: -1px;
+    right: -1px;
+    max-height: calc(100dvh - 160px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+  }
+}
+
 .pane:focus-visible {
   outline: 2px solid #1677ff;
   outline-offset: -2px;

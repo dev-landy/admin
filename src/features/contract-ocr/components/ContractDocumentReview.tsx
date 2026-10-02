@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Flex, Form, Image, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 
 import {
   isContractOcrAnalysisRunning, useContractDocument, useContractDocumentDraft, useContractDocumentFiles,
@@ -18,6 +18,7 @@ import {
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
+import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
 
 const { Text, Title } = Typography;
 const REJECTION_OPTIONS = [
@@ -338,13 +339,15 @@ export function ContractDocumentReview({ documentId, onBack }: { documentId: str
       action={<Button onClick={() => documentQuery.refetch()}>다시 조회</Button>} /> : <>
       <Text type="secondary">문서 {document.documentId} · 유저 {document.userId} · 건물 {document.propertyId}</Text>
       <div className={styles.workspace}>
-        <section className={styles.pane} aria-label="계약서 원본 영역" tabIndex={0}><Card title="계약서 원본" extra={<Button icon={<ReloadOutlined />} loading={filesQuery.isFetching} onClick={() => filesQuery.refetch()}>원본 새로고침</Button>}>
+        <ContractDocumentSourcePanel key={document.documentId} pageCount={filesQuery.data?.files.length}
+          isLoading={filesQuery.isPending} hasError={filesQuery.isError} isRefreshing={filesQuery.isFetching}
+          onRefresh={() => { void filesQuery.refetch(); }}>
           <Space orientation="vertical" size={16} style={{ width: "100%" }}>
-            <Text type="secondary">원본에는 개인정보가 포함되어 있을 수 있습니다. 검수 목적으로만 열람해 주세요.</Text>
+            <Text type="secondary">원본에는 개인정보가 포함되어 있을 수 있습니다.<br />검수 목적으로만 열람해 주세요.</Text>
             {filesQuery.isPending ? <Spin /> : filesQuery.isError ? <Alert type="error" showIcon title={errorMessage(filesQuery.error, "원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")} /> :
               <>{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
           </Space>
-        </Card></section>
+        </ContractDocumentSourcePanel>
         <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}><ContractDocumentForm key={`${document.documentId}-${document.tenantId ?? "none"}`} document={document} onCompleted={onBack} /></section>
       </div>
     </>}

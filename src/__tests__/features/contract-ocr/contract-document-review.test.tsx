@@ -1,7 +1,7 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "antd";
+import { App, Grid } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 import { ContractDocumentReview } from "@/features/contract-ocr/components/ContractDocumentReview";
 import { contractDocumentKeys } from "@/features/contract-ocr/hooks";
@@ -40,6 +40,7 @@ async function applyDraft() {
   await waitFor(() => expect(screen.getByLabelText("세입자 이름")).toHaveValue("홍길동"));
 }
 async function openOriginal() {
+  fireEvent.click(await screen.findByRole("button", { name: "계약서 원본 펼치기" }));
   return screen.findByRole("img", { name: "계약서 1페이지" });
 }
 function conflict(detail: string) {
@@ -69,6 +70,52 @@ test("분석이나 보관 초안이 없어도 수동 검수 화면을 열고 원
   expect(screen.queryByText("이전 검수 입력")).not.toBeInTheDocument();
   expect(await openOriginal()).toHaveAttribute("src", "https://example.test/contract.jpg");
   expect(mockRequest).not.toHaveBeenCalled();
+});
+
+test("좁은 화면의 원본은 기본으로 접고 열기·새로고침·닫기 중 임차인 입력을 유지한다", async () => {
+  renderReview();
+  const toggle = await screen.findByRole("button", { name: "계약서 원본 펼치기" });
+  await waitFor(() => expect(within(toggle).getByText("1페이지")).toBeInTheDocument());
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "입력 중인 이름" } });
+  await openOriginal();
+  expect(screen.getByRole("button", { name: "계약서 원본 접기" })).toHaveAttribute("aria-expanded", "true");
+  fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
+  await waitFor(() => expect(mockFiles).toHaveBeenCalledTimes(2));
+  const source = screen.getByRole("region", { name: "계약서 원본 영역" });
+  fireEvent.keyDown(source, { key: "Escape" });
+  expect(screen.getByRole("button", { name: "계약서 원본 펼치기" })).toHaveFocus();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
+  expect(screen.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
+  await openOriginal();
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
+  fireEvent.blur(screen.getByRole("button", { name: "원본 새로고침" }), { relatedTarget: screen.getByLabelText("세입자 이름") });
+  expect(screen.getByRole("button", { name: "계약서 원본 펼치기" })).toHaveAttribute("aria-expanded", "false");
+});
+
+test("원본을 접어도 조회 실패를 헤더에 표시하고 펼치면 다시 조회할 수 있다", async () => {
+  mockFiles.mockRejectedValue(new Error("unavailable"));
+  renderReview();
+  const toggle = await screen.findByRole("button", { name: "계약서 원본 펼치기" });
+  await waitFor(() => expect(within(toggle).getByText("원본 조회 실패")).toBeInTheDocument());
+  fireEvent.click(toggle);
+  expect(screen.getByText("원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")).toBeInTheDocument();
+  mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
+  fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
+  expect(await screen.findByRole("img", { name: "계약서 1페이지" })).toBeInTheDocument();
+});
+
+test("데스크톱에서는 원본을 항상 펼쳐 표시한다", async () => {
+  const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+  try {
+    renderReview();
+    expect(await screen.findByRole("img", { name: "계약서 1페이지" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "계약서 원본 펼치기" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "원본 새로고침" })).toBeInTheDocument();
+  } finally {
+    breakpoint.mockRestore();
+  }
 });
 
 test("확인한 초안을 수동 적용하고 동기 등록 완료 후 목록으로 돌아간다", async () => {
