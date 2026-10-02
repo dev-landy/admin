@@ -105,3 +105,18 @@ test.each([
   fireEvent.click(await screen.findByText(label));
   expect(onFilterChange).toHaveBeenCalledWith("type", type);
 });
+
+test("유저 ID 필터에서 입력한 대상만 조회하도록 전달한다", async () => {
+  onFilterChange.mockClear();
+  renderTable();
+  const header = within(document.querySelector("thead")!).getByText("유저 ID").closest("th")!;
+  fireEvent.click(header.querySelector(".ant-table-filter-trigger")!);
+  const dropdown = await waitFor(() => {
+    const element = document.querySelector<HTMLElement>(".ant-table-filter-dropdown");
+    if (!element) throw new Error("필터를 여는 중입니다.");
+    return element;
+  });
+  fireEvent.change(within(dropdown).getByRole("spinbutton"), { target: { value: "12" } });
+  fireEvent.click(within(dropdown).getByRole("button", { name: "적용" }));
+  expect(onFilterChange).toHaveBeenCalledWith("userId", 12);
+});

@@ -1,9 +1,10 @@
 "use client";
 
-import { App, Button, Select, Tag } from "antd";
+import { App, Button, Input, Select, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { PagedTable } from "@/components/PagedTable";
+import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useRequeueOutbox } from "../hooks";
 import type { OutboxEvent, OutboxStatus } from "../types";
@@ -23,8 +24,8 @@ type Props = {
   pageSize: number;
   total: number;
   onPageChange: (p: number, s: number) => void;
-  filters: { status?: OutboxStatus };
-  onFilterChange: (key: string, value: string | undefined) => void;
+  filters: { userId?: number; status?: OutboxStatus; errorCode?: string };
+  onFilterChange: (key: string, value: string | number | undefined) => void;
 };
 
 export function OutboxTable({ data, loading, page, pageSize, total, onPageChange, filters, onFilterChange }: Props) {
@@ -34,7 +35,12 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
   const columns: TableColumnsType<OutboxEvent> = [
     { title: "아웃박스 이벤트 ID", dataIndex: "notificationOutboxEventId", width: 150 },
     { title: "알림 ID", dataIndex: "notificationId", width: 90 },
-    { title: "유저 ID", dataIndex: "userId", width: 90 },
+    {
+      title: "유저 ID", dataIndex: "userId", width: 110,
+      filteredValue: filters.userId === undefined ? null : [filters.userId],
+      filterDropdown: () => <IdFilterDropdown key={filters.userId ?? "all"} value={filters.userId} placeholder="유저 ID"
+        onApply={(value) => onFilterChange("userId", value)} />,
+    },
     { title: "토큰 (마스킹)", dataIndex: "tokenValue" },
     {
       title: "상태",
@@ -63,7 +69,14 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
     },
     { title: "시도 횟수", dataIndex: "attempts", width: 90 },
     { title: "마지막 시도", dataIndex: "lastAttemptedAt", width: 180 },
-    { title: "에러 코드", dataIndex: "lastErrorCode" },
+    {
+      title: "에러 코드", dataIndex: "lastErrorCode",
+      filteredValue: filters.errorCode ? [filters.errorCode] : null,
+      filterDropdown: () => <div style={{ padding: 8 }}>
+        <Input.Search key={filters.errorCode ?? "all"} allowClear defaultValue={filters.errorCode}
+          placeholder="에러 코드 정확 일치" onSearch={(value) => onFilterChange("errorCode", value.trim() || undefined)} />
+      </div>,
+    },
     { title: "에러 메시지", dataIndex: "lastErrorMessage" },
     {
       title: "액션",
@@ -80,7 +93,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
               requeue(record.notificationOutboxEventId, {
                 onSuccess: () => notification.success({
                   title: "재시도 큐에 추가되었습니다.",
-                  description: "발송하려면 수동 Dispatch를 실행하세요. 대상일이 지난 예약 알림은 다시 건너뜁니다.",
+                  description: "즉시 발송하려면 수동 Dispatch를 실행하세요. 대상일이 지난 예약 알림은 다시 건너뜁니다.",
                 }),
                 onError: (err) => {
                   const p = parseProblemDetail(err);

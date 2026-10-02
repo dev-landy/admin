@@ -4,7 +4,7 @@ import type {
   NotificationsListResponse,
   OutboxListParams,
   OutboxListResponse,
-  OutboxEvent,
+  DispatchNotificationsResponse,
   SendCustomNotificationRequest,
   SendCustomNotificationResponse,
 } from "./types";
@@ -19,16 +19,20 @@ export async function fetchOutbox(params: OutboxListParams): Promise<OutboxListR
   return data;
 }
 
-export async function requeueOutbox(id: number): Promise<OutboxEvent> {
-  const { data } = await apiClient.post<OutboxEvent>(`/v1/admin/notifications/outbox/${id}/requeue`);
-  return data;
+export async function requeueOutbox(id: number): Promise<void> {
+  await apiClient.post(`/v1/admin/notifications/outbox/${id}/requeue`);
 }
 
-export async function dispatchNotifications(size?: number): Promise<{ processed: number }> {
-  const { data } = await apiClient.post<{ processed: number }>("/v1/admin/notifications/dispatch", null, {
+export async function dispatchNotifications(size?: number): Promise<DispatchNotificationsResponse | null> {
+  const { data } = await apiClient.post<unknown>("/v1/admin/notifications/dispatch", null, {
     params: size !== undefined ? { size } : undefined,
   });
-  return data;
+  // 이전 서버는 성공해도 빈 본문을 반환한다. 통계를 만들거나 POST를 다시 보내지 않는다.
+  if (!data || typeof data !== "object") return null;
+  const result = data as Record<string, unknown>;
+  const keys = ["processed", "sent", "failed", "skipped", "alreadyClaimed"] as const;
+  if (!keys.every((key) => typeof result[key] === "number" && Number.isSafeInteger(result[key]) && result[key] >= 0)) return null;
+  return data as DispatchNotificationsResponse;
 }
 
 export async function sendCustomNotification(

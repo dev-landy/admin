@@ -7,6 +7,8 @@ import { Button, Card, Spin, Typography } from "antd";
 import { useNotifications } from "@/features/notifications/hooks";
 import { NotificationTable } from "@/features/notifications/components/NotificationTable";
 import { SendNotificationModal } from "@/features/notifications/components/SendNotificationModal";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+import { parseNotificationUserId } from "@/features/notifications/filters";
 import type { NotificationType } from "@/features/notifications/types";
 
 const { Title } = Typography;
@@ -18,11 +20,12 @@ function NotificationsPageContent() {
 
   const page = Number(searchParams.get("page") ?? "1");
   const size = Number(searchParams.get("size") ?? "20");
+  const userId = parseNotificationUserId(searchParams.get("userId"));
   const type = (searchParams.get("type") as NotificationType) || undefined;
   const isReadRaw = searchParams.get("isRead");
   const isRead = isReadRaw === null ? undefined : isReadRaw === "true";
 
-  const { data, isLoading } = useNotifications({ page, size, type, isRead });
+  const { data, isLoading, error, refetch, isFetching } = useNotifications({ page, size, userId, type, isRead });
 
   function handlePageChange(p: number, s: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -31,7 +34,7 @@ function NotificationsPageContent() {
     router.push(`?${params.toString()}`);
   }
 
-  function handleFilterChange(key: string, value: string | boolean | undefined) {
+  function handleFilterChange(key: string, value: string | number | boolean | undefined) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
     if (value === undefined) params.delete(key);
@@ -49,16 +52,18 @@ function NotificationsPageContent() {
           </Button>
         }
       >
-        <NotificationTable
+        <QueryErrorAlert error={error} onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined}
+          title="알림 목록을 불러오지 못했습니다." />
+        {(!error || data !== undefined) && <NotificationTable
           data={data?.notifications ?? []}
           loading={isLoading}
           page={page}
           pageSize={size}
           total={data?.totalElements ?? 0}
           onPageChange={handlePageChange}
-          filters={{ type, isRead }}
+          filters={{ userId, type, isRead }}
           onFilterChange={handleFilterChange}
-        />
+        />}
       </Card>
       <SendNotificationModal open={sendModalOpen} onClose={() => setSendModalOpen(false)} />
     </>

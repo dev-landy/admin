@@ -5,6 +5,7 @@ import { Descriptions, Drawer, Select, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
 import { PagedTable } from "@/components/PagedTable";
+import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import type { Notification, NotificationType } from "../types";
 
 type Props = {
@@ -14,8 +15,8 @@ type Props = {
   pageSize: number;
   total: number;
   onPageChange: (p: number, s: number) => void;
-  filters: { type?: NotificationType; isRead?: boolean };
-  onFilterChange: (key: string, value: string | boolean | undefined) => void;
+  filters: { userId?: number; type?: NotificationType; isRead?: boolean };
+  onFilterChange: (key: string, value: string | number | boolean | undefined) => void;
 };
 
 function notificationTypeColor(type: NotificationType): string {
@@ -40,13 +41,19 @@ export function NotificationTable({
 
   const columns: TableColumnsType<Notification> = [
     { title: "알림 ID", dataIndex: "notificationId", width: 90 },
-    { title: "유저 ID", dataIndex: "userId", width: 90 },
+    {
+      title: "유저 ID", dataIndex: "userId", width: 110,
+      filteredValue: filters.userId === undefined ? null : [filters.userId],
+      filterDropdown: () => <IdFilterDropdown key={filters.userId ?? "all"} value={filters.userId} placeholder="유저 ID"
+        onApply={(value) => onFilterChange("userId", value)} />,
+    },
     { title: "임차인 ID", dataIndex: "tenantId", width: 120, render: (value: number | null) => value ?? "-" },
     { title: "제목", dataIndex: "title" },
     {
       title: "유형",
       dataIndex: "type",
       width: 100,
+      filteredValue: filters.type ? [filters.type] : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select
@@ -80,6 +87,7 @@ export function NotificationTable({
       title: "읽음",
       dataIndex: "isRead",
       width: 80,
+      filteredValue: filters.isRead === undefined ? null : [filters.isRead],
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
           <Select

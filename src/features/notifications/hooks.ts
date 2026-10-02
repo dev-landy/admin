@@ -19,6 +19,7 @@ export function useRequeueOutbox() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => requeueOutbox(id),
+    retry: false,
     onSettled: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
   });
 }
@@ -27,6 +28,7 @@ export function useDispatchNotifications() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (size?: number) => dispatchNotifications(size),
+    retry: false,
     onSettled: () => qc.invalidateQueries({ queryKey: ["notifications", "outbox"] }),
   });
 }

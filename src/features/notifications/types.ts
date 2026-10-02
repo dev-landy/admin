@@ -43,7 +43,7 @@ export type NotificationsListResponse = {
 };
 
 export type OutboxListResponse = {
-  outbox: OutboxEvent[];
+  outboxes: OutboxEvent[];
   page: number;
   size: number;
   totalElements: number;
@@ -78,5 +78,14 @@ export type SendCustomNotificationResponse = {
   skipped: number;
   // 알림이 커밋된 뒤 이 요청이 outbox를 선점하기 전에 다른 발송 경로가 먼저 가져간 건수.
   // 누락이 아니라 이미 발송 중이라는 뜻이라, 발송 결과를 읽을 때 0건과 구분해야 한다.
+  alreadyClaimed: number;
+};
+
+export type DispatchNotificationsResponse = {
+  // 선점한 발송 건수이며 성공적으로 발송한 건수와 구분한다.
+  processed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
   alreadyClaimed: number;
 };

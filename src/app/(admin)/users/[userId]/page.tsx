@@ -42,6 +42,8 @@ export default function UserDetailPage({ params }: Props) {
           목록으로
         </Button>
         <Space wrap>
+          <Button onClick={() => router.push(`/notifications?userId=${userId}`)}>알림</Button>
+          <Button onClick={() => router.push(`/notifications/outbox?userId=${userId}`)}>알림 Outbox</Button>
           <Button icon={<UserSwitchOutlined />} onClick={() => setImpersonationOpen(true)}>
             유저 토큰 발급
           </Button>
