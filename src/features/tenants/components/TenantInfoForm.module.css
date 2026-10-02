@@ -7,3 +7,9 @@
 .fields :global(.ant-form-item .ant-form-item-label > label.ant-form-item-required)::after {
   order: 2;
 }
+
+.moneyUnitButton {
+  min-width: 48px;
+  flex-shrink: 0;
+  padding-inline: 8px;
+}

@@ -48,6 +48,8 @@ function TestForm({
   initialRentBillingCycle = "MONTHLY",
   contractTypeEditable = true,
   initialValues,
+  appliedValues,
+  onValuesChange,
   disabled = false,
 }: {
   onFinish: (values: TenantInfoFormValues) => void;
@@ -56,6 +58,8 @@ function TestForm({
   initialRentBillingCycle?: BillingCycle;
   contractTypeEditable?: boolean;
   initialValues?: TenantInfoFormValues;
+  appliedValues?: TenantInfoFormValues;
+  onValuesChange?: (changed: TenantInfoFormValues, values: TenantInfoFormValues) => void;
   disabled?: boolean;
 }) {
   const [form] = Form.useForm<TenantInfoFormValues>();
@@ -81,6 +85,7 @@ function TestForm({
         ...initialValues,
       }}
       onFinish={onFinish}
+      onValuesChange={onValuesChange}
     >
       <TenantInfoFormFields
         form={form}
@@ -88,10 +93,126 @@ function TestForm({
         billingTimingEditable={billingTimingEditable}
         rentBillingCycleEditable={rentBillingCycleEditable}
       />
+      {appliedValues && (
+        <Button onClick={() => form.setFieldsValue(appliedValues)}>서버 값 적용</Button>
+      )}
       <Button htmlType="submit">저장</Button>
     </Form>
   );
 }
+
+const EXACT_MONEY_VALUES = fromTenantValues({
+  name: "홍길동", roomNumber: "101", phone: "010-1111-2222",
+  rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 1_234_567,
+  paymentDay: 25, startDate: "2026-09-01", endDate: null,
+});
+
+test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금액을 유지한다", async () => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={EXACT_MONEY_VALUES} />);
+
+  for (const [label, manwon, won] of [
+    ["임대료", "50.0001", "500001"],
+    ["관리비", "1.2345", "12345"],
+    ["보증금", "123.4567", "1234567"],
+  ]) {
+    expect(screen.getByLabelText(label)).toHaveValue(manwon);
+    fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
+    expect(screen.getByLabelText(label)).toHaveValue(won);
+  }
+  expect(onValuesChange).not.toHaveBeenCalled();
+  expect(onFinish).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 1_234_567,
+  });
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toEqual(toTenantValues(EXACT_MONEY_VALUES));
+});
+
+test("금액별로 원 단위를 입력하고 만원으로 돌아와도 1원 정밀도로 등록·수정한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+
+  for (const [label, won, manwon] of [
+    ["임대료", "501234", "50.1234"],
+    ["관리비", "56789", "5.6789"],
+    ["보증금", "10000001", "1000.0001"],
+  ]) {
+    fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
+    fireEvent.change(screen.getByLabelText(label), { target: { value: won } });
+    fireEvent.blur(screen.getByLabelText(label));
+    fireEvent.click(screen.getByRole("button", { name: `${label} 원 단위, 만원으로 전환` }));
+    expect(screen.getByLabelText(label)).toHaveValue(manwon);
+  }
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const formValues = onFinish.mock.calls[0][0];
+  const money = { rentPrice: 501_234, maintenanceFee: 56_789, depositAmount: 10_000_001 };
+  expect(toTenantValues(formValues)).toMatchObject(money);
+  expect(toUpdateTenantRequest(formValues)).toMatchObject(money);
+  expect(toTenantValues(fromTenantValues(toTenantValues(formValues)))).toMatchObject(money);
+});
+
+test("만원 입력 중 소수점을 유지하고 원 단위 입력은 정수 원으로 제출한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  const rent = screen.getByLabelText("임대료");
+  fireEvent.focus(rent);
+  for (const value of ["1", "1.", "1.2", "1.23", "1.2345"]) {
+    fireEvent.change(rent, { target: { value } });
+    expect(rent).toHaveValue(value);
+  }
+  fireEvent.blur(rent);
+  fireEvent.click(screen.getByRole("button", { name: "임대료 만원 단위, 원으로 전환" }));
+  expect(rent).toHaveValue("12345");
+  fireEvent.change(rent, { target: { value: "12345.6" } });
+  fireEvent.blur(rent);
+  expect(rent).toHaveValue("12346");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).rentPrice).toBe(12_346);
+});
+
+test("원 단위 전환은 다른 금액에 영향을 주지 않고 초안·OCR·저장된 서버값을 현재 단위로 표시한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} appliedValues={EXACT_MONEY_VALUES} />);
+  fireEvent.click(screen.getByRole("button", { name: "임대료 만원 단위, 원으로 전환" }));
+  expect(screen.getByLabelText("임대료")).toHaveValue("500000");
+  expect(screen.getByRole("button", { name: "관리비 만원 단위, 원으로 전환" })).toBeInTheDocument();
+  expect(screen.getByLabelText("관리비")).toHaveValue("5");
+
+  fireEvent.click(screen.getByRole("button", { name: "서버 값 적용" }));
+  await waitFor(() => expect(screen.getByLabelText("임대료")).toHaveValue("500001"));
+  expect(screen.getByLabelText("관리비")).toHaveValue("1.2345");
+  expect(screen.getByLabelText("보증금")).toHaveValue("123.4567");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toEqual(toTenantValues(EXACT_MONEY_VALUES));
+});
+
+test("원 단위 필드를 비우면 0원을 제출하고 비활성화 폼에서는 단위를 전환할 수 없다", async () => {
+  const onFinish = jest.fn();
+  const { unmount } = render(<TestForm onFinish={onFinish} />);
+  for (const label of ["임대료", "관리비", "보증금"]) {
+    fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
+    fireEvent.change(screen.getByLabelText(label), { target: { value: "" } });
+  }
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    rentPrice: 0, maintenanceFee: 0, depositAmount: 0,
+  });
+  unmount();
+
+  render(<TestForm onFinish={jest.fn()} disabled />);
+  for (const label of ["임대료", "관리비", "보증금"]) {
+    expect(screen.getByLabelText(label)).toBeDisabled();
+    expect(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` })).toBeDisabled();
+  }
+});
 
 test("납부 방식 Select와 납부일 입력이 Form.Item 값 바인딩을 유지한다", async () => {
   const onFinish = jest.fn();

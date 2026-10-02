@@ -43,7 +43,8 @@ function getContractEndDate(startDate: Dayjs, months: number): Dayjs {
 }
 
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
-// 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다 (금액은 만원 단위).
+// 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다.
+// 폼 값은 만원 단위를 유지하고 금액 입력의 표시 단위만 원/만원으로 바꾼다.
 export type TenantInfoFormValues = {
   contractType?: ContractType;
   parkingEnabled?: boolean;
@@ -98,6 +99,11 @@ type TenantInfoSourceValues = Omit<
 function toWon(manwon: number | null | undefined): number | null {
   return manwon === null || manwon === undefined ? null : Math.round(manwon * 10_000);
 }
+
+const formatMoneyInput: NonNullable<InputNumberProps<number>["formatter"]> = (
+  amount,
+  { userTyping, input },
+) => userTyping ? input : String(amount ?? "");
 
 // 숫자만 입력해도 010-1111-2222 형태로 자동 포맷한다. 서버·기존 데이터 모두 대시 포함 형식을 쓴다.
 export function formatPhone(raw?: string): string | undefined {
@@ -271,18 +277,49 @@ function TextInputWithAddon({
   );
 }
 
-function NumberInputWithAddon({
-  addon,
+function MoneyInputWithUnit({
+  label,
+  before,
+  value,
+  onChange,
+  placeholder,
+  disabled,
   style,
   ...inputProps
-}: InputNumberProps<number> & { addon: ReactNode }) {
+}: InputNumberProps<number> & { label: string; before?: ReactNode }) {
+  const [unit, setUnit] = useState<"만원" | "원">("만원");
   const { status } = Form.Item.useStatus();
-  const addonStatus = status === "error" || status === "warning" ? status : undefined;
+  const { token } = theme.useToken();
+  const inWon = unit === "원";
+  const nextUnit = inWon ? "만원" : "원";
 
   return (
     <Space.Compact block>
-      <InputNumber<number> {...inputProps} style={{ width: "100%", ...style }} />
-      <Space.Addon status={addonStatus}>{addon}</Space.Addon>
+      {before}
+      <InputNumber<number>
+        {...inputProps}
+        disabled={disabled}
+        value={inWon ? toWon(value) : value}
+        onChange={(next) => onChange?.(next === null || !inWon ? next : next / 10_000)}
+        placeholder={inWon && placeholder ? String(Number(placeholder) * 10_000) : placeholder}
+        precision={inWon ? 0 : 4}
+        formatter={formatMoneyInput}
+        style={{ flex: 1, minWidth: 0, ...style }}
+      />
+      <Button
+        className={styles.moneyUnitButton}
+        style={{
+          background: token.colorFillAlter,
+          borderColor: status === "error" ? token.colorError : status === "warning" ? token.colorWarning : undefined,
+        }}
+        htmlType="button"
+        disabled={disabled}
+        aria-label={`${label} ${unit} 단위, ${nextUnit}으로 전환`}
+        title={`${nextUnit} 단위로 전환`}
+        onClick={() => setUnit(nextUnit)}
+      >
+        {unit}
+      </Button>
     </Space.Compact>
   );
 }
@@ -321,33 +358,33 @@ function BillingScheduleInput({
 function RentScheduleInput({
   formInstance,
   rentBillingCycleEditable,
-  style,
+  label,
   ...rentProps
 }: InputNumberProps<number> & {
   formInstance: FormInstance<TenantInfoFormValues>;
   rentBillingCycleEditable: boolean;
+  label: string;
 }) {
-  const { status } = Form.Item.useStatus();
-  const addonStatus = status === "error" || status === "warning" ? status : undefined;
-
   return (
-    <Space.Compact block>
-      <Form.Item name="rentBillingCycle" noStyle>
-        <Select<BillingCycle>
-          aria-label="임대료 청구 주기"
-          disabled={!rentBillingCycleEditable}
-          options={BILLING_CYCLE_OPTIONS}
-          style={{ width: "min(80px, 48%)", flexShrink: 0 }}
-          onChange={(cycle) => {
-            if (cycle === "YEARLY") {
-              formInstance.setFieldValue("billingTiming", "PREPAID");
-            }
-          }}
-        />
-      </Form.Item>
-      <InputNumber<number> {...rentProps} style={{ flex: 1, minWidth: 0, ...style }} />
-      <Space.Addon status={addonStatus}>만원</Space.Addon>
-    </Space.Compact>
+    <MoneyInputWithUnit
+      {...rentProps}
+      label={label}
+      before={
+        <Form.Item name="rentBillingCycle" noStyle>
+          <Select<BillingCycle>
+            aria-label="임대료 청구 주기"
+            disabled={!rentBillingCycleEditable}
+            options={BILLING_CYCLE_OPTIONS}
+            style={{ width: "min(80px, 48%)", flexShrink: 0 }}
+            onChange={(cycle) => {
+              if (cycle === "YEARLY") {
+                formInstance.setFieldValue("billingTiming", "PREPAID");
+              }
+            }}
+          />
+        </Form.Item>
+      }
+    />
   );
 }
 
@@ -561,7 +598,7 @@ export function TenantInfoFormFields({
           />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="납부일"
           name="paymentDay"
@@ -580,7 +617,7 @@ export function TenantInfoFormFields({
           />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label={isParking ? "주차비" : "임대료"}
           name="rentManwon"
@@ -588,28 +625,29 @@ export function TenantInfoFormFields({
         >
           <RentScheduleInput
             formInstance={form}
+            label={isParking ? "주차비" : "임대료"}
             min={0}
             placeholder="50"
             rentBillingCycleEditable={rentBillingCycleEditable}
           />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="관리비"
           name="maintenanceFeeManwon"
           rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
         >
-          <NumberInputWithAddon min={0} addon="만원" placeholder="0" />
+          <MoneyInputWithUnit min={0} label="관리비" placeholder="0" />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="보증금"
           name="depositManwon"
           rules={[{ type: "number", min: 0, message: "보증금은 0 이상이어야 합니다." }]}
         >
-          <NumberInputWithAddon min={0} addon="만원" placeholder="0" />
+          <MoneyInputWithUnit min={0} label="보증금" placeholder="0" />
         </Form.Item>
       </Col>
       {!isParking && (
