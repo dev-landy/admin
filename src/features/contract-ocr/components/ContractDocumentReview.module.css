@@ -73,9 +73,18 @@
 }
 
 .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  margin-inline: -24px;
+  padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
 }
 
 @media (min-width: 1200px) {

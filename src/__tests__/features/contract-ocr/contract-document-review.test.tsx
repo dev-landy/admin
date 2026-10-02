@@ -129,6 +129,36 @@ test("확인한 초안을 수동 적용하고 동기 등록 완료 후 목록으
   expect(onBack).toHaveBeenCalledTimes(1);
 });
 
+test.each([false, true])("floating 액션바는 xl=%s에서도 필수 입력에 따라 등록을 잠그고 입력을 복구한 뒤에만 제출한다", async (isDesktop) => {
+  const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: isDesktop });
+  try {
+    mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+    renderReview();
+    const registration = await screen.findByRole("button", { name: "계약 등록" });
+    const rejection = screen.getByRole("button", { name: "반려" });
+    expect(registration.parentElement).toBe(registration.closest("form")?.lastElementChild);
+    expect(registration).toBeDisabled();
+    fireEvent.click(registration);
+    expect(mockRegister).not.toHaveBeenCalled();
+
+    await applyDraft();
+    await waitFor(() => expect(registration).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "" } });
+    await waitFor(() => expect(registration).toBeDisabled());
+    expect(rejection).toBeEnabled();
+    fireEvent.click(registration);
+    expect(mockRegister).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "홍길동" } });
+    await waitFor(() => expect(registration).toBeEnabled());
+    fireEvent.click(registration);
+    await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, VALUES));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  } finally {
+    breakpoint.mockRestore();
+  }
+});
+
 test("초안 재조회와 OCR 도착은 수정 중인 값을 보존하고 확인 버튼으로만 제안을 적용한다", async () => {
   mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
   renderReview();

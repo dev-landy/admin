@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Flex, Form, Image, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -19,6 +19,7 @@ import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
+import { ContractDocumentActions } from "./ContractDocumentActions";
 
 const { Text, Title } = Typography;
 const REJECTION_OPTIONS = [
@@ -44,10 +45,11 @@ function errorMessage(error: unknown, fallback: string) {
   return parseProblemDetail(error)?.detail ?? fallback;
 }
 
-function ContractDocumentEditor({ document, initialValues, onCompleted }: {
+function ContractDocumentEditor({ document, initialValues, onCompleted, actionBarRef }: {
   document: ContractDocument;
   initialValues: TenantInfoFormValues;
   onCompleted: () => void;
+  actionBarRef: RefObject<HTMLDivElement | null>;
 }) {
   const { notification } = App.useApp();
   const queryClient = useQueryClient();
@@ -213,11 +215,11 @@ function ContractDocumentEditor({ document, initialValues, onCompleted }: {
             action={<Button onClick={retrySavedTenantLookup}>저장된 정보 다시 조회</Button>} />}
           <Form form={form} layout="vertical" initialValues={initialValues} onFinish={handleSubmit} disabled={isBusy || savedTenantState === "failed"}>
             <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentBillingCycleEditable={isPendingReview} />
-            {isPendingReview ? <div className={styles.actions}>
+            {isPendingReview ? <ContractDocumentActions ref={actionBarRef}>
               <Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
                 disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>
               <Button danger htmlType="button" block disabled={isBusy} onClick={openRejectionModal}>반려</Button>
-            </div> : <Button type="primary" htmlType="submit" block loading={updateTenantMutation.isPending}
+            </ContractDocumentActions> : <Button type="primary" htmlType="submit" block loading={updateTenantMutation.isPending}
               disabled={isBusy || savedTenantState !== "idle" || !canSubmit || !isDirty}>수정</Button>}
           </Form>
         </Space>
@@ -306,7 +308,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted }: {
   );
 }
 
-function ContractDocumentForm({ document, onCompleted }: { document: ContractDocument; onCompleted: () => void }) {
+function ContractDocumentForm({ document, onCompleted, actionBarRef }: { document: ContractDocument; onCompleted: () => void; actionBarRef: RefObject<HTMLDivElement | null> }) {
   const isRegistered = document.status === "REGISTERED" && document.tenantId != null;
   const [initialTenantValues, setInitialTenantValues] = useState<TenantInfoFormValues | null>(null);
   const tenantQuery = useQuery({
@@ -324,10 +326,11 @@ function ContractDocumentForm({ document, onCompleted }: { document: ContractDoc
     action={<Button onClick={() => tenantQuery.refetch()}>다시 조회</Button>} />;
   if (document.status === "REGISTERED" && !isRegistered) return <Alert type="warning" title="연결된 임차인 정보가 없습니다." />;
   const initialValues = initialTenantValues ?? EMPTY_FORM;
-  return <ContractDocumentEditor key={`${document.documentId}-${document.status}`} document={document} initialValues={initialValues} onCompleted={onCompleted} />;
+  return <ContractDocumentEditor key={`${document.documentId}-${document.status}`} document={document} initialValues={initialValues} onCompleted={onCompleted} actionBarRef={actionBarRef} />;
 }
 
 export function ContractDocumentReview({ documentId, onBack }: { documentId: string; onBack: () => void }) {
+  const actionBarRef = useRef<HTMLDivElement>(null);
   const documentQuery = useContractDocument(documentId);
   const filesQuery = useContractDocumentFiles(documentId);
   const document = documentQuery.data;
@@ -341,14 +344,14 @@ export function ContractDocumentReview({ documentId, onBack }: { documentId: str
       <div className={styles.workspace}>
         <ContractDocumentSourcePanel key={document.documentId} pageCount={filesQuery.data?.files.length}
           isLoading={filesQuery.isPending} hasError={filesQuery.isError} isRefreshing={filesQuery.isFetching}
-          onRefresh={() => { void filesQuery.refetch(); }}>
+          onRefresh={() => { void filesQuery.refetch(); }} actionBarRef={actionBarRef}>
           <Space orientation="vertical" size={16} style={{ width: "100%" }}>
             <Text type="secondary">원본에는 개인정보가 포함되어 있을 수 있습니다.<br />검수 목적으로만 열람해 주세요.</Text>
             {filesQuery.isPending ? <Spin /> : filesQuery.isError ? <Alert type="error" showIcon title={errorMessage(filesQuery.error, "원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")} /> :
               <>{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
           </Space>
         </ContractDocumentSourcePanel>
-        <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}><ContractDocumentForm key={`${document.documentId}-${document.tenantId ?? "none"}`} document={document} onCompleted={onBack} /></section>
+        <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}><ContractDocumentForm key={`${document.documentId}-${document.tenantId ?? "none"}`} document={document} onCompleted={onBack} actionBarRef={actionBarRef} /></section>
       </div>
     </>}
   </div>;
