@@ -25,23 +25,20 @@ function LoginContent() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  function handleKakaoLogin() {
-    window.location.assign("/auth/kakao/start");
-  }
-
   return (
     <div
       style={{
         display: "flex",
-        height: "100vh",
+        minHeight: "100dvh",
+        padding: 20,
         alignItems: "center",
         justifyContent: "center",
         background: "#f5f5f5",
       }}
     >
-      <Card style={{ width: 360 }}>
+      <Card style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ marginBottom: 24, textAlign: "center" }}>
-          <Title level={3} style={{ marginBottom: 4 }}>
+          <Title level={1} style={{ marginBottom: 4, fontSize: 24 }}>
             Landy Admin
           </Title>
           <Space size={8}>
@@ -63,7 +60,7 @@ function LoginContent() {
           icon={<MessageOutlined />}
           block
           size="large"
-          onClick={handleKakaoLogin}
+          href="/auth/kakao/start"
           style={{
             background: KAKAO_YELLOW,
             borderColor: KAKAO_YELLOW,

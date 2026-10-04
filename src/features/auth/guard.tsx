@@ -21,12 +21,13 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       <div
         style={{
           display: "flex",
-          height: "100vh",
+          minHeight: "100dvh",
+          padding: 20,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <Spin size="large" />
+        <Spin size="large" aria-label="로그인 상태를 확인하는 중" />
       </div>
     );
   }

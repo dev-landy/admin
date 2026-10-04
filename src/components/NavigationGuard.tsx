@@ -2,7 +2,7 @@
 
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef } from "react";
 
-const LEAVE_MESSAGE = "작성 중인 내용이 저장되지 않았습니다. 이동하면 입력값과 건물 변경 초안이 사라집니다. 이동할까요?";
+const LEAVE_MESSAGE = "작성 중인 내용이 저장되지 않았습니다. 이동하면 변경 내용이 사라집니다. 이동할까요?";
 const HISTORY_INDEX = "__landyNavigationIndex";
 type DirtyCheck = () => boolean;
 type NavigationGuard = {

@@ -16,7 +16,8 @@ type KakaoCallbackProps = {
 
 const centerStyle = {
   display: "flex",
-  height: "100vh",
+  minHeight: "100dvh",
+  padding: 20,
   alignItems: "center",
   justifyContent: "center",
 } as const;
@@ -103,7 +104,7 @@ export function KakaoCallback(props: KakaoCallbackProps) {
 
   return (
     <div style={centerStyle}>
-      <Spin size="large" tip="로그인 중...">
+      <Spin size="large" aria-label="카카오 로그인 중" tip="로그인 중...">
         <div style={{ padding: 24 }} />
       </Spin>
     </div>

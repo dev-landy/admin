@@ -5,6 +5,7 @@
 
 :root {
   color-scheme: light;
+  --admin-focus: #1677ff;
 }
 
 * {
@@ -16,6 +17,83 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+}
+
+body {
+  font-family: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  background: #f5f7fa;
+}
+
+:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 3px;
+}
+
+.admin-skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10000;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: #fff;
+  background: #0958d9;
+  transform: translateY(-160%);
+}
+
+.admin-skip-link:focus { transform: translateY(0); }
+.admin-shell, .admin-content { min-width: 0; }
+.admin-content { outline: none; }
+.admin-sidebar { position: sticky !important; top: 0; height: 100dvh; }
+.admin-sidebar-inner { display: flex; flex-direction: column; height: 100%; }
+.admin-sidebar-brand { height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.admin-sidebar-nav { flex: 1; min-height: 0; overflow-y: auto; }
+.admin-sidebar-footer { padding: 8px; flex-shrink: 0; border-top: 1px solid #25354b; }
+.admin-sidebar-footer .ant-btn { color: #c9d3e0; }
+.admin-sidebar-footer .ant-btn:hover { color: #fff !important; background: #20364f !important; }
+.admin-sidebar .ant-menu-item-group-title { color: #9eafc5; font-size: 12px; padding-top: 18px; }
+.admin-shell-header { height: auto; min-height: 64px; line-height: 1.5; }
+.admin-page-header { margin-bottom: 20px; }
+.admin-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.admin-page-heading > div:first-child { min-width: 0; }
+.admin-page-title.ant-typography { font-size: 24px; line-height: 1.4; margin: 0 0 4px; }
+.admin-page-description.ant-typography { margin: 0; max-width: 80ch; }
+.admin-actions, .admin-filter-bar, .admin-filter-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.ant-form.admin-filter-bar { padding: 16px; border: 1px solid #e6ebf1; border-radius: 8px; background: #fff; margin-bottom: 16px; }
+.admin-filter-bar .ant-form-item { margin-bottom: 0; }
+.admin-filter-summary { margin: 12px 0; gap: 8px; }
+.admin-filter-summary .ant-tag { margin: 0; white-space: normal; overflow-wrap: anywhere; }
+.admin-filter-field { width: 200px; max-width: 100%; }
+.admin-id-input { width: 150px; max-width: 100%; }
+.admin-numeric, .ant-statistic-content, .ant-table-cell { font-variant-numeric: tabular-nums; }
+.admin-table-region { min-width: 0; max-width: 100%; border-radius: 8px; }
+.ant-table-wrapper .ant-table-cell { overflow-wrap: anywhere; }
+.ant-table-wrapper .ant-pagination { gap: 4px; flex-wrap: wrap; }
+.ant-descriptions-item-content { overflow-wrap: anywhere; min-width: 0; }
+.ant-descriptions-item-content a { color: #0958d9; text-decoration: underline; text-underline-offset: 3px; }
+.ant-modal .ant-input-number, .ant-drawer .ant-input-number { max-width: 100%; }
+
+@media (max-width: 575px) {
+  .admin-page-title.ant-typography { font-size: 22px; }
+  .admin-filter-bar { align-items: stretch; }
+  .admin-filter-bar .ant-form-item { flex: 1 1 100%; min-width: 0; }
+  .admin-filter-bar .ant-form-item-control, .admin-filter-bar .ant-picker, .admin-filter-bar .ant-select, .admin-filter-bar .ant-input-number { width: 100%; }
+  .admin-filter-bar .ant-form-item-label { white-space: normal; }
+  .admin-filter-field, .admin-id-input { width: 100%; }
+  .admin-actions { width: 100%; }
+  .ant-card .ant-card-head { padding-inline: 16px; }
+  .ant-card .ant-card-body { padding: 16px; }
+  .ant-table-wrapper .ant-table-pagination { justify-content: flex-start; }
+  .ant-modal-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .ant-modal-footer > .ant-btn + .ant-btn { margin-inline-start: 0; }
+  .ant-tabs-nav-list .ant-tabs-tab { padding-block: 12px; }
+  .admin-operation-card .ant-card-head-wrapper { flex-wrap: wrap; gap: 12px; padding-block: 12px; }
+  .admin-operation-card .ant-card-head-title { white-space: normal; overflow: visible; }
+  .admin-operation-card .ant-card-extra { margin-inline-start: 0; max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 a {

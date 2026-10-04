@@ -13,7 +13,16 @@ import { AuthProvider } from "@/features/auth/context";
 
 const antdTheme: ThemeConfig = {
   token: {
-    fontFamily: "var(--font-geist-sans)",
+    fontFamily: 'var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif',
+    colorTextSecondary: "#596579",
+    colorBgLayout: "#f5f7fa",
+    borderRadius: 8,
+    controlHeight: 36,
+    controlHeightSM: 28,
+  },
+  components: {
+    Table: { headerBg: "#f8fafc", rowHoverBg: "#f0f6ff" },
+    Menu: { itemHeight: 44 },
   },
 };
 

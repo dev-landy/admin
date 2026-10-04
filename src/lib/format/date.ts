@@ -18,6 +18,12 @@ export function formatYearMonth(value: string | null | undefined): string {
   return `${year}년 ${Number(month)}월`;
 }
 
+/** Human-readable minute precision; preserve the server's local date and time. */
+export function formatDateTime(value: string | null | undefined): string {
+  const match = value?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return match ? `${match[1]} ${match[2]}` : "-";
+}
+
 // 백엔드가 LocalDateTime을 자기 타임존에서 이미 문자열로 만들어 내려준다.
 // Date·dayjs로 파싱하면 브라우저 타임존으로 재해석되므로 문자열 그대로 다듬는다.
 const LOCAL_DATE_TIME = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?/;

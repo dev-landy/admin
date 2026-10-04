@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Drawer, Grid, Layout, Menu, Typography } from "antd";
 import {
@@ -18,6 +18,8 @@ import {
   ClockCircleOutlined,
   LogoutOutlined,
   MenuOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from "@ant-design/icons";
 
 import { AuthGuard } from "@/features/auth/guard";
@@ -27,9 +29,9 @@ import { appEnvMeta } from "@/config/app-env";
 import { NavigationGuardProvider, useNavigationGuard } from "@/components/NavigationGuard";
 
 const { Sider, Header, Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
-const MENU_ITEMS = [
+const MENU_LINKS = [
   { key: "/users", icon: <UserOutlined />, label: "유저 관리" },
   { key: "/properties", icon: <HomeOutlined />, label: "건물 관리" },
   { key: "/tenants", icon: <HomeOutlined />, label: "임차인 관리" },
@@ -45,6 +47,18 @@ const MENU_ITEMS = [
   { key: "/batch", icon: <HistoryOutlined />, label: "배치 실행 이력" },
 ];
 
+const MENU_ITEMS = [
+  { type: "group" as const, key: "rentals", label: "임대 관리", children: MENU_LINKS.slice(0, 6) },
+  { type: "group" as const, key: "messaging", label: "알림 운영", children: MENU_LINKS.slice(6, 10) },
+  { type: "group" as const, key: "system", label: "시스템 운영", children: MENU_LINKS.slice(10) },
+];
+
+function selectedMenuPath(pathname: string): string | undefined {
+  return MENU_LINKS
+    .filter(({ key }) => pathname === key || pathname.startsWith(`${key}/`))
+    .sort((a, b) => b.key.length - a.key.length)[0]?.key;
+}
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return <NavigationGuardProvider><AdminLayoutContent>{children}</AdminLayoutContent></NavigationGuardProvider>;
 }
@@ -57,6 +71,14 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   const screens = Grid.useBreakpoint();
   const [collapsed, setCollapsed] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const selectedPath = selectedMenuPath(pathname);
+  useEffect(() => {
+    const label = pathname.startsWith("/users/") ? "사용자 상세"
+      : pathname.startsWith("/tenants/") ? "임차인 상세"
+      : pathname.startsWith("/contract-ocr/") ? "계약서 검수"
+      : MENU_LINKS.find(({ key }) => key === selectedPath)?.label ?? "관리자";
+    document.title = `${label} | [${appEnvMeta.label}] Landy Admin`;
+  }, [pathname, selectedPath]);
 
   // useBreakpoint()는 구독이 붙기 전(SSR·첫 렌더)에 빈 객체를 반환한다. 어드민은 데스크톱이
   // 주 사용 환경이므로 값이 없을 때는 데스크톱 레이아웃을 기본값으로 둔다 — 모바일에서는
@@ -79,29 +101,37 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
 
   return (
     <AuthGuard>
-      <Layout style={{ minHeight: "100vh" }}>
+      <a href="#admin-content" className="admin-skip-link">본문으로 건너뛰기</a>
+      <Layout style={{ minHeight: "100dvh" }}>
         {isDesktop && (
-          // Sider는 트리거 높이만큼 padding-bottom을 갖는다. children을 height 100% 플렉스 컬럼으로
-          // 두면 메뉴가 남는 공간을 차지하고 로그아웃이 트리거 바로 위 바닥에 고정된다.
-          <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-              <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {!collapsed && (
-                  <Title level={5} style={{ color: "#fff", margin: 0 }}>
+          <Sider width={224} collapsed={collapsed} className="admin-sidebar">
+            <div className="admin-sidebar-inner">
+              <div className="admin-sidebar-brand">
+                {collapsed ? <Text style={{ color: "#fff", fontSize: 22, fontWeight: 700 }} aria-label="Landy Admin">L</Text> : (
+                  <Text strong style={{ color: "#fff", fontSize: 16 }}>
                     Landy Admin
-                  </Title>
+                  </Text>
                 )}
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <nav className="admin-sidebar-nav" aria-label="관리자 메뉴">
                 <Menu
                   theme="dark"
                   mode="inline"
-                  selectedKeys={[pathname]}
+                  selectedKeys={selectedPath ? [selectedPath] : []}
                   items={MENU_ITEMS}
                   onClick={({ key }) => navigate(key)}
                 />
-              </div>
-              <div style={{ padding: 8 }}>
+              </nav>
+              <div className="admin-sidebar-footer">
+                <Button
+                  type="text"
+                  block
+                  aria-label={collapsed ? "메뉴 펼치기" : "메뉴 접기"}
+                  aria-expanded={!collapsed}
+                  icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                  onClick={() => setCollapsed(!collapsed)}
+                  style={{ textAlign: collapsed ? "center" : "start" }}
+                >{collapsed ? null : "메뉴 접기"}</Button>
                 <Button
                   type="text"
                   block
@@ -119,8 +149,9 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
             </div>
           </Sider>
         )}
-        <Layout>
+        <Layout className="admin-shell">
           <Header
+            className="admin-shell-header"
             style={{
               background: appEnvMeta.headerBg,
               display: "flex",
@@ -148,7 +179,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               />
             )}
           </Header>
-          <Content style={{ margin: isDesktop ? 24 : 12 }}>{children}</Content>
+          <Content id="admin-content" className="admin-content" tabIndex={-1} style={{ margin: isDesktop ? 24 : 12 }}>{children}</Content>
         </Layout>
         {isDesktop ? null : (
           <Drawer
@@ -171,12 +202,14 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               </Button>
             }
           >
-            <Menu
-              mode="inline"
-              selectedKeys={[pathname]}
-              items={MENU_ITEMS}
-              onClick={({ key }) => navigate(key)}
-            />
+            <nav aria-label="관리자 메뉴">
+              <Menu
+                mode="inline"
+                selectedKeys={selectedPath ? [selectedPath] : []}
+                items={MENU_ITEMS}
+                onClick={({ key }) => navigate(key)}
+              />
+            </nav>
           </Drawer>
         )}
       </Layout>
