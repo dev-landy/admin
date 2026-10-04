@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Button, Card, Descriptions, Popconfirm, Select, Space, Switch, Tag, Typography } from "antd";
+import { App, Button, Card, Descriptions, Grid, Popconfirm, Select, Space, Switch, Tag, Typography } from "antd";
 import { useRouter } from "next/navigation";
 
 import { useEffect, useRef } from "react";
@@ -14,10 +14,12 @@ import {
 } from "../hooks";
 import type { UserDetail } from "../types";
 import { USER_STATUS_PRESENTATION } from "../userStatus";
+import { OAUTH_PROVIDER_LABELS } from "../oauthProvider";
 
 export function UserDetailCard({ user, returnPath = "/users" }: { user: UserDetail; returnPath?: string }) {
   const router = useRouter();
   const { notification, modal } = App.useApp();
+  const screens = Grid.useBreakpoint();
   const { mutate: updateRole, isPending: isRolePending } = useUpdateUserRole(user.userId);
   const { mutate: updateNotify, isPending: isNotifyPending } = useUpdateUserNotifySettings(user.userId);
   const { mutate: updateAlimtalk, isPending: isAlimtalkPending } = useUpdateUserAlimtalkEnabled(user.userId);
@@ -92,9 +94,10 @@ export function UserDetailCard({ user, returnPath = "/users" }: { user: UserDeta
       }
     >
       <Descriptions
+        layout={screens.sm === false ? "vertical" : "horizontal"}
         column={{ xs: 1, sm: 2 }} bordered size="small"
         items={[
-          { key: "provider", label: "가입 경로", children: user.provider === "KAKAO" ? "카카오" : "구글" },
+          { key: "provider", label: "가입 경로", children: OAUTH_PROVIDER_LABELS[user.provider] ?? user.provider },
           { key: "status", label: "상태", children: <Tag color={statusPresentation.color}>{statusPresentation.label}</Tag> },
           { key: "email", label: "이메일", children: user.email },
           { key: "phone", label: "전화번호", children: user.phone ?? "-" },

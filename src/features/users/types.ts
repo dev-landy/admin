@@ -1,7 +1,7 @@
 import type { BillingCycle, BillingTiming } from "@/features/tenants/types";
 
 export type UserRole = "USER" | "ADMIN";
-export type OAuthProvider = "KAKAO" | "GOOGLE";
+export type OAuthProvider = "KAKAO" | "GOOGLE" | "APPLE";
 export type UserStatus = "DRAFT" | "VERIFIED" | "ONBOARDED";
 
 export type UserSummary = {

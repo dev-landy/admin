@@ -9,6 +9,7 @@ import { positiveInteger } from "@/lib/navigation/listParams";
 import { useUsers } from "@/features/users/hooks";
 import { UserTable } from "@/features/users/components/UserTable";
 import { USER_STATUS_OPTIONS } from "@/features/users/userStatus";
+import { OAUTH_PROVIDER_OPTIONS } from "@/features/users/oauthProvider";
 
 function UsersPageContent() {
   const [filterForm] = Form.useForm();
@@ -17,7 +18,7 @@ function UsersPageContent() {
   const page = positiveInteger(searchParams.get("page"), 1, 1_000_000);
   const size = positiveInteger(searchParams.get("size"), 20, 100);
   const providerRaw = searchParams.get("provider");
-  const provider = providerRaw === "KAKAO" || providerRaw === "GOOGLE" ? providerRaw : undefined;
+  const provider = OAUTH_PROVIDER_OPTIONS.find((option) => option.value === providerRaw)?.value;
   const roleRaw = searchParams.get("role");
   const role = roleRaw === "USER" || roleRaw === "ADMIN" ? roleRaw : undefined;
   const statusRaw = searchParams.get("status");
@@ -60,7 +61,7 @@ function UsersPageContent() {
       <PageHeader title="유저 관리" description="가입 경로·역할·가입 상태로 사용자를 찾고 상세 정보를 확인합니다." />
       <Card>
         <Form form={filterForm} name="users-filters" layout="vertical" className="admin-filter-bar" onFinish={applyFilters}>
-        <Form.Item name="provider" label="가입 경로" className="admin-filter-field"><Select allowClear placeholder="전체" options={[{ label: "카카오", value: "KAKAO" }, { label: "구글", value: "GOOGLE" }]} /></Form.Item>
+        <Form.Item name="provider" label="가입 경로" className="admin-filter-field"><Select allowClear placeholder="전체" options={OAUTH_PROVIDER_OPTIONS} /></Form.Item>
         <Form.Item name="role" label="역할" className="admin-filter-field"><Select allowClear placeholder="전체" options={[{ label: "사용자", value: "USER" }, { label: "관리자", value: "ADMIN" }]} /></Form.Item>
         <Form.Item name="status" label="가입 상태" className="admin-filter-field"><Select allowClear placeholder="전체" options={USER_STATUS_OPTIONS} /></Form.Item>
           <Form.Item label=" "><Space wrap><Button type="primary" htmlType="submit">조회</Button><Button onClick={() => { filterForm.setFieldsValue({ provider: undefined, role: undefined, status: undefined }); applyFilters({}); }}>필터 초기화</Button></Space></Form.Item>

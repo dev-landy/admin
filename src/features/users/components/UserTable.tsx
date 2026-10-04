@@ -11,6 +11,7 @@ import { formatKoreanDate } from "@/lib/format/date";
 import { useDeleteUser } from "../hooks";
 import type { UserSummary, UserRole, OAuthProvider, UserStatus } from "../types";
 import { USER_STATUS_OPTIONS, USER_STATUS_PRESENTATION } from "../userStatus";
+import { OAUTH_PROVIDER_LABELS, OAUTH_PROVIDER_OPTIONS } from "../oauthProvider";
 
 type Props = {
   returnPath?: string;
@@ -52,18 +53,16 @@ export function UserTable({
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="가입 경로 필터"
             placeholder="전체"
             value={filters.provider}
             style={{ width: 120 }}
             onChange={(v) => onFilterChange("provider", v)}
-            options={[
-              { label: "카카오", value: "KAKAO" },
-              { label: "구글", value: "GOOGLE" },
-            ]}
+            options={OAUTH_PROVIDER_OPTIONS}
           />
         </div>
       ),
-      render: (v: OAuthProvider) => <Tag>{v === "KAKAO" ? "카카오" : "구글"}</Tag>,
+      render: (v: OAuthProvider) => <Tag>{OAUTH_PROVIDER_LABELS[v] ?? v}</Tag>,
     },
     {
       title: "역할",
