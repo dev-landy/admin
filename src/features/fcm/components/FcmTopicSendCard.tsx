@@ -68,7 +68,7 @@ export function FcmTopicSendCard() {
           title={isProd ? "prod 환경입니다" : "토픽 발송"}
           description={
             isProd
-              ? "prod 환경입니다 — 실유저 기기 전체에 전달됩니다. 정말 발송할까요?"
+              ? "prod 환경입니다 — 입력한 토픽을 구독 중인 실유저 기기에 전달됩니다. 발송할까요?"
               : "토픽을 구독 중인 모든 기기에 전달됩니다. 발송할까요?"
           }
           okText="발송"

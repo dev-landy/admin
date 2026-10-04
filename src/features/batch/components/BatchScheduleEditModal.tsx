@@ -88,7 +88,7 @@ function toFormValues(schedule: BatchSchedule | null): ScheduleFormValues {
 function rangeRules(requiredMessage: string, min: number, max: number): FormRule[] {
   return [
     { required: true, message: requiredMessage },
-    { type: "number", min, max, message: `${min}~${max} 사이 값을 입력하세요.` },
+    { type: "integer", min, max, message: `${min}~${max} 사이 정수를 입력하세요.` },
   ];
 }
 
