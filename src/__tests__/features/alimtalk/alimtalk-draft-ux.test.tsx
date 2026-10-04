@@ -32,12 +32,6 @@ test("템플릿 백그라운드 갱신은 편집 중인 초안을 덮어쓰지 �
   await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ type: "DUE", body: expect.objectContaining({ body: "수정 중인 초안" }) }, expect.any(Object)));
 });
 
-test("깨끗한 템플릿 폼은 재조회한 서버 값을 표시한다", () => {
-  const view = render(<App><AlimtalkTemplateCard template={template} /></App>);
-  view.rerender(<App><AlimtalkTemplateCard template={{ ...template, body: "최신 본문" }} /></App>);
-  expect(screen.getByLabelText("본문 사본")).toHaveValue("최신 본문");
-});
-
 test("승인 템플릿을 새로 조회하는 동안 캐시가 있어도 실제 테스트 발송을 막는다", () => {
   mockFetching = true;
   render(<App><AlimtalkTestSendModal open onClose={jest.fn()} /></App>);

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Alert, Button, Card, Descriptions, Form, Input, Space, Switch, Tag, Typography } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
+import { useUnsavedChanges } from "@/components/NavigationGuard";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { formatSeconds } from "@/lib/format/date";
 import { useRemoteAlimtalkTemplate, useUpdateAlimtalkTemplate } from "../hooks";
 import { ALIMTALK_TYPE_PRESENTATION } from "../presentation";
@@ -18,6 +20,15 @@ type FormValues = {
   enabled: boolean;
 };
 
+function toFormValues(template: AlimtalkTemplate): FormValues {
+  return {
+    pfId: template.pfId ?? "",
+    templateId: template.templateId ?? "",
+    body: template.body ?? "",
+    enabled: template.enabled,
+  };
+}
+
 /**
  * 한 종류의 채널·템플릿·본문을 그 자리에서 고친다. 저장하면 재시작 없이 다음 발송부터 적용되고,
  * 같은 값이 실제 발송과 임대인 미리보기에 함께 반영된다.
@@ -29,25 +40,37 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
   const { notification } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const hasDraftChanges = useRef(false);
+  const savedValues = useRef(toFormValues(template));
   const [remoteOpen, setRemoteOpen] = useState(false);
   const { mutate: update, isPending } = useUpdateAlimtalkTemplate();
   const {
     data: remote,
     isFetching: isRemoteFetching,
     error: remoteError,
+    refetch: refetchRemote,
   } = useRemoteAlimtalkTemplate(template.type, remoteOpen);
   const presentation = ALIMTALK_TYPE_PRESENTATION[template.type];
 
   // 백그라운드 재조회는 편집 중인 초안을 덮어쓰지 않는다. 깨끗한 폼만 최신 값으로 맞춘다.
   useEffect(() => {
     if (hasDraftChanges.current) return;
-    form.setFieldsValue({
-      pfId: template.pfId ?? "",
-      templateId: template.templateId ?? "",
-      body: template.body ?? "",
-      enabled: template.enabled,
-    });
+    savedValues.current = toFormValues(template);
+    form.setFieldsValue(savedValues.current);
   }, [form, template]);
+
+  const hasUnsavedInput = useCallback(() => {
+    const draft = { ...savedValues.current, ...form.getFieldsValue(true) };
+    return Object.entries(savedValues.current).some(([key, value]) => draft[key as keyof FormValues] !== value);
+  }, [form]);
+  // Read the form store at navigation time, including an input immediately followed by a click.
+  // Keep this registration after saving so another edit in the same card is protected too.
+  useUnsavedChanges(false, hasUnsavedInput);
+
+  function handleRemoteLookup() {
+    if (isRemoteFetching) return;
+    if (remoteOpen) void refetchRemote();
+    else setRemoteOpen(true);
+  }
 
   function handleSave() {
     if (isPending) return;
@@ -57,7 +80,8 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
         {
           onSuccess: (saved) => {
             hasDraftChanges.current = false;
-            form.setFieldsValue({ pfId: saved.pfId ?? "", templateId: saved.templateId ?? "", body: saved.body ?? "", enabled: saved.enabled });
+            savedValues.current = toFormValues(saved);
+            form.setFieldsValue(savedValues.current);
             notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` });
           },
           onError: (error) => {
@@ -70,8 +94,6 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
       // 폼이 오류를 그 자리에 표시하므로 여기서 더 할 일이 없다. 잡지 않으면 미처리 거부로 새어 나간다.
       .catch(() => undefined);
   }
-
-  const remoteProblem = parseProblemDetail(remoteError);
 
   return (
     <Card
@@ -87,7 +109,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           <Tag color={template.sendable ? "green" : "default"}>
             {template.sendable ? "발송 가능" : "발송 불가"}
           </Tag>
-          <Button loading={isRemoteFetching} onClick={() => setRemoteOpen(true)}>
+          <Button loading={isRemoteFetching} disabled={isRemoteFetching} onClick={handleRemoteLookup}>
             승인 템플릿 조회
           </Button>
           <Button type="primary" loading={isPending} disabled={isPending} onClick={handleSave}>
@@ -135,15 +157,8 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
       <Descriptions column={1} size="small" items={[
         { key: "updatedAt", label: "수정일", children: formatSeconds(template.updatedAt) },
       ]} />
-      {remoteOpen && remoteProblem && (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginTop: 16 }}
-          title={remoteProblem.title}
-          description={remoteProblem.detail}
-        />
-      )}
+      {remoteOpen && <QueryErrorAlert error={remoteError} title="승인 템플릿을 불러오지 못했습니다."
+        onRetry={refetchRemote} isRetrying={isRemoteFetching} hasData={remote !== undefined} />}
       {remoteOpen && remote && (
         <Card size="small" type="inner" title="공급자 승인 템플릿" style={{ marginTop: 16 }}>
           <Descriptions column={1} size="small" bordered items={[
