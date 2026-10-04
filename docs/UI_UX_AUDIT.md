@@ -9,7 +9,7 @@
 - [WCAG 키보드 접근](https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html), [포커스 표시](https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html), [반복 영역 건너뛰기](https://www.w3.org/WAI/WCAG22/Understanding/bypass-blocks.html)
 - [WCAG 입력 라벨](https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html), [오류 식별](https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html), [상태 메시지](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
 - [WCAG Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html), [조작 영역](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [Ant Design 데이터 표시](https://ant.design/docs/spec/data-display/)
-- 설치된 Next 16.2.9의 `usePathname`, CSS, 접근성 문서와 Ant Design 6.4.5 타입 정의
+- 최종 검증 시 설치된 Next 16.3.8의 `usePathname`, CSS, 접근성 문서와 Ant Design 6.6.5 타입 정의
 
 목록 상태 보존, 입력·선택·실행의 구분, 명시적 라벨과 복구, 요청 중 상태, 작은 화면에서도 전체 값을 읽을 수 있는 배치를 적용했다. Mocket의 네이티브 시트 핸들·44pt/48dp 규칙·탭 제목 애니메이션은 웹 규칙과 구분했다. 웹 AA 타깃 기준은 24 CSSpx 또는 해당 간격 예외이며, 모바일 네이티브 권장을 그대로 웹 의무로 해석하지 않았다.
 
@@ -68,19 +68,42 @@
 - `application/dto/AdminNotificationSummary.java`: 목록은 `createdAt`을 제공하며 `content/sentAt`은 현재 제공하지 않는다. 생성일과 발송일을 구분하고 누락된 본문·발송일을 안내한다. Outbox의 실제 `sentAt`과 혼동하지 않는다.
 - Outbox 재등록은 `FAILED/SKIPPED`만, dispatch의 처리 수와 성공 발송 수는 별개, FCM 구독/해제는 서로 다른 작업이라는 현행 계약을 유지했다.
 
+## 추가로 반영한 로딩·데이터·요청 수명 개선
+
+- 실제 사용하지 않는 Geist Mono의 루트 preload를 제거했다. 프로덕션 페이지당 폰트 요청은 2개에서 1개, encoded body 합계는 52,396바이트에서 29,288바이트로 감소했다. 웹폰트 캐시가 없는 방문의 불필요한 요청 1개와 23,108바이트를 제거한 결과다.
+- 공통 `loading.tsx`는 새 경로의 코드·서버 응답을 기다리는 동안 상태 메시지와 공간을 표시한다. 기존 페이지의 API 로딩 처리는 유지하며 서버/API의 응답 시간 자체를 줄였다고 주장하지 않는다.
+- 권한·임차인 변경 및 알림톡 템플릿 저장의 겹치는 캐시 무효화를 제거했다. 실제 QueryObserver 회귀 검사에서 상세·승인 템플릿 재조회 2회가 1회로 줄었다.
+- 사용자 삭제 후 서버가 함께 삭제하는 건물·임차인·납부·알림·계약서·알림톡 이력 캐시를 무효화했다. 공용 템플릿·배치·릴리즈 정책은 영향을 받지 않는다.
+- 로그인·로그아웃의 세션 교체 시 조회·mutation 캐시를 비운다. 로그아웃 뒤 늦은 토큰 갱신이 토큰을 되살리거나 새 로그인을 덮어쓰지 않도록 갱신 요청·대기 큐의 세션 소유권을 확인한다. 동시 401의 재전송도 한 번으로 제한한다.
+- 현행 서버의 APPLE 가입 경로를 URL·필터·목록·상세에 반영해 애플 가입자를 구글로 표시하던 문제를 수정했다.
+- 알림톡 카드의 탐색·새로고침 초안 보호, 일반 네트워크 오류와 승인 템플릿 재조회, OCR 다음 검수 조회의 이탈 후 이동 방지, 배치 실행 시·분·간격의 정수 검증을 추가했다.
+- 사용자 상세의 건물 삭제 확인에도 대상 ID·이름을 표시하고 FCM 토픽 발송 안내를 실제 구독 대상에 맞췄다.
+
+판단이 필요한 성능·최신성·화면 정책과 페이지별 측정값은 [로딩 성능 조사](LOADING_PERFORMANCE_AUDIT.md)에 정리했다.
+
 ## 초기 UI/UX 점검 시점의 검증과 한계
 
-최종 소스의 `npm run type-check`, `npm run lint`, `npm run build`, `git diff --check`가 통과했다. 전체 Jest 실행과 집중 회귀 검증을 구분한다.
+최종 소스의 `npm run type-check`(TypeScript 7 native), `npm run lint`, `npm run build`(Next 16.3.8 프로덕션 및 TypeScript 6 호환 검사), `git diff --check`가 통과했다. 이번 기능의 추가 회귀 7개 suite / 37개 테스트는 현재 작업 트리에서 통과했다.
 
-- 공통 탐색·필터·표·날짜·URL 검증: 신규 5개 suite / 30개 테스트 통과.
-- 데이터 화면: 신규 앱 테스트 11개 통과, 마지막 초안 보호 변경 후 drawer·요청 모달 8개 재검증 통과. 초기 개선 시점의 기존 16개 suite / 93개 통과를 최종 소스 전체 통과로 확대하지 않는다.
-- 운영 화면: 27개 suite / 141개 테스트 통과(신규 6개 suite / 17개 포함). 이후 날짜 표기 변경에 영향받은 3개 suite / 11개 재검증 통과.
-- 마지막 정책·스케줄 초안 보호: 신규 2개 suite / 16개 테스트를 추가하고 타입·scoped lint·독립 코드 검토·실제 브라우저 동작을 확인했다. Jest diagnostic은 clean 닫기 1개 통과, 변경 후 취소 1개가 기존 5초 제한으로 시간 초과, 6개 제외였다. 최종 집중 6개 suite 실행은 2분 16초 동안 suite 출력이 없어 해당 테스트 프로세스만 종료했다. 이 16개를 Jest 통과 수치에 합산하지 않는다.
-- 전수 Jest는 높은 호스트 부하에서 OCR 조회와 모바일 메뉴 비동기 테스트가 시간 초과되어 완료하지 못했다. OCR 첫 테스트는 `git archive HEAD`로 만든 기준 코드에서도 같은 assertion에서 시간 초과했다. 전역 timeout을 늘리는 변경은 제거했으며, 전수 회귀 통과로 보고하지 않는다.
+전체 Jest는 병행 작업의 테스트 정리 도중 파일이 제거돼 ENOENT가 발생했다. 이후 소스·테스트·설정을 임시 사본에 고정해 72개 suite를 전수 실행했다. 실제 프로덕션 소스는 사본과 SHA-256이 일치하는 것을 최종 확인했다.
 
-실제 Chrome에서 API 요청을 로컬 fixture로 차단하고 어드민 16개 화면을 1440px/320px에서 렌더했다. 32개 화면 조건에서 페이지 전체 가로 넘침, 빠진 h1, console warning/error, 처리되지 않은 오류가 없었다. 상세→목록 조회 조건 보존, 모바일 메뉴 이동, 빈 FCM 폼의 필드 오류, 키보드 알림 상세, 임차인 초안 폐기 취소/확정, 청구월의 월 첫날 직렬화, 좁은 정책 편집과 초안 보호, 배치 스케줄 초안 보호, 320px 로그인과 취소된 카카오 로그인 복구 등 9개 동작을 실제 조작했다. 표 내부의 필요한 가로 스크롤은 페이지 전체 넘침과 구분한다.
+- 전수 실행: 70개 suite 통과. 알림톡 기존 카드 suite는 병렬 워커 SIGSEGV, OCR suite는 30초 timeout 1건으로 종료했다.
+- 같은 사본의 단일 프로세스 재검증: 알림톡 카드 4개 통과, OCR 54개 중 53개 통과. 최초 timeout 사례는 통과했으나 다른 초안 오류 표시 사례가 기본 비동기 대기 제한에서 timeout했다.
+- 두 timeout 사례만 다시 실행해 2개 모두 6.079초 내 통과했다. 테스트 제한·제품 코드·핵심 assertion을 바꾸지 않았다.
+- 전수와 이어진 재검증의 마지막 사례별 결과를 합치면 72개 suite / 442개 사례가 모두 통과했다. **단일 전수 실행의 전체 green과 실행 안정성은 확인되지 않았다.** 전체 실행에서의 워커 종료·시간초과는 테스트 실행 안정성의 남은 한계다.
 
-이 브라우저 검증은 실제 서버의 개인정보·과금 발송·푸시 전달·카카오 인증 성공을 시험한 것이 아니다. 서버 계약은 코드 대조로 확인했다. 실제 화면리더 발화와 모든 브라우저/확대율 조합의 WCAG 적합성 전수 판정을 주장하지 않는다. 서버가 제공하지 않는 알림 본문/발송일은 이 프론트엔드 변경만으로 채울 수 없다.
+모달 종료가 영구 대기하던 일부 테스트는 jsdom이 CSS 모션 속성을 지원한다고 보고하면서 animationend를 발생시키지 않는 문제였다. 해당 suite에서 공개 `ConfigProvider` API로 모션만 끄고 초기값·초안·요청·잠금·취소·오류 검증을 유지했다. 새 비동기 필드 렌더는 실제 표시까지 기다렸으며, loading 아이콘이 포함된 버튼 이름과 변경된 성공 callback 계약에 맞춰 테스트를 보완했다. 이 테스트 설정은 실제 브라우저의 시각 모션 검증을 대신하지 않는다.
+
+최종 로컬 프로덕션과 별도 합성 API를 사용한 실제 브라우저에서 16개 화면을 1440px/320px로 확인했다. 32개 화면 조건 모두 페이지 전체 가로 넘침 없음, h1 하나·main 하나, 중첩 a/button 없음이 확인됐다. 키보드 알림 상세와 실제 DTO의 본문 누락 안내, 알림톡 초안이 있는 상태에서 메뉴 이동을 취소하고 현재 화면을 유지하는 동작도 확인했다. 브라우저 console warning/error는 없었다. 표 내부의 필요한 가로 스크롤은 페이지 전체 넘침과 구분한다.
+
+상세 리소스·타이밍·화면·사례별 검사 결과는 `.gstack/benchmark-reports/`의 baseline, benchmark, browser-verification, test-verification JSON에 보존했다. 날짜·조건·서버 계약과 남은 선택지는 [성능 조사](LOADING_PERFORMANCE_AUDIT.md)에서 확인할 수 있다.
+
+브라우저 검증은 실제 고객 정보·과금 발송·푸시 전달·카카오 인증 성공의 검증이 아니다. 서버 계약은 현재 코드 대조로 확인했다. 화면리더 발화, 모든 브라우저·확대율의 WCAG 적합성, 운영 환경 Core Web Vitals·API 지연을 전수 판정한 결과도 아니다. 서버가 제공하지 않는 알림 본문/발송일은 프론트엔드 변경만으로 채울 수 없다.
+
+
+## 운영 세션 실측 후 판단·적용
+
+2026-10-05의 [운영 Chrome 실측·최종 결정](PRODUCTION_UX_MEASUREMENTS.md)에 이전15개항목의 적용/유지 결정과 새로운 검증 결과를 기록했다. 위 판단 후보 표는 최초 조사 당시 기록이다.
 
 ## 이번 세션 커밋만의 최종 검증
 

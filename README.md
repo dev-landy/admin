@@ -1,5 +1,9 @@
 # Landy Admin
 
+페이지별 UI/UX 개선은 [점검 보고서](docs/UI_UX_AUDIT.md), 로딩 측정과 남은 선택지는
+[성능 조사](docs/LOADING_PERFORMANCE_AUDIT.md)를 참고한다. 운영 세션 실측과 후속 적용 결정은
+[운영 Chrome 검증](docs/PRODUCTION_UX_MEASUREMENTS.md)에 기록했다.
+
 Landy 서버의 API를 소비하는 어드민 콘솔 (Next.js 16 App Router + Ant Design v6).
 
 ## 시작하기
