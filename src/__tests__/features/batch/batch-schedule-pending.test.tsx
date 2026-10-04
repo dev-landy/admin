@@ -21,13 +21,9 @@ function deferred<T>() {
 }
 function mount(mutationRetry: false | number = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: mutationRetry, retryDelay: 0 } } });
-  render(
-    <QueryClientProvider client={client}>
-      <ConfigProvider theme={{ token: { motion: false } }}>
-        <App><BatchSchedulesPage /></App>
-      </ConfigProvider>
-    </QueryClientProvider>,
-  );
+  render(<QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App>
+    <BatchSchedulesPage />
+  </App></ConfigProvider></QueryClientProvider>);
 }
 beforeEach(() => jest.clearAllMocks());
 
@@ -126,7 +122,7 @@ test("PATCH와 재조회가 모두 실패하면 이전 목록은 유지하되 �
   await act(async () => { refresh.reject(new Error("network")); });
   expect(await screen.findByText("배치 설정을 불러오지 못했습니다.")).toBeInTheDocument();
   await waitFor(() => expect(within(dialog).getByRole("button", { name: "닫기" })).toBeEnabled());
-  expect(within(dialog).getByRole("button", { name: "비활성화" })).toBeDisabled();
+  expect(within(dialog).getByRole("button", { name: /비활성화$/ })).toBeDisabled();
   fireEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(screen.getByRole("button", { name: "수정" })).toBeDisabled();

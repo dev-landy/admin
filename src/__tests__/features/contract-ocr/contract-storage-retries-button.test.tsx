@@ -21,7 +21,9 @@ function renderRecoveryButton() {
   });
   render(
     <QueryClientProvider client={client}>
-      <ConfigProvider theme={{ token: { motion: false } }}><App><ContractStorageRetriesButton /></App></ConfigProvider>
+      <ConfigProvider theme={{ token: { motion: false } }}><App>
+        <ContractStorageRetriesButton />
+      </App></ConfigProvider>
     </QueryClientProvider>,
   );
 }

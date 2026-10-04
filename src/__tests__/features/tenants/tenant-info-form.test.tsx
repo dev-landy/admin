@@ -423,7 +423,8 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     fireEvent.mouseDown(screen.getByLabelText("카테고리"));
     fireEvent.click(await screen.findByText(category));
     await waitFor(() => expect(screen.queryByRole("checkbox", { name: "지하" })).not.toBeInTheDocument());
-    fireEvent.change(await screen.findByLabelText(fieldLabel), { target: { value: "B동 1층 상가" } });
+    const spaceName = await screen.findByLabelText(fieldLabel);
+    fireEvent.change(spaceName, { target: { value: "B동 1층 상가" } });
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));

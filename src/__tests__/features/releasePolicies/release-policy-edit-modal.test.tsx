@@ -1,3 +1,4 @@
+import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
@@ -7,41 +8,6 @@ import type {
   ReleasePolicy,
   UpdateReleasePolicyRequest,
 } from "@/features/releasePolicies/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-const getComputedStyle = window.getComputedStyle.bind(window);
-window.getComputedStyle = (element: Element): CSSStyleDeclaration => getComputedStyle(element);
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
-
-// antd v6 Modal 내부 폼 렌더링이 MessageChannel을 사용한다. jsdom에는 없어 최소 구현을 넣는다.
-class MockMessageChannel {
-  port1 = { onmessage: null as ((event: MessageEvent) => void) | null };
-  port2 = {
-    postMessage: () => {
-      setTimeout(() => this.port1.onmessage?.({} as MessageEvent), 0);
-    },
-  };
-}
-
-Object.defineProperty(global, "MessageChannel", { writable: true, value: MockMessageChannel });
 
 type UpdateVariables = { appReleasePolicyId: number; body: UpdateReleasePolicyRequest };
 type UpdateOptions = { onSuccess: () => void; onError: (error: unknown) => void };

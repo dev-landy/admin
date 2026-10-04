@@ -13,6 +13,7 @@ const mockUpdate = jest.mocked(updateTenant);
 const onClose = jest.fn();
 let client: QueryClient;
 function Drawer({ tenant = TENANT }: { tenant?: TenantDetail }) {
+  // jsdom은 CSS motion 완료 이벤트를 발생시키지 않는다. 공개 테마 설정으로 모션만 끈다.
   return <QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><TenantEditDrawer tenant={tenant} open onClose={onClose} /></App></ConfigProvider></QueryClientProvider>;
 }
 beforeEach(() => {
@@ -43,12 +44,7 @@ test("저장 요청 중에는 취소와 닫기를 잠그고 실패하면 초안�
   let reject!: (error: Error) => void;
   mockUpdate.mockImplementationOnce(() => new Promise((_, rejectRequest) => { reject = rejectRequest; }));
   render(<Drawer />);
-  const name = await screen.findByLabelText("세입자 이름");
-  await act(async () => {
-    fireEvent.change(name, { target: { value: "저장할 이름" } });
-    // useWatch의 배치 알림까지 마친 뒤 실제 dirty UI를 검사한다.
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  });
+  fireEvent.change(await screen.findByLabelText("세입자 이름"), { target: { value: "저장할 이름" } });
   await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "수정" }));
   await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));

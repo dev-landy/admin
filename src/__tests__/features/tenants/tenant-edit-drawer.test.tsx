@@ -22,6 +22,7 @@ function overlapError() {
 }
 
 function Drawer({ tenant = TENANT, open = true }: { tenant?: TenantDetail; open?: boolean }) {
+  // jsdom은 CSS motion 완료 이벤트를 발생시키지 않는다. 공개 테마 설정으로 모션만 끈다.
   return <QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><TenantEditDrawer tenant={tenant} open={open} onClose={onClose} /></App></ConfigProvider></QueryClientProvider>;
 }
 

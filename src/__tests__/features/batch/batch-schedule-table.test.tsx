@@ -66,11 +66,9 @@ function badRequest(): AxiosError {
 
 function renderTable(data: BatchSchedule[] = [schedule]) {
   render(
-    <ConfigProvider theme={{ token: { motion: false } }}>
-      <App>
-        <BatchScheduleTable data={data} loading={false} />
-      </App>
-    </ConfigProvider>,
+    <ConfigProvider theme={{ token: { motion: false } }}><App>
+      <BatchScheduleTable data={data} loading={false} />
+    </App></ConfigProvider>,
   );
 }
 

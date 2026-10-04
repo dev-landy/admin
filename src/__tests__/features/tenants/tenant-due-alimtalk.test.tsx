@@ -67,8 +67,6 @@ test("임대인 푸시와 별도인 납부일 알림톡을 표시하고 켜면 �
 
   expect(screen.getByText("납부일 알림톡")).toBeInTheDocument();
   expect(screen.getByRole("switch")).not.toBeChecked();
-  expect(screen.getByText("납부일 알림톡")).toBeInTheDocument();
-  expect(screen.getByRole("switch")).not.toBeChecked();
   fireEvent.click(screen.getByRole("switch"));
 
   await waitFor(() => {
