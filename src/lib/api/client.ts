@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, CanceledError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 
 import { env } from "@/config/env";
 import { tokenStore } from "@/features/auth/store";
@@ -25,29 +25,44 @@ apiClient.interceptors.request.use((config) => {
 // --- Response: 401 refresh + retry, admin-forbidden 403 → force logout, other 403 passthrough ---
 type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
-let isRefreshing = false;
 type QueueEntry = { resolve: (token: string) => void; reject: (err: unknown) => void };
-let queue: QueueEntry[] = [];
+type RefreshOperation = { refreshToken: string; queue: QueueEntry[] };
+let refreshOperation: RefreshOperation | undefined;
 
-function drainQueue(token: string) {
-  queue.forEach((e) => e.resolve(token));
-  queue = [];
+function drainQueue(operation: RefreshOperation, token: string) {
+  operation.queue.forEach((e) => e.resolve(token));
+  operation.queue = [];
 }
 
-function rejectQueue(err: unknown) {
-  queue.forEach((e) => e.reject(err));
-  queue = [];
+function rejectQueue(operation: RefreshOperation, err: unknown) {
+  operation.queue.forEach((e) => e.reject(err));
+  operation.queue = [];
 }
 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
     const config = error.config as RetryableConfig | undefined;
 
     if (error.response?.status === 401 && config && !config._retry) {
-      if (isRefreshing) {
+      config._retry = true;
+      const storedRefreshToken = tokenStore.getRefreshToken();
+      if (!storedRefreshToken) {
+        if (!tokenStore.getAccessToken()) {
+          return Promise.reject(new CanceledError("인증 세션이 종료되어 요청을 취소했습니다.", config));
+        }
+        tokenStore.clearTokens();
+        // 인증 상태와 사용자별 Query 캐시까지 새 문서에서 초기화해야 하므로 전체 이동한다.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+
+      const pendingOperation = refreshOperation;
+      if (pendingOperation?.refreshToken === storedRefreshToken) {
         return new Promise((resolve, reject) => {
-          queue.push({
+          pendingOperation.queue.push({
             resolve: (token) => {
               config.headers.Authorization = `Bearer ${token}`;
               resolve(apiClient(config));
@@ -57,35 +72,32 @@ apiClient.interceptors.response.use(
         });
       }
 
-      config._retry = true;
-      isRefreshing = true;
-
-      const storedRefreshToken = tokenStore.getRefreshToken();
-      if (!storedRefreshToken) {
-        isRefreshing = false;
-        rejectQueue(error);
-        tokenStore.clearTokens();
-        // 인증 상태와 사용자별 Query 캐시까지 새 문서에서 초기화해야 하므로 전체 이동한다.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = "/login";
-        return Promise.reject(error);
-      }
+      const operation: RefreshOperation = { refreshToken: storedRefreshToken, queue: [] };
+      refreshOperation = operation;
 
       try {
         const tokens = await refreshTokens(storedRefreshToken);
+        // 로그아웃·새 로그인 뒤 완료된 옛 갱신은 현재 세션의 토큰을 덮어쓸 수 없다.
+        if (tokenStore.getRefreshToken() !== storedRefreshToken) {
+          throw new CanceledError("인증 세션이 변경되어 요청을 취소했습니다.", config);
+        }
         tokenStore.setTokens(tokens);
-        drainQueue(tokens.accessToken);
+        drainQueue(operation, tokens.accessToken);
         config.headers.Authorization = `Bearer ${tokens.accessToken}`;
         return apiClient(config);
       } catch (refreshError) {
-        rejectQueue(refreshError);
+        const failure = tokenStore.getRefreshToken() !== storedRefreshToken
+          ? new CanceledError("인증 세션이 변경되어 요청을 취소했습니다.", config)
+          : refreshError;
+        rejectQueue(operation, failure);
+        if (axios.isCancel(failure)) return Promise.reject(failure);
         tokenStore.clearTokens();
         // 인증 상태와 사용자별 Query 캐시까지 새 문서에서 초기화해야 하므로 전체 이동한다.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
-        return Promise.reject(refreshError);
+        return Promise.reject(failure);
       } finally {
-        isRefreshing = false;
+        if (refreshOperation === operation) refreshOperation = undefined;
       }
     }
 
