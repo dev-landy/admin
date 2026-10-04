@@ -2,9 +2,10 @@
 
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button, Card, Space, Spin } from "antd";
+import { Card, Space, Spin } from "antd";
 
 import { PageHeader } from "@/components/PageHeader";
+import { ClientLinkButton } from "@/components/ClientLinkButton";
 import { positiveInteger } from "@/lib/navigation/listParams";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
@@ -29,7 +30,7 @@ function DuplicatesPageContent() {
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-      <PageHeader title="납부 중복 탐지" description="동일 임차인·청구월에 여러 납부가 등록된 내역입니다. 임차인별 납부 내역을 확인해 주세요." extra={<Button href="/payments">납부 목록</Button>} />
+      <PageHeader title="납부 중복 탐지" description="동일 임차인·청구월에 여러 납부가 등록된 내역입니다. 임차인별 납부 내역을 확인해 주세요." extra={<ClientLinkButton href="/payments">납부 목록</ClientLinkButton>} />
     <Card>
       <QueryErrorAlert error={error} title="중복 납부 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
       {(!error || data) && <DuplicateTable

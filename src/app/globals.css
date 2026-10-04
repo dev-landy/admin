@@ -54,6 +54,8 @@ body {
 .admin-sidebar .ant-menu-item-group-title { color: #9eafc5; font-size: 12px; padding-top: 18px; }
 .admin-shell-header { height: auto; min-height: 64px; line-height: 1.5; }
 .admin-page-header { margin-bottom: 20px; }
+.admin-page-loading { min-height: 240px; color: #596579; }
+.admin-loading-placeholder { min-height: 180px; border-radius: 8px; background: #e6ebf1; }
 .admin-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
 .admin-page-heading > div:first-child { min-width: 0; }
 .admin-page-title.ant-typography { font-size: 24px; line-height: 1.4; margin: 0 0 4px; }

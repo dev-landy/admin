@@ -4,6 +4,7 @@ import { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button, Card, Form, Space, Spin, DatePicker, InputNumber, Select } from "antd";
 import { PageHeader } from "@/components/PageHeader";
+import { ClientLinkButton } from "@/components/ClientLinkButton";
 import { commitDateInput } from "@/components/date-input";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { optionalDate, optionalPositiveInteger, positiveInteger } from "@/lib/navigation/listParams";
@@ -61,7 +62,7 @@ function PaymentsPageContent() {
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-      <PageHeader title="납부 목록" description="청구월·출처·임차인 조건으로 납부 내역을 확인합니다. 기간은 납부일이 아닌 청구월을 기준으로 적용합니다." extra={<Button href="/payments/duplicates">중복 납부 확인</Button>} />
+      <PageHeader title="납부 목록" description="청구월·출처·임차인 조건으로 납부 내역을 확인합니다. 기간은 납부일이 아닌 청구월을 기준으로 적용합니다." extra={<ClientLinkButton href="/payments/duplicates">중복 납부 확인</ClientLinkButton>} />
       <Card>
         <Form form={filterForm} name="payments-filters" layout="vertical" className="admin-filter-bar" onFinish={applyFilters}>
         <Form.Item name="source" label="납부 출처" className="admin-filter-field"><Select allowClear placeholder="전체" options={PAYMENT_SOURCE_OPTIONS} /></Form.Item>

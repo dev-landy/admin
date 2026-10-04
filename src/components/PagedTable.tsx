@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Empty, Table, type TableColumnsType, type TableProps } from "antd";
 
 type PagedTableProps<T> = {
@@ -31,6 +31,22 @@ export function PagedTable<T extends object>({
   ariaLabel = "조회 결과 목록",
 }: PagedTableProps<T>) {
   const tableRef = useRef<HTMLDivElement>(null);
+  const [completedHeight, setCompletedHeight] = useState<number>();
+
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    if (!table || loading) return;
+
+    const measure = () => {
+      const height = table.getBoundingClientRect().height;
+      if (height > 0) setCompletedHeight(height);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [dataSource, loading]);
+
   return (
     <div
       ref={tableRef}
@@ -38,6 +54,7 @@ export function PagedTable<T extends object>({
       role="region"
       aria-label={`${ariaLabel}. 열이 많으면 좌우 방향키로 이동할 수 있습니다.`}
       aria-busy={loading}
+      style={{ minHeight: loading ? completedHeight : undefined }}
       tabIndex={0}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
@@ -54,7 +71,7 @@ export function PagedTable<T extends object>({
       loading={loading}
       rowKey={rowKey as string | ((record: T) => string)}
       onRow={onRow}
-      locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} /> }}
+      locale={{ emptyText: loading ? <span role="status">목록을 불러오는 중입니다.</span> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} /> }}
       pagination={{
         current: page,
         pageSize,
@@ -63,7 +80,7 @@ export function PagedTable<T extends object>({
         responsive: true,
         showSizeChanger: true,
         pageSizeOptions: [20, 50, 100],
-        showTotal: (t) => `총 ${t}건`,
+        showTotal: (t) => loading ? "조회 중..." : `총 ${t}건`,
       }}
       scroll={{ x: "max-content" }}
     />

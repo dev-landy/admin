@@ -1,7 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type FocusEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 import { Button, Drawer, Grid, Layout, Menu, Typography } from "antd";
 import {
   UserOutlined,
@@ -47,12 +48,6 @@ const MENU_LINKS = [
   { key: "/batch", icon: <HistoryOutlined />, label: "배치 실행 이력" },
 ];
 
-const MENU_ITEMS = [
-  { type: "group" as const, key: "rentals", label: "임대 관리", children: MENU_LINKS.slice(0, 6) },
-  { type: "group" as const, key: "messaging", label: "알림 운영", children: MENU_LINKS.slice(6, 10) },
-  { type: "group" as const, key: "system", label: "시스템 운영", children: MENU_LINKS.slice(10) },
-];
-
 function selectedMenuPath(pathname: string): string | undefined {
   return MENU_LINKS
     .filter(({ key }) => pathname === key || pathname.startsWith(`${key}/`))
@@ -66,12 +61,34 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 function AdminLayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, isLoggingOut } = useAuth();
   const { requestNavigation } = useNavigationGuard();
   const screens = Grid.useBreakpoint();
   const [collapsed, setCollapsed] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const prefetchedPaths = useRef(new Set<string>());
   const selectedPath = selectedMenuPath(pathname);
+
+  const prefetchPath = (key: string) => {
+    if (key === pathname || prefetchedPaths.current.has(key)) return;
+    prefetchedPaths.current.add(key);
+    router.prefetch(key, { kind: PrefetchKind.AUTO, onInvalidate: () => { prefetchedPaths.current.delete(key); } });
+  };
+  const menuLinks = MENU_LINKS.map((item) => ({
+    ...item,
+    "data-route": item.key,
+    onMouseEnter: () => prefetchPath(item.key),
+  }));
+  const menuItems = [
+    { type: "group" as const, key: "rentals", label: "임대 관리", children: menuLinks.slice(0, 6) },
+    { type: "group" as const, key: "messaging", label: "알림 운영", children: menuLinks.slice(6, 10) },
+    { type: "group" as const, key: "system", label: "시스템 운영", children: menuLinks.slice(10) },
+  ];
+  const prefetchFocusedPath = (event: FocusEvent<HTMLElement>) => {
+    const item = event.target instanceof Element ? event.target.closest("li[data-route]") : null;
+    const key = item?.getAttribute("data-route");
+    if (key && MENU_LINKS.some((link) => link.key === key)) prefetchPath(key);
+  };
   useEffect(() => {
     const label = pathname.startsWith("/users/") ? "사용자 상세"
       : pathname.startsWith("/tenants/") ? "임차인 상세"
@@ -93,6 +110,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   };
 
   const handleLogout = () => {
+    if (isLoggingOut) return;
     requestNavigation(() => {
       setNavOpen(false);
       void logout();
@@ -113,12 +131,12 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                   </Text>
                 )}
               </div>
-              <nav className="admin-sidebar-nav" aria-label="관리자 메뉴">
+              <nav className="admin-sidebar-nav" aria-label="관리자 메뉴" onFocusCapture={prefetchFocusedPath}>
                 <Menu
                   theme="dark"
                   mode="inline"
                   selectedKeys={selectedPath ? [selectedPath] : []}
-                  items={MENU_ITEMS}
+                  items={menuItems}
                   onClick={({ key }) => navigate(key)}
                 />
               </nav>
@@ -136,6 +154,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                   type="text"
                   block
                   aria-label="로그아웃"
+                  loading={isLoggingOut}
+                  disabled={isLoggingOut}
                   icon={<LogoutOutlined />}
                   onClick={handleLogout}
                   style={{
@@ -194,6 +214,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
                 type="text"
                 block
                 aria-label="로그아웃"
+                loading={isLoggingOut}
+                disabled={isLoggingOut}
                 icon={<LogoutOutlined />}
                 onClick={handleLogout}
                 style={{ textAlign: "start" }}
@@ -202,11 +224,11 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               </Button>
             }
           >
-            <nav aria-label="관리자 메뉴">
+            <nav aria-label="관리자 메뉴" onFocusCapture={prefetchFocusedPath}>
               <Menu
                 mode="inline"
                 selectedKeys={selectedPath ? [selectedPath] : []}
-                items={MENU_ITEMS}
+                items={menuItems}
                 onClick={({ key }) => navigate(key)}
               />
             </nav>

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 let mockPathname = "/users/1";
-jest.mock("next/navigation", () => ({ usePathname: () => mockPathname, useRouter: () => ({ push: jest.fn() }) }));
+jest.mock("next/navigation", () => ({ usePathname: () => mockPathname, useRouter: () => ({ push: jest.fn(), prefetch: jest.fn() }) }));
 jest.mock("@/features/auth/guard", () => ({ AuthGuard: ({ children }: { children: ReactNode }) => children }));
 jest.mock("@/features/auth/context", () => ({ useAuth: () => ({ logout: jest.fn() }) }));
 jest.mock("antd", () => {
