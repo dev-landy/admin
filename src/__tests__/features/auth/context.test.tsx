@@ -48,5 +48,6 @@ test("logout revokes server-side then clears locally even if revoke fails", asyn
   expect(mockRevokeSession).toHaveBeenCalledWith({ accessToken: "a", refreshToken: "r" });
   expect(tokenStore.getAccessToken()).toBeNull();
   expect(tokenStore.getRefreshToken()).toBeNull();
+  expect(result.current.isAuthenticated).toBe(false);
   expect(mockReplace).toHaveBeenCalledWith("/login");
 });

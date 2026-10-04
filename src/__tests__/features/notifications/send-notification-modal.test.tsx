@@ -1,34 +1,12 @@
+import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 
 import { SendNotificationModal } from "@/features/notifications/components/SendNotificationModal";
 import type {
   SendCustomNotificationRequest,
   SendCustomNotificationResponse,
 } from "@/features/notifications/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-const getComputedStyle = window.getComputedStyle.bind(window);
-window.getComputedStyle = (element: Element): CSSStyleDeclaration => getComputedStyle(element);
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
 
 type SendOptions = {
   onSuccess: (result: SendCustomNotificationResponse) => void;
@@ -37,9 +15,10 @@ type SendOptions = {
 
 const mockSend = jest.fn();
 const onClose = jest.fn();
+let mockPending = false;
 
 jest.mock("@/features/notifications/hooks", () => ({
-  useSendCustomNotification: () => ({ mutate: mockSend, isPending: false }),
+  useSendCustomNotification: () => ({ mutate: mockSend, isPending: mockPending }),
 }));
 
 const RESULT: SendCustomNotificationResponse = {
@@ -56,11 +35,7 @@ async function send(result: SendCustomNotificationResponse) {
     options.onSuccess(result);
   });
 
-  render(
-    <App>
-      <SendNotificationModal open onClose={onClose} />
-    </App>,
-  );
+  renderModal();
 
   fireEvent.change(screen.getByLabelText("유저 ID"), { target: { value: "12" } });
   fireEvent.change(screen.getByLabelText("제목"), { target: { value: "점검 안내" } });
@@ -73,20 +48,22 @@ async function send(result: SendCustomNotificationResponse) {
 beforeEach(() => {
   mockSend.mockReset();
   onClose.mockReset();
+  mockPending = false;
 });
 
-test("입력한 유저 ID와 제목·내용으로 커스텀 알림 발송을 요청한다", async () => {
-  await send({ ...RESULT, sent: 1 });
+function renderModal() {
+  render(<ConfigProvider theme={{ token: { motion: false } }}><App>
+    <SendNotificationModal open onClose={onClose} />
+  </App></ConfigProvider>);
+}
+
+test("발송된 건이 있으면 전송·실패·건너뜀 건수를 그대로 알린다", async () => {
+  await send({ ...RESULT, sent: 2, failed: 1, skipped: 3 });
 
   expect(mockSend).toHaveBeenCalledWith(
     { userId: 12, title: "점검 안내", body: "오후 2시 점검" },
     expect.any(Object),
   );
-});
-
-test("발송된 건이 있으면 전송·실패·건너뜀 건수를 그대로 알린다", async () => {
-  await send({ ...RESULT, sent: 2, failed: 1, skipped: 3 });
-
   expect(await screen.findByText("알림 발송 완료")).toBeInTheDocument();
   expect(screen.getByText("알림 ID 101 — 전송 2 / 실패 1 / 건너뜀 3")).toBeInTheDocument();
   expect(screen.queryByText(/다른 발송 경로/)).not.toBeInTheDocument();
@@ -120,4 +97,24 @@ test("일부는 발송되고 일부를 다른 발송 경로가 가져갔으면 �
   expect(await screen.findByText("다른 경로에서 발송을 처리 중입니다")).toBeInTheDocument();
   expect(screen.getByText("이번 요청이 처리한 건: 전송 1 / 실패 0 / 건너뜀 1")).toBeInTheDocument();
   expect(screen.queryByText("알림 발송 완료")).not.toBeInTheDocument();
+});
+
+test("모든 푸시가 실패하면 실패 건수를 알리고 성공 안내를 표시하지 않는다", async () => {
+  await send({ ...RESULT, failed: 2 });
+  expect(await screen.findByText("푸시 발송에 실패했습니다")).toBeInTheDocument();
+  expect(screen.getByText("알림 ID 101 — 전송 0 / 실패 2 / 건너뜀 0")).toBeInTheDocument();
+  expect(screen.queryByText("알림 발송 완료")).not.toBeInTheDocument();
+});
+
+test("발송 중에는 입력·재발송·취소와 Escape 닫기를 막는다", () => {
+  mockPending = true;
+  renderModal();
+  const dialog = screen.getByRole("dialog");
+  for (const label of ["유저 ID", "제목", "내용"]) expect(screen.getByLabelText(label)).toBeDisabled();
+  expect(screen.getByRole("button", { name: "취소" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: /발송$/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "취소" }));
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(onClose).not.toHaveBeenCalled();
+  expect(mockSend).not.toHaveBeenCalled();
 });

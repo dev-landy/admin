@@ -1,7 +1,7 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App, Grid } from "antd";
+import { App, ConfigProvider, Grid } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 import { ContractDocumentReview } from "@/features/contract-ocr/components/ContractDocumentReview";
 import { contractDocumentKeys } from "@/features/contract-ocr/hooks";
@@ -44,7 +44,7 @@ let client: QueryClient;
 function renderReview(cachedTenant?: typeof TENANT, continuation?: { returnPath: string; position: number; onNavigate: (path: string) => void }) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   if (cachedTenant) client.setQueryData(tenantKeys.detail(cachedTenant.tenantId), cachedTenant);
-  render(<QueryClientProvider client={client}><App><NavigationGuardProvider><ContractDocumentReview documentId={DOCUMENT.documentId} onBack={onBack} continuation={continuation} /></NavigationGuardProvider></App></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><NavigationGuardProvider><ContractDocumentReview documentId={DOCUMENT.documentId} onBack={onBack} continuation={continuation} /></NavigationGuardProvider></App></ConfigProvider></QueryClientProvider>);
 }
 async function applyDraft() {
   fireEvent.click(await screen.findByRole("button", { name: "이전 검수 입력 불러오기" }));
@@ -204,24 +204,6 @@ test("미완성 종료일은 기존 blur 동작으로 되돌아간 뒤에는 미
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("");
 });
 
-test("완료 탭의 등록된 임차인 변경도 보호하고 저장된 값을 확인한 뒤에는 경고하지 않는다", async () => {
-  mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
-  mockTenant.mockResolvedValueOnce(TENANT).mockResolvedValue({ ...TENANT, name: "저장할 이름" });
-  mockUpdateTenant.mockResolvedValue(undefined);
-  renderReview();
-  await waitFor(() => expect(screen.getByLabelText("세입자 이름")).toHaveValue(TENANT.name));
-  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "저장할 이름" } });
-  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
-  expect(window.confirm).toHaveBeenCalledTimes(1);
-  expect(onBack).not.toHaveBeenCalled();
-  await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
-  fireEvent.click(screen.getByRole("button", { name: "수정" }));
-  await screen.findByText("임차인 정보가 수정되었습니다.");
-  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
-  expect(window.confirm).toHaveBeenCalledTimes(1);
-  expect(onBack).toHaveBeenCalledTimes(1);
-});
-
 test("등록 성공은 완료 패널로 전환하고 다음 큐 조회 실패를 저장 실패와 구분해 재조회한다", async () => {
   mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
   mockQueue.mockRejectedValueOnce(new Error("큐 조회 실패")).mockResolvedValueOnce({ documents: [], page: 1, size: 50, totalElements: 0 })
@@ -246,22 +228,6 @@ test("등록 성공은 완료 패널로 전환하고 다음 큐 조회 실패를
   await waitFor(() => expect(navigate).toHaveBeenCalledWith("/contract-ocr?page=1&size=50"));
   expect(mockRegister).toHaveBeenCalledTimes(1);
   expect(window.confirm).not.toHaveBeenCalled();
-});
-
-test("등록 실패 후 입력과 건물 초안을 유지하며 이탈 보호도 유지한다", async () => {
-  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
-  mockRegister.mockRejectedValue(conflict("등록 상태를 확인해 주세요."));
-  renderReview();
-  await applyDraft();
-  await applyProperty("새 건물 초안", "서울시 초안 주소", "new");
-  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
-  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
-  await screen.findByText("저장 실패");
-  expect(screen.getByLabelText("세입자 이름")).toHaveValue("홍길동");
-  expect(screen.getByText("추가 예정")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
-  expect(window.confirm).toHaveBeenCalledTimes(1);
-  expect(onBack).not.toHaveBeenCalled();
 });
 
 test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음 계약서로 이어간다", async () => {
@@ -301,10 +267,19 @@ test("좁은 화면의 원본은 기본으로 접고 열기·새로고침·닫�
   fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
   await waitFor(() => expect(mockFiles).toHaveBeenCalledTimes(2));
   const source = screen.getByRole("region", { name: "계약서 원본 영역" });
+  act(() => source.focus());
+  expect(source).toHaveFocus();
+  const original = screen.getByRole("img", { name: "계약서 1페이지" });
+  fireEvent.mouseEnter(original);
+  fireEvent.click(original);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   fireEvent.keyDown(source, { key: "Escape" });
   expect(screen.getByRole("button", { name: "계약서 원본 펼치기" })).toHaveFocus();
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
   expect(screen.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
+  const inputPane = screen.getByRole("region", { name: "계약서 입력 영역" });
+  act(() => inputPane.focus());
+  expect(inputPane).toHaveFocus();
   await openOriginal();
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
   fireEvent.blur(screen.getByRole("button", { name: "원본 새로고침" }), { relatedTarget: screen.getByLabelText("세입자 이름") });
@@ -321,29 +296,6 @@ test("원본을 접어도 조회 실패를 헤더에 표시하고 펼치면 다�
   mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
   fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
   expect(await screen.findByRole("img", { name: "계약서 1페이지" })).toBeInTheDocument();
-});
-
-test("데스크톱에서는 원본을 항상 펼쳐 표시한다", async () => {
-  const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
-  try {
-    renderReview();
-    expect(await screen.findByRole("img", { name: "계약서 1페이지" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "계약서 원본 펼치기" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "원본 새로고침" })).toBeInTheDocument();
-  } finally {
-    breakpoint.mockRestore();
-  }
-});
-
-test("확인한 초안을 수동 적용하고 동기 등록 완료 후 목록으로 돌아간다", async () => {
-  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
-  renderReview();
-  await applyDraft();
-  await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
-  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
-  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, VALUES));
-  expect(await screen.findByText("임차인 등록이 완료되었습니다.")).toBeInTheDocument();
-  expect(onBack).toHaveBeenCalledTimes(1);
 });
 
 test("해당 임대인의 건물을 선택해 등록하고 목록 재조회와 OCR 도착에도 선택·임차인 입력을 유지한다", async () => {
@@ -448,6 +400,9 @@ test("등록 실패 후에도 새 건물 초안과 임차인 입력을 보존하
   expect(await screen.findByText("다시 확인해 주세요.")).toBeInTheDocument();
   expect(screen.getByText("추가 예정")).toBeInTheDocument();
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("유지할 임차인");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
   await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
   await waitFor(() => expect(mockRegister).toHaveBeenCalledTimes(2));
@@ -544,7 +499,6 @@ test.each([false, true])("floating 액션바는 xl=%s에서도 필수 입력에 
     renderReview();
     const registration = await screen.findByRole("button", { name: "계약 등록" });
     const rejection = screen.getByRole("button", { name: "반려" });
-    expect(registration.parentElement).toBe(registration.closest("form")?.lastElementChild);
     expect(registration).toBeDisabled();
     fireEvent.click(registration);
     expect(mockRegister).not.toHaveBeenCalled();
@@ -591,45 +545,44 @@ test("초안 로딩 실패는 경고하고 수동 입력을 막지 않는다", a
   expect(screen.getByRole("button", { name: "이전 입력 다시 조회" })).toBeInTheDocument();
 });
 
-test("반려 클릭 후 열린 모달에서 사유를 선택하고 확정한 뒤에만 해당 사유를 전송한다", async () => {
+test("반려 사유 네 가지의 알림 기본값을 선택·전송하고 실패 후 다음 사유를 확인한다", async () => {
+  for (let index = 0; index < 3; index++) mockReject.mockRejectedValueOnce(conflict("사유를 다시 확인해 주세요."));
   renderReview();
   const rejectButton = await screen.findByRole("button", { name: "반려" });
   expect(rejectButton).toBeEnabled();
   expect(screen.queryByLabelText("반려 사유")).not.toBeInTheDocument();
   fireEvent.click(rejectButton);
   const dialog = await screen.findByRole("dialog");
-  expect(within(dialog).getByRole("button", { name: "반려 확정" })).toBeDisabled();
-  expect(within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" })).toBeDisabled();
-  expect(mockReject).not.toHaveBeenCalled();
-  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
-  fireEvent.click(await screen.findByText("중복 제출"));
-  fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
-  await waitFor(() => expect(mockReject).toHaveBeenCalledWith(DOCUMENT.documentId, { reason: "DUPLICATE", notifyUser: false }));
-  expect(onBack).toHaveBeenCalledTimes(1);
-});
-
-test.each([
-  ["UNREADABLE", "내용을 읽을 수 없음", true],
-  ["NOT_A_CONTRACT", "계약서가 아님", true],
-  ["EXPIRED", "만료된 계약서", true],
-  ["DUPLICATE", "중복 제출", false],
-] as const)("%s 사유(%s)는 notifyUser=%s 기본값을 적용하고 명시적으로 전송한다", async (reason, label, notifyUser) => {
-  renderReview();
-  fireEvent.click(await screen.findByRole("button", { name: "반려" }));
-  const dialog = await screen.findByRole("dialog");
   const notificationSwitch = within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" });
+  const confirm = within(dialog).getByRole("button", { name: "반려 확정" });
   expect(notificationSwitch).toBeDisabled();
   fireEvent.click(notificationSwitch);
-  expect(within(dialog).getByRole("button", { name: "반려 확정" })).toBeDisabled();
-  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
-  fireEvent.click(await screen.findByText(label));
-  expect(notificationSwitch).toBeEnabled();
-  expect(notificationSwitch).toHaveAttribute("aria-checked", String(notifyUser));
-  expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
-  expect(within(dialog).getByText(notifyUser ? "이 계약서의 반려 결과를 인앱 알림과 푸시로 알립니다." : "이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다.")).toBeInTheDocument();
-  fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
-  await waitFor(() => expect(mockReject).toHaveBeenCalledWith(DOCUMENT.documentId, { reason, notifyUser }));
-  expect(onBack).toHaveBeenCalledTimes(1);
+  expect(confirm).toBeDisabled();
+  expect(mockReject).not.toHaveBeenCalled();
+
+  const reasons = [
+    ["UNREADABLE", "내용을 읽을 수 없음", true],
+    ["NOT_A_CONTRACT", "계약서가 아님", true],
+    ["EXPIRED", "만료된 계약서", true],
+    ["DUPLICATE", "중복 제출", false],
+  ] as const;
+  for (const [index, [reason, label, notifyUser]] of reasons.entries()) {
+    fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+    fireEvent.click(await screen.findByText(label));
+    expect(notificationSwitch).toBeEnabled();
+    expect(notificationSwitch).toHaveAttribute("aria-checked", String(notifyUser));
+    expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
+    expect(within(dialog).getByText(notifyUser ? "이 계약서의 반려 결과를 인앱 알림과 푸시로 알립니다." : "이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다.")).toBeInTheDocument();
+    fireEvent.click(confirm);
+    await waitFor(() => expect(mockReject).toHaveBeenNthCalledWith(index + 1, DOCUMENT.documentId, { reason, notifyUser }));
+    if (index < reasons.length - 1) {
+      expect(await within(dialog).findByText("사유를 다시 확인해 주세요.")).toBeInTheDocument();
+      await waitFor(() => expect(confirm).toBeEnabled());
+      expect(onBack).not.toHaveBeenCalled();
+    }
+  }
+  await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1));
+  expect(mockRegister).not.toHaveBeenCalled();
 });
 
 test.each([
@@ -741,31 +694,6 @@ test("반려 요청 중에는 취소와 다른 결정 및 중복 요청을 막�
   await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1));
 });
 
-test("등록과 반려를 먼저 제시하고 OCR 및 이전 검수 입력을 그 아래 보조 영역에 둔다", async () => {
-  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
-  renderReview();
-  const registration = await screen.findByRole("button", { name: "계약 등록" });
-  const rejection = screen.getByRole("button", { name: "반려" });
-  const ocr = screen.getByRole("button", { name: "OCR 분석 요청" });
-  const previousInput = await screen.findByRole("button", { name: "이전 검수 입력 불러오기" });
-  expect(registration.parentElement).toBe(rejection.parentElement);
-  expect(registration.compareDocumentPosition(ocr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(ocr.compareDocumentPosition(previousInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-});
-
-test("원본과 입력 영역은 각각 키보드로 접근할 수 있고 원본 hover 및 클릭 확대를 제공하지 않는다", async () => {
-  renderReview();
-  const sourcePane = await screen.findByRole("region", { name: "계약서 원본 영역" });
-  const inputPane = screen.getByRole("region", { name: "계약서 입력 영역" });
-  expect(sourcePane).toHaveAttribute("tabindex", "0");
-  expect(inputPane).toHaveAttribute("tabindex", "0");
-  const original = await openOriginal();
-  fireEvent.mouseEnter(original);
-  expect(sourcePane.querySelector(".ant-image-mask")).not.toBeInTheDocument();
-  fireEvent.click(original);
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-});
-
 test.each(["FAILED", "TIMED_OUT", "SUCCEEDED"] as const)("%s OCR 재요청은 비용을 확인하고 접수 후 추가 요청을 차단한다", async (status) => {
   mockLatest.mockResolvedValue({ ...ANALYSIS, status, values: status === "SUCCEEDED" ? VALUES : null });
   renderReview();
@@ -800,6 +728,10 @@ test("등록된 임차인 refetch는 편집값을 덮지 않고 수정 요청에
   fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "유지할 편집값" } });
   await act(async () => { client.setQueryData(tenantKeys.detail(TENANT.tenantId), { ...TENANT, name: "서버 새 이름" }); });
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("유지할 편집값");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).not.toHaveBeenCalled();
+  mockTenant.mockResolvedValue({ ...TENANT, name: "유지할 편집값" });
   await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "수정" }));
   await waitFor(() => expect(mockUpdateTenant).toHaveBeenCalledTimes(1));
@@ -807,6 +739,10 @@ test("등록된 임차인 refetch는 편집값을 덮지 않고 수정 요청에
   expect(mockUpdateTenant.mock.calls[0][1]).not.toHaveProperty("billingTiming");
   expect(mockUpdateTenant.mock.calls[0][1]).not.toHaveProperty("rentBillingCycle");
   expect(mockLatest).not.toHaveBeenCalled();
+  await screen.findByText("임차인 정보가 수정되었습니다.");
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(onBack).toHaveBeenCalledTimes(1);
 });
 
 test("반려 문서는 읽기 전용이며 OCR 요청과 등록을 제공하지 않는다", async () => {

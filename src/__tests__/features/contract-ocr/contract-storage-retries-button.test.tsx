@@ -1,7 +1,7 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 import { ContractStorageRetriesButton } from "@/features/contract-ocr/components/ContractStorageRetriesButton";
 import { retryContractStorage } from "@/features/contract-ocr/api";
@@ -21,7 +21,7 @@ function renderRecoveryButton() {
   });
   render(
     <QueryClientProvider client={client}>
-      <App><ContractStorageRetriesButton /></App>
+      <ConfigProvider theme={{ token: { motion: false } }}><App><ContractStorageRetriesButton /></App></ConfigProvider>
     </QueryClientProvider>,
   );
 }
@@ -102,12 +102,14 @@ test("확인창과 실행 중 버튼을 반복 클릭해도 진행 중 요청은
 
   await act(async () => resolveRequest({ attempted: 2 }));
   expect(await screen.findByText("미완료 작업 재처리를 요청했습니다.")).toBeInTheDocument();
+  expect(screen.getByText("시도한 파일 작업: 2건. 실패한 시도도 포함되며, 0건이어도 다른 미완료 작업이 모두 정리됐다는 뜻은 아닙니다.")).toBeInTheDocument();
   await waitFor(() => expect(recoveryButton()).toBeEnabled());
   expect(recoveryButton()).not.toHaveClass("ant-btn-loading");
   expect(mockRetry).toHaveBeenCalledTimes(1);
 });
 
-test.each([3, 0])("파일 시도 %i건을 표시하며 실패 포함과 전체 완료 아님을 명시한다", async (attempted) => {
+test("0건이어도 다른 미완료 작업의 전체 완료로 표시하지 않는다", async () => {
+  const attempted = 0;
   mockRetry.mockResolvedValue({ attempted });
   renderRecoveryButton();
   const dialog = await openConfirmation();

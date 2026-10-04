@@ -40,8 +40,9 @@ async function open() {
   const editor = await screen.findByRole("dialog", { name: "배치 수정" });
   return { ...view, editor };
 }
-function change(editor: HTMLElement, value = "30") {
+async function change(editor: HTMLElement, value = "30") {
   fireEvent.change(within(editor).getByLabelText("분 (0~59)"), { target: { value } });
+  await waitFor(() => expect(within(editor).getByText(`0 ${value} 9 * * *`)).toBeInTheDocument());
 }
 function close(editor: HTMLElement, path: string) {
   if (path === "취소") fireEvent.click(within(editor).getByRole("button", { name: "취소" }));
@@ -59,6 +60,7 @@ test.each(["취소", "Escape", "배경"])("배치 스케줄 %s 닫기를 중단�
   const { editor } = await open();
   await change(editor);
   close(editor, path);
+  await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(2));
   const confirmation = await screen.findByRole("dialog", { name: "수정 중인 내용을 버릴까요?" });
   if (path !== "Escape") close(editor, path);
   expect(screen.getAllByRole("dialog", { name: "수정 중인 내용을 버릴까요?" })).toHaveLength(1);

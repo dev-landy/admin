@@ -3,6 +3,7 @@ import { exchangeKakaoCode } from "@/features/auth/kakao.server";
 
 describe("exchangeKakaoCode", () => {
   const realFetch = global.fetch;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     process.env.KAKAO_REST_API_KEY = "rest-key";
@@ -12,6 +13,7 @@ describe("exchangeKakaoCode", () => {
 
   afterEach(() => {
     global.fetch = realFetch;
+    process.env = { ...originalEnv };
     jest.clearAllMocks();
   });
 

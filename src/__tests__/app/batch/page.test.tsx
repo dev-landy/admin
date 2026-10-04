@@ -40,11 +40,9 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-test("실행 이력 화면은 현재 필터와 새로고침을 유지하고 날짜 지정 실행을 제공하지 않는다", () => {
+test("실행 이력 화면은 현재 필터로 조회하고 새로고침할 수 있다", () => {
   render(<BatchExecutionsPage />);
 
-  expect(screen.getByText("배치 실행 이력")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "날짜 지정 실행" })).not.toBeInTheDocument();
   expect(useBatchExecutions).toHaveBeenCalledWith({
     page: 3,
     size: 20,

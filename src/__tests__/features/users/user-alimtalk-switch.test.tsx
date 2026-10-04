@@ -1,27 +1,8 @@
+import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { UserDetailCard } from "@/features/users/components/UserDetailCard";
 import type { UserDetail } from "@/features/users/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
 
 const mockUpdateAlimtalk = jest.fn();
 
@@ -54,25 +35,18 @@ beforeEach(() => {
   mockUpdateAlimtalk.mockReset();
 });
 
-test("세입자 알림톡 사용 상태를 보여준다", () => {
-  render(<UserDetailCard user={user} />);
 
+test("세입자 알림톡 사용·중지 상태에 맞춰 양방향 변경을 요청한다", async () => {
+  const view = render(<UserDetailCard user={user} />);
   expect(screen.getByText("세입자 발송 사용")).toBeInTheDocument();
-});
+  expect(screen.getByRole("switch", { name: "세입자 알림톡" })).toBeChecked();
+  fireEvent.click(screen.getByRole("switch", { name: "세입자 알림톡" }));
+  await waitFor(() => expect(mockUpdateAlimtalk).toHaveBeenCalledWith(false, expect.any(Object)));
 
-test("스위치를 내리면 끄는 요청을 보낸다", async () => {
-  render(<UserDetailCard user={user} />);
-
-  const switches = screen.getAllByRole("switch");
-  fireEvent.click(switches[switches.length - 1]);
-
-  await waitFor(() => {
-    expect(mockUpdateAlimtalk).toHaveBeenCalledWith(false, expect.any(Object));
-  });
-});
-
-test("꺼진 계정은 상태를 그대로 드러낸다", () => {
-  render(<UserDetailCard user={{ ...user, alimtalkEnabled: false }} />);
-
+  mockUpdateAlimtalk.mockClear();
+  view.rerender(<UserDetailCard user={{ ...user, alimtalkEnabled: false }} />);
   expect(screen.getByText("세입자 발송 중지")).toBeInTheDocument();
+  expect(screen.getByRole("switch", { name: "세입자 알림톡" })).not.toBeChecked();
+  fireEvent.click(screen.getByRole("switch", { name: "세입자 알림톡" }));
+  await waitFor(() => expect(mockUpdateAlimtalk).toHaveBeenCalledWith(true, expect.any(Object)));
 });

@@ -1,4 +1,4 @@
-import { formatKoreanDate, formatMillis, formatSeconds, formatYearMonth } from "@/lib/format/date";
+import { formatDateTime, formatKoreanDate, formatMillis, formatSeconds, formatYearMonth } from "@/lib/format/date";
 
 describe("date format", () => {
   it("날짜와 시간이 포함된 값을 한국어 날짜로 표시한다", () => {
@@ -20,6 +20,13 @@ test("목록 표기는 소수점 이하를 버리고 초 단위까지만 보여�
   expect(formatSeconds("2026-09-03T12:30:08")).toBe("2026-09-03T12:30:08");
   expect(formatSeconds("2026-09-03T12:30:08.123")).toBe("2026-09-03T12:30:08");
   expect(formatSeconds("2026-09-03T12:30:08.123456")).toBe("2026-09-03T12:30:08");
+});
+
+test("읽기 쉬운 시각 표시는 서버 날짜와 시간을 브라우저 타임존으로 바꾸지 않는다", () => {
+  expect(formatDateTime("2026-10-04T08:15:30.123+09:00")).toBe("2026-10-04 08:15");
+  expect(formatDateTime("2026-10-04T08:15:30Z")).toBe("2026-10-04 08:15");
+  expect(formatDateTime(null)).toBe("-");
+  expect(formatDateTime("invalid")).toBe("-");
 });
 
 test("상세 표기는 밀리초를 항상 3자리로 맞춘다", () => {

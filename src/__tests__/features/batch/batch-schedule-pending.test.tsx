@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import BatchSchedulesPage from "@/app/(admin)/batch/schedules/page";
@@ -21,7 +21,13 @@ function deferred<T>() {
 }
 function mount(mutationRetry: false | number = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: mutationRetry, retryDelay: 0 } } });
-  render(<QueryClientProvider client={client}><App><BatchSchedulesPage /></App></QueryClientProvider>);
+  render(
+    <QueryClientProvider client={client}>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <App><BatchSchedulesPage /></App>
+      </ConfigProvider>
+    </QueryClientProvider>,
+  );
 }
 beforeEach(() => jest.clearAllMocks());
 

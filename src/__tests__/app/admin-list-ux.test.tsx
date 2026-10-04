@@ -1,5 +1,5 @@
 import "@/test-utils/antd";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import UsersPage from "@/app/(admin)/users/page";
 import PropertiesPage from "@/app/(admin)/properties/page";
@@ -105,4 +105,25 @@ test("선택한 청구월은 날짜 계약을 유지하며 각 월 1일로 함�
   expect(params.get("from")).toBe("2026-09-01");
   expect(params.get("to")).toBe("2026-10-01");
   expect(params.get("page")).toBe("1");
+});
+
+test("청구월을 직접 입력하고 blur 직후 조회해도 새 두 월을 URL과 API 조건에 적용한다", async () => {
+  mockQuery = "page=2&size=50&userId=7&source=MANUAL&to=2026-12-01";
+  const view = render(<PaymentsPage />);
+  const query = screen.getByRole("button", { name: "조회" });
+  await act(async () => {
+    for (const [label, value] of [["청구월 시작", "2026-11"], ["청구월 종료", "2027-02"]]) {
+      const input = screen.getByLabelText(label);
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value } });
+      fireEvent.blur(input, { relatedTarget: query });
+    }
+    fireEvent.click(query);
+  });
+  await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+  const params = new URLSearchParams(mockPush.mock.calls[0][0]);
+  expect(Object.fromEntries(params)).toEqual({ page: "1", size: "50", userId: "7", source: "MANUAL", from: "2026-11-01", to: "2027-02-01" });
+  mockQuery = params.toString();
+  view.rerender(<PaymentsPage />);
+  expect(mockParams).toHaveBeenLastCalledWith({ page: 1, size: 50, userId: 7, tenantId: undefined, source: "MANUAL", from: "2026-11-01", to: "2027-02-01" });
 });

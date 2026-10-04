@@ -62,16 +62,13 @@ beforeEach(() => {
   mockUpdateTenant.mockReset();
 });
 
-test("납부일 알림톡 수신 여부를 임대인 푸시 설정과 따로 보여준다", () => {
+test("임대인 푸시와 별도인 납부일 알림톡을 표시하고 켜면 해당 값만 수정한다", async () => {
   render(<TenantDetailCard tenant={tenant} />);
 
   expect(screen.getByText("납부일 알림톡")).toBeInTheDocument();
   expect(screen.getByRole("switch")).not.toBeChecked();
-});
-
-test("스위치를 켜면 그 값만 담아 수정 요청을 보낸다", async () => {
-  render(<TenantDetailCard tenant={tenant} />);
-
+  expect(screen.getByText("납부일 알림톡")).toBeInTheDocument();
+  expect(screen.getByRole("switch")).not.toBeChecked();
   fireEvent.click(screen.getByRole("switch"));
 
   await waitFor(() => {

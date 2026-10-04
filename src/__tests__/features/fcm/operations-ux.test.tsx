@@ -2,6 +2,7 @@ import "@/test-utils/antd";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "antd";
+import FcmPage from "@/app/(admin)/fcm/page";
 
 import { FcmTokenSendCard } from "@/features/fcm/components/FcmTokenSendCard";
 import { FcmTopicSubscriptionCard } from "@/features/fcm/components/FcmTopicSubscriptionCard";
@@ -28,6 +29,14 @@ beforeEach(() => {
   mockSubscribePending = false;
 });
 
+test("FCM 화면은 등록 토큰 발송·구독·Silent Push를 제공하고 일반 토픽 알림 발송은 노출하지 않는다", () => {
+  render(<App><FcmPage /></App>);
+  expect(screen.getByLabelText("FCM 토큰 ID")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "구독" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "silent push 발송" })).toBeInTheDocument();
+  expect(screen.queryByText("토픽 발송")).not.toBeInTheDocument();
+});
+
 test("등록 토큰 폼은 submit 동작으로 검증 후 발송하며 진행 중 입력과 발송을 잠근다", async () => {
   const view = render(<App><FcmTokenSendCard /></App>);
   await act(async () => { fireEvent.change(screen.getByLabelText("FCM 토큰 ID"), { target: { value: "12" } }); });
@@ -48,10 +57,20 @@ test("구독 중에는 반대 작업을 실행할 수 없고 비어 있는 값�
   expect(await screen.findByText("토픽을 입력하세요.")).toBeInTheDocument();
   expect(mockSubscribe).not.toHaveBeenCalled();
 
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("토픽"), { target: { value: " alerts " } });
+    fireEvent.change(screen.getByLabelText("토큰 목록 (줄 단위)"), { target: { value: " token-a \n\n token-b " } });
+    fireEvent.click(screen.getByRole("button", { name: "구독" }));
+  });
+  await waitFor(() => expect(mockSubscribe).toHaveBeenCalledWith(
+    { topic: "alerts", tokens: ["token-a", "token-b"] },
+    expect.any(Object),
+  ));
   mockSubscribePending = true;
   view.rerender(<App><FcmTopicSubscriptionCard /></App>);
   expect(screen.getByRole("button", { name: "구독 해제" })).toBeDisabled();
   expect(screen.getByLabelText("토픽")).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "구독 해제" }));
   expect(mockUnsubscribe).not.toHaveBeenCalled();
 });
 

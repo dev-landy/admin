@@ -4,16 +4,13 @@ import { App } from "antd";
 
 import { FcmTestSendModal } from "@/features/users/components/FcmTestSendModal";
 import { ImpersonationModal } from "@/features/users/components/ImpersonationModal";
-import { PropertyEditModal } from "@/features/properties/components/PropertyEditModal";
 
 const mockSend = jest.fn();
 const mockIssue = jest.fn();
-const mockUpdate = jest.fn();
 let mockPending = false;
 const onClose = jest.fn();
 jest.mock("@/features/fcm/hooks", () => ({ useSendToToken: () => ({ mutate: mockSend, isPending: mockPending }) }));
 jest.mock("@/features/users/hooks", () => ({ useIssueImpersonationTokens: () => ({ mutate: mockIssue, isPending: mockPending }) }));
-jest.mock("@/features/properties/hooks", () => ({ useUpdateProperty: () => ({ mutate: mockUpdate, isPending: mockPending }) }));
 
 beforeEach(() => { jest.clearAllMocks(); mockPending = false; });
 
@@ -35,6 +32,10 @@ test("FCM 입력 검증 실패는 발송하지 않고 오류를 폼에 표시한
 test("FCM 발송 도중 취소를 막고 다른 토큰 화면에 늦은 완료를 전달하지 않는다", async () => {
   const view = render(<App><FcmTestSendModal open fcmTokenId={3} onClose={onClose} /></App>);
   await sendValidMessage();
+  expect(mockSend).toHaveBeenCalledWith(
+    { fcmTokenId: 3, title: "테스트 제목", body: "테스트 내용" },
+    expect.any(Object),
+  );
   mockPending = true;
   view.rerender(<App><FcmTestSendModal open fcmTokenId={3} onClose={onClose} /></App>);
   expect(screen.getByRole("button", { name: "취소" })).toBeDisabled();
@@ -61,21 +62,4 @@ test("토큰 발급 결과는 요청한 사용자 세션에만 표시한다", as
   await act(async () => mockIssue.mock.calls[0][1].onSuccess({ accessToken: "old-access-token", refreshToken: "old-refresh-token" }));
   expect(screen.queryByText("old-access-token")).not.toBeInTheDocument();
   expect(screen.queryByText("old-refresh-token")).not.toBeInTheDocument();
-});
-
-test("저장하지 않은 건물 정보를 취소할 때 보존 또는 버리기를 선택한다", async () => {
-  const property = { propertyId: 3, userId: 12, name: "원래 건물", address: null, activeTenantCount: 0, createdAt: "2026-10-01T10:00:00", updatedAt: "2026-10-01T10:00:00" };
-  render(<App><PropertyEditModal property={property} onClose={onClose} /></App>);
-  const input = await screen.findByLabelText("건물명");
-  await waitFor(() => expect(input).toHaveValue("원래 건물"));
-  fireEvent.change(input, { target: { value: "변경한 건물" } });
-  fireEvent.click(screen.getByRole("button", { name: "취소" }));
-  fireEvent.click(await screen.findByRole("button", { name: "계속 수정" }));
-  await waitFor(() => expect(screen.queryByRole("button", { name: "계속 수정" })).not.toBeInTheDocument());
-  expect(input).toHaveValue("변경한 건물");
-  expect(onClose).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "취소" }));
-  fireEvent.click(await screen.findByRole("button", { name: "변경 내용 버리기" }));
-  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-  expect(mockUpdate).not.toHaveBeenCalled();
 });

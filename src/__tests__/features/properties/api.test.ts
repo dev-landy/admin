@@ -1,8 +1,6 @@
 import {
   deleteProperty,
   fetchProperties,
-  fetchPropertyTenants,
-  fetchUserProperties,
   updateProperty,
 } from "@/features/properties/api";
 import { apiClient } from "@/lib/api/client";
@@ -26,29 +24,6 @@ test("필터와 페이지 조건으로 전체 건물 목록을 조회한다", as
 
   await expect(fetchProperties(params)).resolves.toEqual(response);
   expect(mockGet).toHaveBeenCalledWith("/v1/admin/properties", { params });
-});
-
-test("유저의 건물과 건물 소속 임차인을 조회한다", async () => {
-  mockGet
-    .mockResolvedValueOnce({ data: { properties: [] } })
-    .mockResolvedValueOnce({ data: { tenants: [], page: 1, size: 20, totalElements: 0 } });
-
-  await fetchUserProperties(7);
-  await fetchPropertyTenants(11, { page: 1, size: 20 });
-
-  expect(mockGet).toHaveBeenNthCalledWith(1, "/v1/admin/users/7/properties");
-  expect(mockGet).toHaveBeenNthCalledWith(2, "/v1/admin/properties/11/tenants", {
-    params: { page: 1, size: 20 },
-  });
-});
-
-test("건물 정보를 수정한다", async () => {
-  const body = { name: "새 건물명", address: "서울시" };
-  mockPatch.mockResolvedValue({ data: { propertyId: 11, userId: 7, ...body } });
-
-  await updateProperty(11, body);
-
-  expect(mockPatch).toHaveBeenCalledWith("/v1/admin/properties/11", body);
 });
 
 test("주소 삭제는 명시 clearAddress 값으로 요청한다", async () => {

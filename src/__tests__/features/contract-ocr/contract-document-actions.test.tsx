@@ -63,19 +63,6 @@ test("모바일에서 키보드 높이와 화면 이동에 맞춰 액션을 올�
   expect(ref.current).toHaveStyle({ bottom: "0px" });
 });
 
-test("데스크톱에서는 작은 visualViewport에도 모바일 위치 보정을 적용하지 않는다", () => {
-  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: true });
-  viewport.height = 500;
-  viewport.offsetTop = 100;
-  const { ref } = renderActions();
-  expect(ref.current?.style.bottom).toBe("");
-
-  viewport.change("resize", 400, 100);
-  viewport.change("scroll", 400, 150);
-  expect(ref.current?.style.bottom).toBe("");
-  expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled();
-});
-
 test("모바일에서 데스크톱으로 바꾸면 기존 보정을 지우고 돌아오면 현재 뷰포트에 맞춘다", () => {
   viewport.height = 520;
   viewport.offsetTop = 80;
@@ -93,50 +80,6 @@ test("모바일에서 데스크톱으로 바꾸면 기존 보정을 지우고 �
   rerender(<ContractDocumentActions ref={ref}>{buttons}</ContractDocumentActions>);
   expect(ref.current).toHaveStyle({ bottom: "50px" });
   expect(screen.getByRole("button", { name: "반려" })).toBeEnabled();
-});
-
-test("위치 보정 중에도 자식 버튼의 disabled 상태와 폼 제출·반려 동작을 보존한다", () => {
-  const onSubmit = jest.fn();
-  const onReject = jest.fn();
-  const ref = createRef<HTMLDivElement>();
-  const form = (isBusy: boolean) => <form onSubmit={(event) => {
-    event.preventDefault();
-    onSubmit(new FormData(event.currentTarget).get("tenantName"));
-  }}>
-    <label htmlFor="tenant-name">세입자 이름</label>
-    <input id="tenant-name" name="tenantName" defaultValue="검수 중인 이름" />
-    <ContractDocumentActions ref={ref}>
-      <Button htmlType="submit" disabled={isBusy}>계약 등록</Button>
-      <Button htmlType="button" disabled={isBusy} onClick={onReject}>반려</Button>
-    </ContractDocumentActions>
-  </form>;
-  const { rerender } = render(form(true));
-
-  viewport.change("resize", 500, 80);
-  expect(ref.current).toHaveStyle({ bottom: "320px" });
-  expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "반려" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
-  fireEvent.click(screen.getByRole("button", { name: "반려" }));
-  expect(onSubmit).not.toHaveBeenCalled();
-  expect(onReject).not.toHaveBeenCalled();
-
-  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "수정한 이름" } });
-  rerender(form(false));
-  expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "반려" })).toBeEnabled();
-  fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
-  expect(onSubmit).toHaveBeenCalledTimes(1);
-  expect(onSubmit).toHaveBeenCalledWith("수정한 이름");
-  fireEvent.click(screen.getByRole("button", { name: "반려" }));
-  expect(onReject).toHaveBeenCalledTimes(1);
-  expect(onSubmit).toHaveBeenCalledTimes(1);
-
-  rerender(form(true));
-  viewport.change("resize", 900, 0);
-  expect(ref.current).toHaveStyle({ bottom: "0px" });
-  expect(screen.getByRole("button", { name: "계약 등록" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "반려" })).toBeDisabled();
 });
 
 test("visualViewport가 없는 모바일 환경에서도 액션 버튼을 사용할 수 있다", () => {

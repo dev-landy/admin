@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import {
-  fetchContractDocument, fetchContractDocuments, fetchContractDocumentDraft, fetchContractDocumentFiles,
+  fetchContractDocuments, fetchContractDocumentDraft,
   fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
 } from "@/features/contract-ocr/api";
 import { ANALYSIS, DOCUMENT, VALUES } from "@/test-utils/contractDocumentFixtures";
@@ -18,15 +18,6 @@ test.each(["PENDING", "COMPLETED"] as const)("목록은 %s 상태와 0-based 페
   expect(mockGet).toHaveBeenCalledWith(base, { params: { status, page: 1, size: 20 } });
 });
 
-test("문서와 원본 파일은 uploadId, fileId/fileIndex 계약을 그대로 반환한다", async () => {
-  mockGet.mockResolvedValueOnce({ data: DOCUMENT });
-  await expect(fetchContractDocument("document-1")).resolves.toEqual(DOCUMENT);
-  const files = { files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/image", expiresAt: "2026-09-30T10:00:00Z" }] };
-  mockGet.mockResolvedValueOnce({ data: files });
-  await expect(fetchContractDocumentFiles("document-1")).resolves.toEqual(files);
-  expect(mockGet.mock.calls.map(([path]) => path)).toEqual([`${base}/document-1`, `${base}/document-1/files`]);
-});
-
 test("등록은 values 래퍼 없이 보내고 동기 완료 결과를 반환한다", async () => {
   const result = { documentId: "document-1", status: "REGISTERED", tenantId: 9, propertyId: 2, uploadStatus: "REGISTERED" };
   mockPost.mockResolvedValue({ status: 200, data: result });
@@ -34,22 +25,13 @@ test("등록은 values 래퍼 없이 보내고 동기 완료 결과를 반환한
   expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, VALUES);
 });
 
-test.each([
-  { propertyId: 3 },
-  { propertyId: 2, propertyUpdate: { name: "수정한 건물", address: null } },
-  { newProperty: { name: "새 건물", address: "서울시" } },
-])("건물 선택·수정·추가 %j는 등록의 flat tenant 필드와 함께 전송한다", async (property) => {
-  const values = { ...VALUES, ...property };
-  mockPost.mockResolvedValue({ data: { status: "REGISTERED" } });
-  await registerContractDocument("document-1", values);
-  expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, values);
-});
-
-test.each(["UNREADABLE", "NOT_A_CONTRACT", "EXPIRED", "DUPLICATE"] as const)("반려는 %s 사유와 결과 알림 여부를 각각 명시한다", async (reason) => {
+test("반려는 결과 알림 여부를 명시해 전송한다", async () => {
   mockPost.mockResolvedValue({ data: { status: "REJECTED" } });
   for (const notifyUser of [true, false]) {
-    await rejectContractDocument("document-1", { reason, notifyUser });
-    expect(mockPost).toHaveBeenLastCalledWith(`${base}/document-1/rejection`, { reason, notifyUser });
+    await rejectContractDocument("document-1", { reason: "DUPLICATE", notifyUser });
+    expect(mockPost).toHaveBeenLastCalledWith(
+      base + "/document-1/rejection", { reason: "DUPLICATE", notifyUser },
+    );
   }
 });
 

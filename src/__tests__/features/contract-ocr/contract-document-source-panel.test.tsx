@@ -91,14 +91,14 @@ test("좁은 화면에서 펼친 원본은 실제 액션바 상단보다 12px �
   expect(observer!.disconnect).toHaveBeenCalledTimes(1);
 });
 
-test.each([
-  ["뷰포트 아래", 850, 66],
-  ["뷰포트 위", -70, 66],
-  ["숨겨짐", 650, 0],
-] as const)("액션바가 %s에 있으면 보이지 않는 액션바 대신 viewport 끝까지 원본을 표시한다", (_label, top, height) => {
-  const view = setupMeasurements(new DOMRect(0, top, 400, height));
+test("화면 밖이나 숨겨진 액션바 대신 viewport 끝까지 원본을 표시한다", () => {
+  const view = setupMeasurements();
   fireEvent.click(screen.getByRole("button", { name: "계약서 원본 펼치기" }));
-  expect(view.body).toHaveStyle({ maxHeight: "620px" }); // 화면 끝 800 - 원본 헤더 하단 168 - 간격 12.
+  for (const [top, height] of [[850, 66], [-70, 66], [650, 0]]) {
+    view.setActionRect(new DOMRect(0, top, 400, height));
+    fireEvent.scroll(window);
+    expect(view.body).toHaveStyle({ maxHeight: "620px" });
+  }
 });
 
 test("가상키보드로 보이는 viewport가 줄거나 이동하면 원본도 그 끝을 넘지 않으며 공간이 없으면 높이를 0으로 제한한다", async () => {

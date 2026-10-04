@@ -1,49 +1,9 @@
+import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { App, ConfigProvider } from "antd";
 
 import { AlimtalkTestSendModal } from "@/features/alimtalk/components/AlimtalkTestSendModal";
 import type { AlimtalkType, RemoteAlimtalkTemplate } from "@/features/alimtalk/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
-
-jest.mock("antd", () => {
-  const actual = jest.requireActual("antd");
-  return {
-    ...actual,
-    Modal: ({
-      children,
-      onOk,
-      open,
-      title,
-    }: React.PropsWithChildren<{ onOk: () => void; open: boolean; title: React.ReactNode }>) =>
-      open ? (
-        <section>
-          <h1>{title}</h1>
-          {children}
-          <button type="button" onClick={onOk}>
-            발송
-          </button>
-        </section>
-      ) : null,
-  };
-});
 
 const DUE_TEMPLATE: RemoteAlimtalkTemplate = {
   type: "DUE",
@@ -84,16 +44,15 @@ beforeEach(() => {
   mockSendTest.mockReset();
 });
 
-test("승인 템플릿의 변수 목록대로 입력칸을 만든다", () => {
-  render(<AlimtalkTestSendModal open onClose={jest.fn()} />);
-
-  expect(screen.getByLabelText("#{세대정보}")).toBeInTheDocument();
-  expect(screen.getByLabelText("#{납부액}")).toBeInTheDocument();
-  expect(screen.queryByLabelText("#{경과일}")).not.toBeInTheDocument();
-});
+function renderSendModal() {
+  render(<ConfigProvider theme={{ token: { motion: false } }}><App>
+    <AlimtalkTestSendModal open onClose={jest.fn()} />
+  </App></ConfigProvider>);
+}
 
 test("입력한 번호와 변수값을 그대로 발송 요청에 담는다", async () => {
-  render(<AlimtalkTestSendModal open onClose={jest.fn()} />);
+  renderSendModal();
+  expect(screen.queryByLabelText("#{경과일}")).not.toBeInTheDocument();
 
   fireEvent.change(screen.getByLabelText("수신 번호"), { target: { value: "010-1234-5678" } });
   fireEvent.change(screen.getByLabelText("#{세대정보}"), { target: { value: "101호 홍길동님" } });
@@ -113,7 +72,7 @@ test("입력한 번호와 변수값을 그대로 발송 요청에 담는다", as
 });
 
 test("010이 아닌 번호는 발송 요청을 만들지 않는다", async () => {
-  render(<AlimtalkTestSendModal open onClose={jest.fn()} />);
+  renderSendModal();
 
   fireEvent.change(screen.getByLabelText("수신 번호"), { target: { value: "02-123-4567" } });
   fireEvent.change(screen.getByLabelText("#{세대정보}"), { target: { value: "101호 홍길동님" } });
@@ -125,7 +84,7 @@ test("010이 아닌 번호는 발송 요청을 만들지 않는다", async () =>
 });
 
 test("종류를 바꾸면 그 종류의 승인 템플릿으로 변수칸을 다시 만든다", async () => {
-  render(<AlimtalkTestSendModal open onClose={jest.fn()} />);
+  renderSendModal();
 
   fireEvent.change(screen.getByLabelText("#{세대정보}"), { target: { value: "남는 값" } });
   fireEvent.click(screen.getByText("미납 안내"));

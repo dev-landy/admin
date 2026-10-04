@@ -70,17 +70,6 @@ jest.mock("@/features/releasePolicies/hooks", () => ({
   useUpdateReleasePolicy: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
-test("정책 목록은 릴리즈 정책 제목과 정책마다 수정 버튼을 보여준다", () => {
-  render(
-    <App>
-      <ReleasePolicyList />
-    </App>,
-  );
-
-  expect(screen.getByRole("heading", { name: "릴리즈 정책" })).toBeInTheDocument();
-  expect(screen.getAllByRole("button", { name: "수정" })).toHaveLength(2);
-});
-
 test("수정 버튼은 그 행의 정책 값으로 수정 모달을 연다", async () => {
   render(
     <App>

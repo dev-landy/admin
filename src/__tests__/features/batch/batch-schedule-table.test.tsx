@@ -1,44 +1,10 @@
+import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 
 import { BatchScheduleTable } from "@/features/batch/components/BatchScheduleTable";
 import type { BatchSchedule, UpdateBatchScheduleRequest } from "@/features/batch/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-const getComputedStyle = window.getComputedStyle.bind(window);
-window.getComputedStyle = (element: Element): CSSStyleDeclaration => getComputedStyle(element);
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
-
-// antd v6 Modal 내부 폼 렌더링이 MessageChannel을 사용한다. jsdom에는 없어 최소 구현을 넣는다.
-class MockMessageChannel {
-  port1 = { onmessage: null as ((event: MessageEvent) => void) | null };
-  port2 = {
-    postMessage: () => {
-      setTimeout(() => this.port1.onmessage?.({} as MessageEvent), 0);
-    },
-  };
-}
-
-Object.defineProperty(global, "MessageChannel", { writable: true, value: MockMessageChannel });
 
 type UpdateVariables = { key: string; body: UpdateBatchScheduleRequest };
 type UpdateOptions = {
@@ -62,13 +28,6 @@ const schedule: BatchSchedule = {
   enabled: true,
   nextExecutionAt: "2026-09-04T09:00:00",
   updatedAt: "2026-09-01T12:00:00",
-};
-
-const otherSchedule: BatchSchedule = {
-  ...schedule,
-  key: "SILENT_WAKEUP",
-  jobName: "silentWakeupJob",
-  label: "무음 깨우기",
 };
 
 const maintenanceSchedules: BatchSchedule[] = [
@@ -107,9 +66,11 @@ function badRequest(): AxiosError {
 
 function renderTable(data: BatchSchedule[] = [schedule]) {
   render(
-    <App>
-      <BatchScheduleTable data={data} loading={false} />
-    </App>,
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <App>
+        <BatchScheduleTable data={data} loading={false} />
+      </App>
+    </ConfigProvider>,
   );
 }
 
@@ -199,31 +160,6 @@ test("실행 시각은 소수점 이하 없이 초 단위까지만 표시한다"
   expect(cells[4].textContent).toBe("2026-09-01T12:00:00");
 });
 
-test("스위치를 눌러도 바로 반영하지 않고 확인 모달을 먼저 띄운다", async () => {
-  renderTable();
-
-  const dialog = await openToggleDialog();
-
-  expect(within(dialog).getByText("배치 비활성화")).toBeInTheDocument();
-  expect(within(dialog).getByText(/다시 활성화하기 전까지 매일 09:00 예정이던 실행이 돌지 않습니다/))
-    .toBeInTheDocument();
-  expect(within(dialog).getByText("dailyNotificationJob")).toBeInTheDocument();
-  expect(mockUpdate).not.toHaveBeenCalled();
-  expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
-});
-
-test("확인 모달에서 비활성화를 누르면 행의 크론 식은 그대로 두고 비활성으로 요청한다", async () => {
-  renderTable();
-
-  const dialog = await openToggleDialog();
-  fireEvent.click(within(dialog).getByRole("button", { name: "비활성화" }));
-
-  expect(mockUpdate).toHaveBeenCalledWith(
-    { key: "DAILY_NOTIFICATION", body: { cronExpression: "0 0 9 * * *", enabled: false } },
-    expect.any(Object),
-  );
-});
-
 test("비활성 스케줄은 활성화 확인을 거쳐 활성으로 요청한다", async () => {
   renderTable([{ ...schedule, enabled: false }]);
 
@@ -243,21 +179,15 @@ test("확인 모달에서 닫기를 누르면 아무것도 바꾸지 않는다",
   renderTable();
 
   const dialog = await openToggleDialog();
+  expect(within(dialog).getByText("배치 비활성화")).toBeInTheDocument();
+  expect(within(dialog).getByText(/다시 활성화하기 전까지 매일 09:00 예정이던 실행이 돌지 않습니다/)).toBeInTheDocument();
+  expect(within(dialog).getByText("dailyNotificationJob")).toBeInTheDocument();
+  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
   fireEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
 
   expect(mockUpdate).not.toHaveBeenCalled();
   expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
-});
-
-test("확인한 행의 스위치에만 로딩을 표시한다", async () => {
-  renderTable([schedule, otherSchedule]);
-
-  const dialog = await openToggleDialog();
-  fireEvent.click(within(dialog).getByRole("button", { name: "비활성화" }));
-
-  const [first, second] = screen.getAllByRole("switch");
-  expect(first).toHaveClass("ant-switch-loading");
-  expect(second).not.toHaveClass("ant-switch-loading");
 });
 
 test("토글에 성공하면 어떤 스케줄을 바꿨는지 알리고 확인 모달을 닫는다", async () => {
@@ -270,6 +200,10 @@ test("토글에 성공하면 어떤 스케줄을 바꿨는지 알리고 확인 �
   const dialog = await openToggleDialog();
   fireEvent.click(within(dialog).getByRole("button", { name: "비활성화" }));
 
+  expect(mockUpdate).toHaveBeenCalledWith(
+    { key: "DAILY_NOTIFICATION", body: { cronExpression: "0 0 9 * * *", enabled: false } },
+    expect.any(Object),
+  );
   expect(await screen.findByText("일일 알림 발송을 비활성화했습니다.")).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
@@ -288,8 +222,8 @@ test("토글에 실패하면 오류를 알리고 스위치는 서버 값 그대�
   expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
 });
 
-test("수정 모달은 현재 크론 식을 매일 한 번 모드로 열고 생성될 식을 보여준다", async () => {
-  renderTable();
+test("매일 한 번 모드에서 시·분을 바꾸면 그 크론 식으로 수정을 요청하고 활성 여부는 그대로 보낸다", async () => {
+  renderTable([{ ...schedule, enabled: false }]);
 
   fireEvent.click(screen.getByRole("button", { name: "수정" }));
 
@@ -299,14 +233,6 @@ test("수정 모달은 현재 크론 식을 매일 한 번 모드로 열고 생�
   expect(within(dialog).getByLabelText("분 (0~59)")).toHaveValue("0");
   expect(within(dialog).getByText("0 0 9 * * *")).toBeInTheDocument();
   expect(within(dialog).getByText("매일 09:00")).toBeInTheDocument();
-});
-
-test("매일 한 번 모드에서 시·분을 바꾸면 그 크론 식으로 수정을 요청하고 활성 여부는 그대로 보낸다", async () => {
-  renderTable([{ ...schedule, enabled: false }]);
-
-  fireEvent.click(screen.getByRole("button", { name: "수정" }));
-
-  const dialog = await screen.findByRole("dialog");
   fireEvent.change(within(dialog).getByLabelText("시 (0~23)"), { target: { value: "8" } });
   fireEvent.change(within(dialog).getByLabelText("분 (0~59)"), { target: { value: "30" } });
 

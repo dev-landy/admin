@@ -100,3 +100,30 @@ test("알림톡 이력 초기화는 이력 탭과 size를 남기고 두 날짜�
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "초기화" })); });
   expect(mockPush).toHaveBeenCalledWith("?tab=history&page=1&size=50");
 });
+
+test.each([
+  { name: "배치", Page: BatchPage, query: "page=3&size=50", from: "targetDateFrom", to: "targetDateTo", apiHook: useBatchExecutions },
+  { name: "알림톡 이력", Page: AlimtalkPage, query: "tab=history&page=3&size=50", from: "from", to: "to", apiHook: useAlimtalks },
+])("$name 시작일만 직접 입력하고 blur 직후 조회하면 URL과 API 조건에 포함한다", async ({ Page, query, from, to, apiHook }) => {
+  mockQuery = query;
+  const view = render(<Page />);
+  const start = screen.getByLabelText("대상 날짜");
+  const search = screen.getByRole("button", { name: "조회" });
+  fireEvent.focus(start);
+  fireEvent.change(start, { target: { value: "2026-10-17" } });
+  fireEvent.blur(start);
+  // Picker의 지연된 onChange를 기다리지 않고 바로 다음 사용자 행동을 수행한다.
+  fireEvent.click(search);
+  await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+  const params = new URLSearchParams(mockPush.mock.calls[0][0].slice(1));
+  expect(params.get(from)).toBe("2026-10-17");
+  expect(params.has(to)).toBe(false);
+  expect(params.get("page")).toBe("1");
+  expect(params.get("size")).toBe("50");
+
+  mockQuery = params.toString();
+  view.rerender(<Page />);
+  expect(apiHook).toHaveBeenLastCalledWith(expect.objectContaining({
+    page: 1, size: 50, [from]: "2026-10-17", [to]: undefined,
+  }));
+});

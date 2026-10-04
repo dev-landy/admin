@@ -28,24 +28,21 @@ beforeEach(() => {
   mockQuery.mockReturnValue({ data: undefined, error: new Error("network"), isLoading: false, isFetching: false, refetch: mockRetry });
 });
 
-test.each(pages)("%p 최초 조회 실패는 빈 목록으로 표시하지 않고 재조회할 수 있다", (Page) => {
-  render(<Page />);
+test.each(pages)("%p 조회 상태가 바뀌어도 최초 실패·캐시 실패·정상 응답을 구분한다", (Page) => {
+  const view = render(<Page />);
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
   expect(screen.getByText("잠시 후 다시 조회해 주세요.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "다시 조회" }));
   expect(mockRetry).toHaveBeenCalledTimes(1);
-});
 
-test.each(pages)("%p 캐시가 있는 재조회 실패는 이전 목록과 오류를 함께 표시한다", (Page) => {
   mockQuery.mockReturnValue({ data: {}, error: new Error("network"), isLoading: false, isFetching: false, refetch: mockRetry });
-  render(<Page />);
+  view.rerender(<Page />);
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(screen.getByText(/마지막으로 조회한 정보/)).toBeInTheDocument();
-});
 
-test.each(pages)("%p 정상 빈 응답은 오류 없이 목록으로 표시한다", (Page) => {
   mockQuery.mockReturnValue({ data: {}, error: null, isLoading: false, isFetching: false, refetch: mockRetry });
-  render(<Page />);
+  view.rerender(<Page />);
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(screen.queryByText("잠시 후 다시 조회해 주세요.")).not.toBeInTheDocument();
+  expect(screen.queryByText(/마지막으로 조회한 정보/)).not.toBeInTheDocument();
 });

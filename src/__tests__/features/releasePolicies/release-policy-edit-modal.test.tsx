@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 
 import { ReleasePolicyEditModal } from "@/features/releasePolicies/components/ReleasePolicyEditModal";
@@ -48,9 +48,10 @@ type UpdateOptions = { onSuccess: () => void; onError: (error: unknown) => void 
 
 const mockUpdate = jest.fn();
 const onClose = jest.fn();
+let mockPending = false;
 
 jest.mock("@/features/releasePolicies/hooks", () => ({
-  useUpdateReleasePolicy: () => ({ mutate: mockUpdate, isPending: false }),
+  useUpdateReleasePolicy: () => ({ mutate: mockUpdate, isPending: mockPending }),
 }));
 
 const policy: ReleasePolicy = {
@@ -89,16 +90,24 @@ function badRequest(): AxiosError {
 
 async function openModal(target: ReleasePolicy = policy): Promise<HTMLElement> {
   render(
-    <App>
+    <ConfigProvider theme={{ token: { motion: false } }}><App>
       <ReleasePolicyEditModal policy={target} onClose={onClose} />
-    </App>,
+    </App></ConfigProvider>,
   );
-  return screen.findByRole("dialog");
+  const dialog = await screen.findByRole("dialog", { name: "릴리즈 정책 수정" });
+  // dialog 존재만으로 편집 준비를 가정하지 않고 사용자가 볼 실제 초기값을 기다린다.
+  await waitFor(() => {
+    expect(within(dialog).getByLabelText("최신 버전")).toHaveValue(target.latestVersion);
+    expect(within(dialog).getByLabelText(LATEST_BUILD_LABEL)).toHaveValue(String(target.latestBuildNumber));
+    expect(within(dialog).getByLabelText(MIN_BUILD_LABEL)).toHaveValue(String(target.minSupportedBuildNumber));
+  });
+  return dialog;
 }
 
 beforeEach(() => {
   mockUpdate.mockReset();
   onClose.mockReset();
+  mockPending = false;
 });
 
 test("수정 모달은 현재 정책 값으로 채워지고 플랫폼·채널은 읽기 전용으로 보여준다", async () => {
@@ -157,7 +166,12 @@ test("수정한 값 전체를 정책 ID와 함께 보낸다", async () => {
 test("최소 지원 빌드 번호가 최신 빌드 번호보다 크면 저장하지 않고 이유를 알린다", async () => {
   const dialog = await openModal();
 
-  fireEvent.change(within(dialog).getByLabelText(MIN_BUILD_LABEL), { target: { value: "99" } });
+  const minimumBuild = within(dialog).getByLabelText(MIN_BUILD_LABEL);
+  fireEvent.focus(minimumBuild);
+  fireEvent.change(minimumBuild, { target: { value: "99" } });
+  fireEvent.blur(minimumBuild);
+  expect(minimumBuild).toHaveValue("99");
+  expect(within(dialog).getByLabelText(LATEST_BUILD_LABEL)).toHaveValue("42");
   fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
 
   expect(
@@ -240,5 +254,19 @@ test("수정에 실패하면 서버가 알려준 이유를 그대로 보여준�
   expect(
     screen.getByText("최소 지원 빌드 번호가 최신 빌드 번호보다 큽니다."),
   ).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test("정책 저장 중에는 입력·취소·중복 저장을 막는다", async () => {
+  mockPending = true;
+  const dialog = await openModal();
+  expect(within(dialog).getByLabelText("최신 버전")).toBeDisabled();
+  expect(within(dialog).getByRole("button", { name: "취소" })).toBeDisabled();
+  const save = within(dialog).getByRole("button", { name: /저장$/ });
+  expect(save).toBeDisabled();
+  fireEvent.click(save);
+  fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(mockUpdate).not.toHaveBeenCalled();
   expect(onClose).not.toHaveBeenCalled();
 });

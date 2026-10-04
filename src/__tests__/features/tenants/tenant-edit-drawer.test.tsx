@@ -1,7 +1,7 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 
 import { TenantEditDrawer } from "@/features/tenants/components/TenantEditDrawer";
@@ -22,7 +22,7 @@ function overlapError() {
 }
 
 function Drawer({ tenant = TENANT, open = true }: { tenant?: TenantDetail; open?: boolean }) {
-  return <QueryClientProvider client={client}><App><TenantEditDrawer tenant={tenant} open={open} onClose={onClose} /></App></QueryClientProvider>;
+  return <QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><TenantEditDrawer tenant={tenant} open={open} onClose={onClose} /></App></ConfigProvider></QueryClientProvider>;
 }
 
 async function submitChangedName(name = "수정할 이름") {

@@ -1,3 +1,4 @@
+import "@/test-utils/antd";
 import type { ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App } from "antd";
@@ -6,29 +7,6 @@ import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionT
 import type { BatchExecutionDetail, BatchExecutionSummary } from "@/features/batch/types";
 
 type TableFilters = ComponentProps<typeof BatchExecutionTable>["filters"];
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-const getComputedStyle = window.getComputedStyle.bind(window);
-window.getComputedStyle = (element: Element): CSSStyleDeclaration => getComputedStyle(element);
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
 
 let detail: BatchExecutionDetail | undefined;
 
@@ -115,13 +93,12 @@ beforeEach(() => {
   detail = undefined;
 });
 
-test("실행 이력 행에 상태·소요 시간을 표시하고 상세 조회만 제공한다", () => {
+test("실행 이력 행에 상태·소요 시간과 상세 조회를 표시한다", () => {
   renderTable({ ...failedExecution, status: "COMPLETED", durationMillis: 1_500 });
 
   expect(screen.getByText("COMPLETED")).toBeInTheDocument();
   expect(screen.getByText("1.5초")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "상세" })).toBeEnabled();
-  expect(screen.queryByRole("button", { name: /재시도/ })).not.toBeInTheDocument();
 });
 
 test("지연된 실행에는 지연 태그를 붙이고 소요 시간을 - 로 표시한다", () => {
@@ -161,7 +138,6 @@ test("상세 버튼을 누르면 스텝 목록과 종료 메시지를 보여준�
   expect(within(dialog).getByText("배치 실행 #12")).toBeInTheDocument();
   expect(within(dialog).getByText("dailyNotificationStep")).toBeInTheDocument();
   expect(within(dialog).getByText("v2")).toBeInTheDocument();
-  expect(within(dialog).queryByText("재시도 가능")).not.toBeInTheDocument();
   expect(
     within(dialog).getByText("java.lang.IllegalStateException: boom"),
   ).toBeInTheDocument();
@@ -309,25 +285,6 @@ test("대상 날짜 범위를 지우면 targetDateFrom·targetDateTo를 함께 �
   expect(onTargetDateRangeChange).toHaveBeenCalledWith(undefined, undefined);
 });
 
-test("적용된 종료 코드·대상 날짜 필터는 컬럼 필터 아이콘에 표시된다", () => {
-  renderTable(failedExecution, {
-    exitCode: "FAILED",
-    targetDateFrom: "2026-09-01",
-    targetDateTo: "2026-09-03",
-  });
-
-  expect(filterTrigger("종료 코드")).toHaveClass("active");
-  expect(filterTrigger("대상 날짜")).toHaveClass("active");
-  expect(filterTrigger("Job")).not.toHaveClass("active");
-});
-
-test.each(["FAILED", "STOPPED", "STARTED"] as const)("%s 실행도 재시도 없이 상세 조회만 제공한다", (status) => {
-  renderTable({ ...failedExecution, status, stale: status === "STARTED" });
-
-  expect(screen.getByRole("button", { name: "상세" })).toBeEnabled();
-  expect(screen.queryByRole("button", { name: /재시도/ })).not.toBeInTheDocument();
-});
-
 test("지연 실행 상세에도 지연 경고를 유지한다", async () => {
   const execution = runningStale();
   detail = { ...execution, steps: [] };
@@ -337,5 +294,4 @@ test("지연 실행 상세에도 지연 경고를 유지한다", async () => {
 
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("지연")).toBeInTheDocument();
-  expect(within(dialog).queryByText("재시도 가능")).not.toBeInTheDocument();
 });

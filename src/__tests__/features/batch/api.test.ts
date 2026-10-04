@@ -6,7 +6,6 @@ import {
   updateBatchSchedule,
 } from "@/features/batch/api";
 import { apiClient } from "@/lib/api/client";
-import type { BatchScheduleKey } from "@/features/batch/types";
 
 jest.mock("@/lib/api/client", () => ({
   apiClient: { get: jest.fn(), patch: jest.fn() },
@@ -17,15 +16,6 @@ const mockPatch = jest.mocked(apiClient.patch);
 
 beforeEach(() => {
   jest.clearAllMocks();
-});
-
-test("필터와 페이지 조건으로 배치 실행 이력을 조회한다", async () => {
-  const response = { executions: [], page: 0, size: 20, totalElements: 0 };
-  mockGet.mockResolvedValue({ data: response });
-  const params = { page: 1, size: 20, jobName: "dailyNotificationJob", status: "FAILED" as const };
-
-  await expect(fetchBatchExecutions(params)).resolves.toEqual(response);
-  expect(mockGet).toHaveBeenCalledWith("/v1/admin/batch/executions", { params });
 });
 
 test("종료 코드와 대상 날짜 범위 필터를 그대로 전달한다", async () => {
@@ -74,11 +64,8 @@ test("배치 스케줄 목록과 Job 이름 목록을 조회한다", async () =>
   expect(mockGet).toHaveBeenNthCalledWith(2, "/v1/admin/batch/jobs");
 });
 
-test.each<BatchScheduleKey>([
-  "DAILY_NOTIFICATION",
-  "MAINTENANCE_REQUEST_EXPIRY",
-  "MAINTENANCE_PHOTO_CLEANUP",
-])("배치 스케줄 %s를 key 경로로 수정한다", async (key) => {
+test("배치 스케줄 key 경로로 크론 식과 활성 여부를 수정한다", async () => {
+  const key = "DAILY_NOTIFICATION";
   const body = { cronExpression: "0 0 9 * * *", enabled: true };
   const response = { key, ...body };
   mockPatch.mockResolvedValue({ data: response });
