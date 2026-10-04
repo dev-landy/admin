@@ -1,30 +1,37 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Alert, App, Button, Card, InputNumber, Popconfirm, Space, Spin, Typography } from "antd";
+import Link from "next/link";
+import { Alert, App, Button, Card, Form, Input, InputNumber, Popconfirm, Select, Space, Spin } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import { useOutbox, useDispatchNotifications } from "@/features/notifications/hooks";
 import { OutboxTable } from "@/features/notifications/components/OutboxTable";
+import { FilterSummary } from "@/components/FilterSummary";
+import { PageHeader } from "@/components/PageHeader";
+import { OUTBOX_STATUS_OPTIONS } from "@/features/notifications/presentation";
+import { positiveInteger } from "@/lib/navigation/listParams";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseNotificationUserId } from "@/features/notifications/filters";
 import { parseProblemDetail } from "@/lib/api/problem";
-import type { OutboxStatus } from "@/features/notifications/types";
-
-const { Title } = Typography;
 
 function OutboxPageContent() {
+  const [filterForm] = Form.useForm();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { notification } = App.useApp();
   const [dispatchSize, setDispatchSize] = useState<number>(50);
 
-  const page = Number(searchParams.get("page") ?? "1");
-  const size = Number(searchParams.get("size") ?? "20");
+  const page = positiveInteger(searchParams.get("page"), 1);
+  const size = positiveInteger(searchParams.get("size"), 20, 100);
   const userId = parseNotificationUserId(searchParams.get("userId"));
   const errorCode = searchParams.get("errorCode")?.trim() || undefined;
-  const status = (searchParams.get("status") as OutboxStatus) || undefined;
+  const status = OUTBOX_STATUS_OPTIONS.find((option) => option.value === searchParams.get("status"))?.value;
+
+  useEffect(() => {
+    filterForm.setFieldsValue({ userId, status, errorCode });
+  }, [filterForm, userId, status, errorCode]);
 
   const queryParams = { page, size, userId, status, errorCode };
   const { data, isLoading, isFetching, error, refetch } = useOutbox(queryParams);
@@ -37,19 +44,29 @@ function OutboxPageContent() {
     router.push(`?${params.toString()}`);
   }
 
-  function handleFilterChange(key: string, value: string | number | undefined) {
+  function applyFilters(changes: Record<string, string | number | undefined | null>) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
-    if (value === undefined) params.delete(key);
-    else params.set(key, String(value));
+    for (const [key, value] of Object.entries(changes)) {
+      const normalized = value === undefined || value === null ? undefined : String(value).trim();
+      if (!normalized) params.delete(key);
+      else params.set(key, normalized);
+    }
     router.push(`?${params.toString()}`);
   }
 
+  function resetFilters() {
+    filterForm.resetFields();
+    filterForm.setFieldsValue({ userId: undefined, status: undefined, errorCode: undefined });
+    applyFilters({ userId: undefined, status: undefined, errorCode: undefined });
+  }
+
   return (
-    <Card
-      title={<Title level={4} style={{ margin: 0 }}>알림 Outbox</Title>}
+    <>
+    <PageHeader title="알림 Outbox" description="푸시 발송 대기열과 실패 원인을 확인하고 재처리합니다."
       extra={
         <Space wrap>
+          <Link href="/notifications">인앱 알림 보기</Link>
           <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
             새로고침
           </Button>
@@ -60,6 +77,7 @@ function OutboxPageContent() {
               min={1}
               max={100}
               precision={0}
+              disabled={isDispatching}
               value={dispatchSize}
               onChange={(v) => setDispatchSize(v ?? 50)}
               style={{ width: 80 }}
@@ -69,6 +87,9 @@ function OutboxPageContent() {
           <Popconfirm
             title={`최대 ${dispatchSize}건의 대기 발송을 즉시 처리하시겠습니까?`}
             description="목록 필터와 관계없이 발송 가능한 전체 대기 건에서 처리합니다."
+            okText="확인"
+            cancelText="취소"
+            disabled={isDispatching}
             onConfirm={() =>
               dispatch(dispatchSize, {
                 onSuccess: (res) => {
@@ -92,11 +113,12 @@ function OutboxPageContent() {
               })
             }
           >
-            <Button type="primary" loading={isDispatching}>수동 Dispatch</Button>
+            <Button type="primary" loading={isDispatching} disabled={isDispatching}>수동 Dispatch</Button>
           </Popconfirm>
         </Space>
       }
-    >
+    />
+    <Card>
       <Alert
         type="info"
         showIcon
@@ -104,6 +126,17 @@ function OutboxPageContent() {
         description="재큐잉은 발송 대기 상태로 되돌립니다. 즉시 발송하려면 수동 Dispatch를 실행하세요. 납부일·미납·계약 만료 예정 알림은 대상일이 지나면 SKIPPED로 처리됩니다. SENDING은 발송 중이며 재큐잉할 수 없습니다."
         style={{ marginBottom: 16 }}
       />
+      <Form form={filterForm} name="outbox-filters" layout="vertical" className="admin-filter-bar" initialValues={{ userId, status, errorCode }} onFinish={applyFilters}>
+        <Form.Item name="userId" label="유저 ID" rules={[{ type: "integer", min: 1, message: "1 이상의 정수를 입력하세요." }]}><InputNumber min={1} precision={0} className="admin-id-input" placeholder="전체 유저" /></Form.Item>
+        <Form.Item name="status" label="발송 상태"><Select className="admin-filter-field" allowClear placeholder="전체 상태" options={OUTBOX_STATUS_OPTIONS} /></Form.Item>
+        <Form.Item name="errorCode" label="에러 코드"><Input allowClear className="admin-filter-field" placeholder="코드 정확 일치" /></Form.Item>
+        <Form.Item><div className="admin-actions"><Button htmlType="submit" type="primary">조회</Button><Button onClick={resetFilters}>초기화</Button></div></Form.Item>
+      </Form>
+      <FilterSummary filters={[
+        ...(userId === undefined ? [] : [{ label: "유저 ID", value: userId }]),
+        ...(status ? [{ label: "상태", value: OUTBOX_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status }] : []),
+        ...(errorCode ? [{ label: "에러 코드", value: errorCode }] : []),
+      ]} onReset={resetFilters} />
       <QueryErrorAlert error={error} onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined}
         title="발송 대기열을 불러오지 못했습니다." />
       {(!error || data !== undefined) && <OutboxTable
@@ -114,9 +147,10 @@ function OutboxPageContent() {
         total={data?.totalElements ?? 0}
         onPageChange={handlePageChange}
         filters={{ userId, status, errorCode }}
-        onFilterChange={handleFilterChange}
+        onFilterChange={(key, value) => applyFilters({ [key]: value })}
       />}
     </Card>
+    </>
   );
 }
 

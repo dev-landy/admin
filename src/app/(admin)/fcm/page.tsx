@@ -1,19 +1,16 @@
 "use client";
 
-import { Alert, Col, Row, Typography } from "antd";
+import { Alert, Col, Row } from "antd";
 
+import { PageHeader } from "@/components/PageHeader";
 import { FcmTokenSendCard } from "@/features/fcm/components/FcmTokenSendCard";
 import { FcmTopicSubscriptionCard } from "@/features/fcm/components/FcmTopicSubscriptionCard";
 import { FcmSilentPushCard } from "@/features/fcm/components/FcmSilentPushCard";
 
-const { Title } = Typography;
-
 export default function FcmPage() {
   return (
     <>
-      <Title level={4} style={{ marginTop: 0 }}>
-        FCM 테스트
-      </Title>
+      <PageHeader title="FCM 테스트" description="등록된 기기의 푸시를 점검하고 토픽 구독과 백그라운드 알림을 관리합니다." />
       <Alert
         type="info"
         showIcon

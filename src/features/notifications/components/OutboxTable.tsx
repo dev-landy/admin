@@ -3,6 +3,7 @@
 import { App, Button, Input, Select, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { formatDateTime } from "@/lib/format/date";
 import { PagedTable } from "@/components/PagedTable";
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -51,6 +52,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="대기열 상태 필터"
             placeholder="전체"
             value={filters.status}
             style={{ width: 130 }}
@@ -68,13 +70,13 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
       render: (v: OutboxStatus) => <Tag color={STATUS_COLOR[v]}>{v}</Tag>,
     },
     { title: "시도 횟수", dataIndex: "attempts", width: 90 },
-    { title: "마지막 시도", dataIndex: "lastAttemptedAt", width: 180 },
+    { title: "마지막 시도", dataIndex: "lastAttemptedAt", width: 180, render: (value: string | null) => <span title={value ?? undefined}>{formatDateTime(value)}</span> },
     {
       title: "에러 코드", dataIndex: "lastErrorCode",
       filteredValue: filters.errorCode ? [filters.errorCode] : null,
       filterDropdown: () => <div style={{ padding: 8 }}>
         <Input.Search key={filters.errorCode ?? "all"} allowClear defaultValue={filters.errorCode}
-          placeholder="에러 코드 정확 일치" onSearch={(value) => onFilterChange("errorCode", value.trim() || undefined)} />
+          aria-label="에러 코드 필터" placeholder="에러 코드 정확 일치" onSearch={(value) => onFilterChange("errorCode", value.trim() || undefined)} />
       </div>,
     },
     { title: "에러 메시지", dataIndex: "lastErrorMessage" },
@@ -87,7 +89,7 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
         return (
           <Button
             size="small"
-            disabled={!canRequeue}
+            disabled={!canRequeue || isRequeueing}
             loading={isRequeueing}
             onClick={() =>
               requeue(record.notificationOutboxEventId, {
@@ -118,6 +120,8 @@ export function OutboxTable({ data, loading, page, pageSize, total, onPageChange
       pageSize={pageSize}
       total={total}
       onPageChange={onPageChange}
+      emptyText={Object.values(filters).some((value) => value !== undefined) ? "조건에 맞는 발송 대기열이 없습니다. 필터를 초기화해 전체 내역을 확인하세요." : "등록된 푸시 발송 대기열이 없습니다."}
+      ariaLabel="알림 발송 대기열"
       rowKey={(r) => String(r.notificationOutboxEventId)}
     />
   );

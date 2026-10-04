@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { App, Alert, Button, Card, Descriptions, Form, Input, Space, Switch, Tag, Typography } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -28,6 +28,7 @@ type FormValues = {
 export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate }) {
   const { notification } = App.useApp();
   const [form] = Form.useForm<FormValues>();
+  const hasDraftChanges = useRef(false);
   const [remoteOpen, setRemoteOpen] = useState(false);
   const { mutate: update, isPending } = useUpdateAlimtalkTemplate();
   const {
@@ -37,8 +38,9 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
   } = useRemoteAlimtalkTemplate(template.type, remoteOpen);
   const presentation = ALIMTALK_TYPE_PRESENTATION[template.type];
 
-  // 저장 성공 뒤 서버가 돌려준 값으로 폼을 다시 맞춘다. 다른 탭에서 바뀐 값도 재조회로 따라온다.
+  // 백그라운드 재조회는 편집 중인 초안을 덮어쓰지 않는다. 깨끗한 폼만 최신 값으로 맞춘다.
   useEffect(() => {
+    if (hasDraftChanges.current) return;
     form.setFieldsValue({
       pfId: template.pfId ?? "",
       templateId: template.templateId ?? "",
@@ -48,11 +50,16 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
   }, [form, template]);
 
   function handleSave() {
+    if (isPending) return;
     form.validateFields().then((values) => {
       update(
         { type: template.type, body: values },
         {
-          onSuccess: () => notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` }),
+          onSuccess: (saved) => {
+            hasDraftChanges.current = false;
+            form.setFieldsValue({ pfId: saved.pfId ?? "", templateId: saved.templateId ?? "", body: saved.body ?? "", enabled: saved.enabled });
+            notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` });
+          },
           onError: (error) => {
             const problem = parseProblemDetail(error);
             notification.error({ title: problem?.title ?? "저장 실패", description: problem?.detail });
@@ -68,21 +75,22 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
 
   return (
     <Card
+      className="admin-operation-card"
       title={
-        <Space>
+        <Space wrap>
           <Tag color={presentation.color}>{presentation.label}</Tag>
           <Text type="secondary">{template.type}</Text>
         </Space>
       }
       extra={
-        <Space>
+        <Space wrap>
           <Tag color={template.sendable ? "green" : "default"}>
             {template.sendable ? "발송 가능" : "발송 불가"}
           </Tag>
           <Button loading={isRemoteFetching} onClick={() => setRemoteOpen(true)}>
             승인 템플릿 조회
           </Button>
-          <Button type="primary" loading={isPending} onClick={handleSave}>
+          <Button type="primary" loading={isPending} disabled={isPending} onClick={handleSave}>
             저장
           </Button>
         </Space>
@@ -97,9 +105,9 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           description="켜짐 여부와 채널 ID·템플릿 ID·본문이 모두 채워져야 발송됩니다. 하나라도 비면 미리보기도 막힙니다."
         />
       )}
-      <Form form={form} layout="vertical">
+      <Form name={`alimtalk-template-${template.type}`} form={form} layout="vertical" disabled={isPending} onValuesChange={() => { hasDraftChanges.current = true; }}>
         <Form.Item label="발송 사용" name="enabled" valuePropName="checked">
-          <Switch checkedChildren="사용" unCheckedChildren="중지" />
+          <Switch aria-label={`${presentation.label} 발송 사용`} checkedChildren="사용" unCheckedChildren="중지" />
         </Form.Item>
         <Form.Item
           label="채널 ID (pfId)"
@@ -121,7 +129,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           extra="카카오 승인 본문과 같아야 합니다. 다르면 임대인 미리보기만 틀리고 실제 발송은 승인 본문으로 나갑니다."
           rules={[{ max: 2000, message: "2000자를 넘을 수 없습니다." }]}
         >
-          <Input.TextArea rows={6} placeholder="#{세대정보} 임대료 #{납부액}원의 납부일입니다." />
+          <Input.TextArea rows={6} maxLength={2000} showCount placeholder="#{세대정보} 임대료 #{납부액}원의 납부일입니다." />
         </Form.Item>
       </Form>
       <Descriptions column={1} size="small" items={[
@@ -165,7 +173,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
             }
             action={
               remote.storedBodyMatches ? undefined : (
-                <Button size="small" onClick={() => form.setFieldsValue({ body: remote.content })}>
+                <Button size="small" disabled={isPending} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
                   승인 본문 가져오기
                 </Button>
               )

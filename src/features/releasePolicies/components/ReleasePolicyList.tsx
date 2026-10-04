@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Descriptions, Empty, Spin, Tag, Typography } from "antd";
+import { Button, Card, Descriptions, Empty, Grid, Spin, Tag } from "antd";
+import { PageHeader } from "@/components/PageHeader";
+import { formatDateTime } from "@/lib/format/date";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { CHANNEL_COLOR } from "../channel";
@@ -9,9 +11,8 @@ import { useReleasePolicies } from "../hooks";
 import type { ReleasePolicy } from "../types";
 import { ReleasePolicyEditModal } from "./ReleasePolicyEditModal";
 
-const { Title } = Typography;
-
 function PolicyCard({ policy, onEdit }: { policy: ReleasePolicy; onEdit: () => void }) {
+  const screens = Grid.useBreakpoint();
   return (
     <Card
       style={{ marginBottom: 16 }}
@@ -28,19 +29,17 @@ function PolicyCard({ policy, onEdit }: { policy: ReleasePolicy; onEdit: () => v
         </Button>
       }
     >
-      <Descriptions column={2} bordered size="small">
-        <Descriptions.Item label="최신 버전">{policy.latestVersion} (#{policy.latestBuildNumber})</Descriptions.Item>
-        <Descriptions.Item label="최소 지원 빌드">#{policy.minSupportedBuildNumber}</Descriptions.Item>
-        <Descriptions.Item label="스토어 URL" span={2}>
-          <a href={policy.storeUrl} target="_blank" rel="noreferrer">{policy.storeUrl}</a>
-        </Descriptions.Item>
-        <Descriptions.Item label="강제 업데이트 제목">{policy.forceUpdateTitle}</Descriptions.Item>
-        <Descriptions.Item label="강제 업데이트 메시지">{policy.forceUpdateMessage}</Descriptions.Item>
-        <Descriptions.Item label="소프트 업데이트 제목">{policy.softUpdateTitle}</Descriptions.Item>
-        <Descriptions.Item label="소프트 업데이트 메시지">{policy.softUpdateMessage}</Descriptions.Item>
-        <Descriptions.Item label="생성일">{policy.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="수정일">{policy.updatedAt}</Descriptions.Item>
-      </Descriptions>
+      <Descriptions layout={screens.md ? "horizontal" : "vertical"} column={{ xs: 1, md: 2 }} bordered size="small" items={[
+        { key: "latestVersion", label: "최신 버전", children: `${policy.latestVersion} (#${policy.latestBuildNumber})` },
+        { key: "minimum", label: "최소 지원 빌드", children: `#${policy.minSupportedBuildNumber}` },
+        { key: "store", label: "스토어 URL", span: "filled", children: <a href={policy.storeUrl} target="_blank" rel="noreferrer" style={{ overflowWrap: "anywhere" }}>{policy.storeUrl} ↗</a> },
+        { key: "forceTitle", label: "강제 업데이트 제목", children: policy.forceUpdateTitle },
+        { key: "forceMessage", label: "강제 업데이트 메시지", children: policy.forceUpdateMessage },
+        { key: "softTitle", label: "소프트 업데이트 제목", children: policy.softUpdateTitle },
+        { key: "softMessage", label: "소프트 업데이트 메시지", children: policy.softUpdateMessage },
+        { key: "createdAt", label: "생성일", children: formatDateTime(policy.createdAt) },
+        { key: "updatedAt", label: "수정일", children: formatDateTime(policy.updatedAt) },
+      ]} />
     </Card>
   );
 }
@@ -49,15 +48,12 @@ export function ReleasePolicyList() {
   const { data, isLoading, error, isFetching, refetch } = useReleasePolicies();
   const [editing, setEditing] = useState<ReleasePolicy | null>(null);
 
-  if (isLoading) {
-    return <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 80 }} />;
-  }
-
   return (
     <div>
-      <Title level={4}>릴리즈 정책</Title>
+      <PageHeader title="릴리즈 정책" description="플랫폼과 배포 채널별 최신 버전과 강제 업데이트 기준을 관리합니다." extra={<Button loading={isFetching} onClick={() => refetch()}>새로고침</Button>} />
       <QueryErrorAlert error={error} title="릴리즈 정책을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
-      {!error && data?.releasePolicies.length === 0 && <Empty description="등록된 릴리즈 정책이 없습니다." />}
+      {isLoading && <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 40 }} />}
+      {!isLoading && !error && data?.releasePolicies.length === 0 && <Empty description="등록된 릴리즈 정책이 없습니다." />}
       {(data?.releasePolicies ?? []).map((policy) => (
         <PolicyCard
           key={policy.appReleasePolicyId}

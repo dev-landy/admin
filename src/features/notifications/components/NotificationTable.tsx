@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Descriptions, Drawer, Select, Tag, Typography } from "antd";
+import { Button, Descriptions, Drawer, Select, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
+import { formatDateTime } from "@/lib/format/date";
 import { PagedTable } from "@/components/PagedTable";
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
+import { NOTIFICATION_TYPE_OPTIONS } from "../presentation";
 import type { Notification, NotificationType } from "../types";
 
 type Props = {
@@ -58,19 +60,12 @@ export function NotificationTable({
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="알림 유형 필터"
             placeholder="전체"
             value={filters.type}
             style={{ width: 130 }}
             onChange={(v) => onFilterChange("type", v)}
-            options={[
-              { label: "납부일", value: "DUE" },
-              { label: "연체", value: "OVERDUE" },
-              { label: "계약 만료 예정", value: "CONTRACT_EXPIRING" },
-              { label: "커스텀", value: "CUSTOM" },
-              { label: "납부 확인", value: "PAYMENT_RECORDED" },
-              { label: "계약 등록 완료", value: "CONTRACT_REGISTERED" },
-              { label: "계약 등록 실패", value: "CONTRACT_FAILED" },
-            ]}
+            options={NOTIFICATION_TYPE_OPTIONS}
           />
         </div>
       ),
@@ -78,10 +73,10 @@ export function NotificationTable({
     },
     { title: "대상일", dataIndex: "targetDate", width: 110 },
     {
-      title: "발송/생성일",
-      key: "sentOrCreatedAt",
+      title: "생성일",
+      key: "createdAt",
       width: 180,
-      render: (_, record) => record.sentAt ?? record.createdAt ?? "-",
+      render: (_, record) => <span title={record.createdAt}>{formatDateTime(record.createdAt)}</span>,
     },
     {
       title: "읽음",
@@ -93,15 +88,17 @@ export function NotificationTable({
           <Select
             allowClear
             placeholder="전체"
-            value={filters.isRead}
+            aria-label="읽음 상태 필터"
+            value={filters.isRead === undefined ? undefined : String(filters.isRead)}
             style={{ width: 120 }}
-            onChange={(v) => onFilterChange("isRead", v)}
-            options={[{ label: "읽음", value: true }, { label: "미읽음", value: false }]}
+            onChange={(v) => onFilterChange("isRead", v === undefined ? undefined : v === "true")}
+            options={[{ label: "읽음", value: "true" }, { label: "미읽음", value: "false" }]}
           />
         </div>
       ),
       render: (v: boolean) => <Tag color={v ? "green" : "default"}>{v ? "읽음" : "미읽음"}</Tag>,
     },
+    { title: "상세", key: "detail", width: 84, render: (_, record) => <Button size="small" onClick={() => setSelectedNotification(record)}>보기</Button> },
   ];
 
   const detailItems: DescriptionsProps["items"] = selectedNotification
@@ -135,7 +132,7 @@ export function NotificationTable({
           ),
         },
         { key: "targetDate", label: "대상일", children: selectedNotification.targetDate },
-        { key: "sentAt", label: "발송일", children: selectedNotification.sentAt ?? "-" },
+        { key: "sentAt", label: "발송일", children: selectedNotification.sentAt ?? "제공되지 않음" },
         { key: "createdAt", label: "생성일", children: selectedNotification.createdAt ?? "-" },
       ]
     : [];
@@ -150,11 +147,14 @@ export function NotificationTable({
         pageSize={pageSize}
         total={total}
         onPageChange={onPageChange}
+        emptyText={Object.values(filters).some((value) => value !== undefined) ? "조건에 맞는 알림이 없습니다. 필터를 초기화해 전체 알림을 확인하세요." : "저장된 인앱 알림이 없습니다."}
+        ariaLabel="인앱 알림 목록"
         rowKey={(r) => String(r.notificationId)}
         onRow={(record) => ({
           "aria-label": `알림 #${record.notificationId} 상세 보기`,
           onClick: () => setSelectedNotification(record),
           onKeyDown: (event) => {
+            if (event.target !== event.currentTarget) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setSelectedNotification(record);

@@ -1,27 +1,28 @@
 "use client";
 
-import { Alert, Button, Card, Typography } from "antd";
+import Link from "next/link";
+import { Alert, Button, Card } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
+import { PageHeader } from "@/components/PageHeader";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { BatchScheduleTable } from "@/features/batch/components/BatchScheduleTable";
 import { useBatchSchedules } from "@/features/batch/hooks";
 
-const { Title } = Typography;
-
 export default function BatchSchedulesPage() {
   const { data, isLoading, error, isFetching, refetch } = useBatchSchedules();
 
   return (
-    <Card
-      title={<Title level={4} style={{ margin: 0 }}>배치 설정</Title>}
-      extra={
+    <>
+    <PageHeader title="배치 설정" description="반복 작업의 실행 시간과 활성 상태를 관리합니다."
+      extra={<div className="admin-actions"><Link href="/batch">실행 이력 보기</Link>
         <Button icon={<ReloadOutlined />} loading={isFetching} onClick={() => refetch()}>
           새로고침
-        </Button>
+        </Button></div>
       }
-    >
+    />
+    <Card>
       <Alert
         type="info"
         showIcon
@@ -32,5 +33,6 @@ export default function BatchSchedulesPage() {
       <QueryErrorAlert error={error} title="배치 설정을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
       {(!error || data) && <BatchScheduleTable data={data?.schedules ?? []} loading={isLoading} disabled={isFetching || !!error} />}
     </Card>
+    </>
   );
 }

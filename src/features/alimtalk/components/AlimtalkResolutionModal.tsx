@@ -61,7 +61,8 @@ export function AlimtalkResolutionModal({
       okText="종결"
       cancelText="취소"
       onOk={() => form.submit()}
-      onCancel={onClose}
+      onCancel={() => { if (!isPending) onClose(); }}
+      okButtonProps={{ disabled: isPending }}
       confirmLoading={isPending}
       cancelButtonProps={{ disabled: isPending }}
       closable={!isPending}
@@ -96,6 +97,7 @@ export function AlimtalkResolutionModal({
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
+            scrollToFirstError={{ focus: true }}
             initialValues={{ status: isReady ? "FAILED" : undefined, messageId: alimtalk.messageId ?? undefined }}
             preserve={false}
             disabled={isPending}

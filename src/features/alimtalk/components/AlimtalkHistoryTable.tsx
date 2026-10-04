@@ -233,6 +233,8 @@ export function AlimtalkHistoryTable({
         pageSize={pageSize}
         total={total}
         onPageChange={onPageChange}
+        emptyText={Object.values(filters).some((value) => value !== undefined) ? "조건에 맞는 알림톡 발송 이력이 없습니다. 필터를 초기화해 전체 이력을 확인하세요." : "알림톡 발송 이력이 없습니다."}
+        ariaLabel="알림톡 발송 이력"
         rowKey={(r) => String(r.alimtalkId)}
       />
       <AlimtalkResolutionModal alimtalk={resolving} onClose={() => setResolving(null)} />

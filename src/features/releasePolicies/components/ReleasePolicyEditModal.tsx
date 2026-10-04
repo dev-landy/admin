@@ -1,8 +1,10 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, App, Descriptions, Form, Input, InputNumber, Modal, Space, Tag } from "antd";
 import type { FormRule } from "antd";
 
+import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { CHANNEL_COLOR } from "../channel";
 import { useUpdateReleasePolicy } from "../hooks";
@@ -44,23 +46,84 @@ function toFormValues(policy: ReleasePolicy): UpdateReleasePolicyRequest {
   };
 }
 
-export function ReleasePolicyEditModal({
-  policy,
-  onClose,
-}: {
-  policy: ReleasePolicy | null;
-  onClose: () => void;
-}) {
+type Props = { policy: ReleasePolicy | null; onClose: () => void };
+
+export function ReleasePolicyEditModal(props: Props) {
+  return <ReleasePolicyEditor key={props.policy?.appReleasePolicyId ?? "closed"} {...props} />;
+}
+
+function ReleasePolicyEditor({ policy, onClose }: Props) {
   const [form] = Form.useForm<UpdateReleasePolicyRequest>();
-  const { notification } = App.useApp();
+  const { notification, modal } = App.useApp();
   const { mutate: update, isPending } = useUpdateReleasePolicy();
 
+  const [initialValues] = useState(() => policy ? toFormValues(policy) : null);
+  const watched: Partial<UpdateReleasePolicyRequest> | undefined = Form.useWatch([], form);
+  const closeConfirmation = useRef<{ token: object; destroy: () => void } | null>(null);
+  const currentSession = useRef(false);
+  useEffect(() => {
+    currentSession.current = true;
+    return () => {
+      currentSession.current = false;
+      closeConfirmation.current?.destroy();
+      closeConfirmation.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    if (isPending) {
+      closeConfirmation.current?.destroy();
+      closeConfirmation.current = null;
+    }
+  }, [isPending]);
+
+  const hasUnsavedInput = useCallback(() => {
+    if (!policy || !initialValues) return false;
+    const draft = { ...initialValues, ...form.getFieldsValue(true) };
+    return Object.entries(initialValues).some(([key, value]) => draft[key as keyof UpdateReleasePolicyRequest] !== value);
+  }, [policy, form, initialValues]);
+  const isDirty = initialValues !== null && watched !== undefined && Object.entries(initialValues).some(([key, value]) => watched[key as keyof UpdateReleasePolicyRequest] !== value);
+  const clearUnsavedChanges = useUnsavedChanges(policy !== null && isDirty, hasUnsavedInput);
+
+  function handleClose() {
+    if (isPending || !policy) return;
+    if (!hasUnsavedInput()) {
+      clearUnsavedChanges();
+      onClose();
+      return;
+    }
+    if (closeConfirmation.current) return;
+    const token = {};
+    const confirmation = modal.confirm({
+      title: "수정 중인 내용을 버릴까요?",
+      content: "저장하지 않은 릴리즈 정책 변경이 사라집니다.",
+      okText: "변경 내용 버리기",
+      cancelText: "계속 수정",
+      okButtonProps: { danger: true },
+      focusable: { autoFocusButton: "cancel" },
+      mask: { closable: false },
+      onOk: () => {
+        if (!currentSession.current || closeConfirmation.current?.token !== token) return;
+        closeConfirmation.current = null;
+        clearUnsavedChanges();
+        onClose();
+      },
+      afterClose: () => {
+        if (closeConfirmation.current?.token === token) closeConfirmation.current = null;
+      },
+    });
+    closeConfirmation.current = { token, destroy: confirmation.destroy };
+  }
+
   function handleSubmit(values: UpdateReleasePolicyRequest) {
-    if (!policy) return;
+    if (!policy || isPending) return;
     update(
       { appReleasePolicyId: policy.appReleasePolicyId, body: values },
       {
         onSuccess: () => {
+          if (!currentSession.current) return;
+          closeConfirmation.current?.destroy();
+          closeConfirmation.current = null;
+          clearUnsavedChanges();
           // 어떤 정책을 바꿨는지까지 알린다. 플랫폼·채널이 다른 정책이 여러 개다.
           notification.success({
             title: `${policy.platform} ${policy.channel} 릴리즈 정책이 수정되었습니다.`,
@@ -68,6 +131,7 @@ export function ReleasePolicyEditModal({
           onClose();
         },
         onError: (error) => {
+          if (!currentSession.current) return;
           const problem = parseProblemDetail(error);
           notification.error({
             title: problem?.title ?? "릴리즈 정책 수정 실패",
@@ -86,7 +150,12 @@ export function ReleasePolicyEditModal({
       okText="저장"
       cancelText="취소"
       confirmLoading={isPending}
-      onCancel={onClose}
+      onCancel={handleClose}
+      okButtonProps={{ disabled: isPending }}
+      cancelButtonProps={{ disabled: isPending }}
+      closable={!isPending}
+      mask={{ closable: !isPending }}
+      keyboard={!isPending}
       onOk={() => form.submit()}
       destroyOnHidden
     >
@@ -99,19 +168,19 @@ export function ReleasePolicyEditModal({
             style={{ marginBottom: 16 }}
           />
           {/* 플랫폼·채널은 정책의 식별자다. 어떤 정책을 고치는 중인지 항상 보이게 둔다. */}
-          <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="플랫폼">{policy.platform}</Descriptions.Item>
-            <Descriptions.Item label="채널">
-              <Tag color={CHANNEL_COLOR[policy.channel] ?? "default"}>{policy.channel}</Tag>
-            </Descriptions.Item>
-          </Descriptions>
+          <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small" style={{ marginBottom: 16 }} items={[
+            { key: "platform", label: "플랫폼", children: policy.platform },
+            { key: "channel", label: "채널", children: <Tag color={CHANNEL_COLOR[policy.channel] ?? "default"}>{policy.channel}</Tag> },
+          ]} />
 
           <Form
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
+            disabled={isPending}
+            scrollToFirstError={{ focus: true }}
             preserve={false}
-            initialValues={toFormValues(policy)}
+            initialValues={initialValues ?? undefined}
           >
             <Form.Item
               label="최신 버전"
@@ -122,13 +191,13 @@ export function ReleasePolicyEditModal({
               <Input placeholder="1.4.2" />
             </Form.Item>
 
-            <Space size="middle" align="start">
+            <Space size="middle" align="start" wrap style={{ width: "100%" }}>
               <Form.Item
                 label={`최신 빌드 번호 (${MIN_BUILD_NUMBER} 이상)`}
                 name="latestBuildNumber"
                 rules={buildNumberRules("최신 빌드 번호를 입력하세요.")}
               >
-                <InputNumber min={MIN_BUILD_NUMBER} precision={0} />
+                <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
               </Form.Item>
               <Form.Item
                 label={`최소 지원 빌드 번호 (${MIN_BUILD_NUMBER} 이상, 최신 빌드 번호 이하)`}
@@ -151,7 +220,7 @@ export function ReleasePolicyEditModal({
                   }),
                 ]}
               >
-                <InputNumber min={MIN_BUILD_NUMBER} precision={0} />
+                <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
               </Form.Item>
             </Space>
 

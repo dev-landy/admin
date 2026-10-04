@@ -60,8 +60,8 @@ function toFeedback(result: SendCustomNotificationResponse): SendFeedback {
   }
 
   return {
-    level: "success",
-    title: "알림 발송 완료",
+    level: result.failed > 0 || result.skipped > 0 ? "warning" : "success",
+    title: result.sent === 0 && result.failed > 0 ? "푸시 발송에 실패했습니다" : "알림 발송 완료",
     description: (
       <Text>
         알림 ID {result.notificationId} — {formatCounts(result)}
@@ -76,6 +76,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
   const [form] = Form.useForm<FormValues>();
 
   function handleOk() {
+    if (isPending) return;
     form.validateFields().then((values) => {
       send(values, {
         onSuccess: (res: SendCustomNotificationResponse) => {
@@ -93,6 +94,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
   }
 
   function handleCancel() {
+    if (isPending) return;
     form.resetFields();
     onClose();
   }
@@ -106,14 +108,20 @@ export function SendNotificationModal({ open, onClose }: Props) {
       okText="발송"
       cancelText="취소"
       confirmLoading={isPending}
+      okButtonProps={{ disabled: isPending }}
+      cancelButtonProps={{ disabled: isPending }}
+      closable={!isPending}
+      mask={{ closable: !isPending }}
+      keyboard={!isPending}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Typography.Paragraph type="secondary">입력한 유저에게 인앱 알림을 저장하고 활성 기기로 푸시를 발송합니다.</Typography.Paragraph>
+      <Form name="send-custom-notification" form={form} layout="vertical" disabled={isPending} style={{ marginTop: 16 }}>
         <Form.Item
           label="유저 ID"
           name="userId"
-          rules={[{ required: true, message: "유저 ID를 입력하세요." }]}
+          rules={[{ required: true, message: "유저 ID를 입력하세요." }, { type: "integer", min: 1, message: "1 이상의 정수 ID를 입력하세요." }]}
         >
-          <InputNumber min={1} style={{ width: "100%" }} placeholder="12" />
+          <InputNumber min={1} precision={0} style={{ width: "100%" }} placeholder="12" />
         </Form.Item>
         <Form.Item
           label="제목"

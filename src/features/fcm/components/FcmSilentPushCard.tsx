@@ -20,7 +20,10 @@ export function FcmSilentPushCard() {
   const { mutate: sendSilentPush, isPending: isSilentPushPending } = useSendSilentPushToTopic();
   const [form] = Form.useForm<FormValues>();
 
+  const isPending = isWakeupPending || isSilentPushPending;
+
   function handleWakeup() {
+    if (isPending) return;
     sendWakeup(undefined, {
       onSuccess: (res) => {
         notification.success({
@@ -36,6 +39,7 @@ export function FcmSilentPushCard() {
   }
 
   function handleSilentPush() {
+    if (isPending) return;
     form.validateFields().then((values) => {
       const data = Object.fromEntries(values.entries.map((e) => [e.key.trim(), e.value]));
       sendSilentPush(
@@ -54,12 +58,12 @@ export function FcmSilentPushCard() {
           },
         },
       );
-    });
+    }).catch(() => undefined);
   }
 
   return (
     <Card title="Silent Push" size="small">
-      <Space direction="vertical" size={4} style={{ width: "100%" }}>
+      <Space orientation="vertical" size={4} style={{ width: "100%" }}>
         <Text strong>운영 silent-wakeup 발송</Text>
         <Text type="secondary">스케줄러와 동일한 경로로 silent-wakeup 토픽에 발송합니다.</Text>
         <Popconfirm
@@ -72,16 +76,17 @@ export function FcmSilentPushCard() {
           okText="발송"
           cancelText="취소"
           okButtonProps={isProd ? { danger: true } : undefined}
+          disabled={isPending}
           onConfirm={handleWakeup}
         >
-          <Button danger={isProd} loading={isWakeupPending}>
+          <Button danger={isProd} loading={isWakeupPending} disabled={isPending}>
             silent-wakeup 발송
           </Button>
         </Popconfirm>
       </Space>
       <Divider />
       <Text strong>임의 토픽 silent push</Text>
-      <Form form={form} layout="vertical" style={{ marginTop: 8 }} initialValues={{ entries: [{ key: "", value: "" }] }}>
+      <Form name="fcm-silent-push" form={form} layout="vertical" disabled={isPending} style={{ marginTop: 8 }} initialValues={{ entries: [{ key: "", value: "" }] }}>
         <Form.Item
           label="토픽"
           name="topic"
@@ -93,35 +98,42 @@ export function FcmSilentPushCard() {
           name="entries"
           rules={[
             {
-              validator: (_, entries: DataEntry[] | undefined) =>
-                entries && entries.length > 0
+              validator: (_, entries: DataEntry[] | undefined) => {
+                if (!entries?.length) return Promise.reject(new Error("data 항목을 최소 1쌍 입력하세요."));
+                const keys = entries.map((entry) => entry?.key?.trim()).filter(Boolean);
+                return new Set(keys).size === keys.length
                   ? Promise.resolve()
-                  : Promise.reject(new Error("data 항목을 최소 1쌍 입력하세요.")),
+                  : Promise.reject(new Error("data key는 중복 없이 입력하세요."));
+              },
             },
           ]}
         >
           {(fields, { add, remove }, { errors }) => (
             <>
               {fields.map(({ key, name, ...restField }) => (
-                <Space key={key} align="baseline" style={{ display: "flex", marginBottom: 8 }}>
+                <div key={key} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
                   <Form.Item
                     {...restField}
+                    label="data key"
                     name={[name, "key"]}
                     rules={[{ required: true, whitespace: true, message: "key를 입력하세요." }]}
-                    noStyle
+                    style={{ flex: "1 1 120px", minWidth: 0, marginBottom: 0 }}
                   >
-                    <Input placeholder="key" />
+                    <Input aria-label={`data 항목 ${name + 1} key`} placeholder="key" />
                   </Form.Item>
                   <Form.Item
                     {...restField}
+                    label="data value"
                     name={[name, "value"]}
                     rules={[{ required: true, message: "value를 입력하세요." }]}
-                    noStyle
+                    style={{ flex: "1 1 120px", minWidth: 0, marginBottom: 0 }}
                   >
-                    <Input placeholder="value" />
+                    <Input aria-label={`data 항목 ${name + 1} value`} placeholder="value" />
                   </Form.Item>
-                  {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
-                </Space>
+                  {fields.length > 1 && (
+                    <Button aria-label={`data 항목 ${name + 1} 삭제`} icon={<MinusCircleOutlined />} disabled={isPending} onClick={() => remove(name)} />
+                  )}
+                </div>
               ))}
               <Form.Item>
                 <Button type="dashed" onClick={() => add({ key: "", value: "" })} icon={<PlusOutlined />} block>
@@ -142,9 +154,10 @@ export function FcmSilentPushCard() {
           okText="발송"
           cancelText="취소"
           okButtonProps={isProd ? { danger: true } : undefined}
+          disabled={isPending}
           onConfirm={handleSilentPush}
         >
-          <Button type="primary" danger={isProd} loading={isSilentPushPending}>
+          <Button type="primary" danger={isProd} loading={isSilentPushPending} disabled={isPending}>
             silent push 발송
           </Button>
         </Popconfirm>

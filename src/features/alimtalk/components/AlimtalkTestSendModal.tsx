@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { App, Alert, Descriptions, Form, Input, Modal, Segmented, Space, Spin, Tag, Typography } from "antd";
 
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useRemoteAlimtalkTemplate, useSendTestAlimtalk } from "../hooks";
 import { ALIMTALK_STATUS_PRESENTATION, ALIMTALK_TYPE_OPTIONS } from "../presentation";
@@ -27,18 +28,20 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
   const [type, setType] = useState<AlimtalkType>("DUE");
   const [result, setResult] = useState<SendTestAlimtalkResponse | null>(null);
   const [form] = Form.useForm<{ phone: string; variables: Record<string, string> }>();
-  const { data: remote, isFetching, error } = useRemoteAlimtalkTemplate(type, open);
+  const { data: remote, isFetching, error, refetch } = useRemoteAlimtalkTemplate(type, open);
   const { mutate: sendTest, isPending } = useSendTestAlimtalk();
 
   const remoteProblem = parseProblemDetail(error);
 
   function handleClose() {
+    if (isPending) return;
     form.resetFields();
     setResult(null);
     onClose();
   }
 
   function handleTypeChange(next: AlimtalkType) {
+    if (isPending) return;
     // 변수 이름은 종류마다 다르다. 남겨 두면 옛 종류의 값이 새 칸에 섞인다.
     form.resetFields(["variables"]);
     setResult(null);
@@ -46,14 +49,16 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
   }
 
   function handleOk() {
+    if (isPending || isFetching || error || !remote) return;
     form.validateFields().then((values) => {
       sendTest(
         { type, phone: values.phone, variables: values.variables ?? {} },
         {
           onSuccess: (response) => {
             setResult(response);
-            notification.success({
-              title: "테스트 발송을 요청했습니다.",
+            const feedback = response.status === "FAILED" || response.status === "UNKNOWN" ? notification.warning : notification.success;
+            feedback({
+              title: response.status === "FAILED" ? "테스트 발송에 실패했습니다." : "테스트 발송을 요청했습니다.",
               description: `실제로 과금되는 발송입니다. 상태: ${ALIMTALK_STATUS_PRESENTATION[response.status].label}`,
             });
           },
@@ -76,7 +81,11 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
       onCancel={handleClose}
       okText="발송"
       cancelText="닫기"
-      okButtonProps={{ disabled: !remote }}
+      okButtonProps={{ disabled: !remote || isFetching || !!error || isPending }}
+      cancelButtonProps={{ disabled: isPending }}
+      closable={!isPending}
+      mask={{ closable: !isPending }}
+      keyboard={!isPending}
       confirmLoading={isPending}
       width={560}
       destroyOnHidden
@@ -90,13 +99,14 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
         />
         <Segmented
           block
+          disabled={isPending}
           value={type}
           onChange={(value) => handleTypeChange(value as AlimtalkType)}
           options={ALIMTALK_TYPE_OPTIONS}
         />
         {isFetching && <Spin />}
-        {remoteProblem && (
-          <Alert type="error" showIcon title={remoteProblem.title} description={remoteProblem.detail} />
+        {error && (
+          <QueryErrorAlert error={error} title={remoteProblem?.title ?? "승인 템플릿을 불러오지 못했습니다."} onRetry={refetch} isRetrying={isFetching} hasData={remote !== undefined} />
         )}
         {remote && (
           <>
@@ -104,7 +114,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
               { key: "name", label: "템플릿", children: remote.name },
               { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
             ]} />
-            <Form form={form} layout="vertical">
+            <Form name="alimtalk-test-send" form={form} layout="vertical" disabled={isPending}>
               <Form.Item
                 label="수신 번호"
                 name="phone"
@@ -113,7 +123,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
                   { pattern: PHONE_PATTERN, message: "010으로 시작하는 휴대폰 번호를 입력하세요." },
                 ]}
               >
-                <Input placeholder="010-1234-5678" />
+                <Input type="tel" autoComplete="tel" placeholder="010-1234-5678" />
               </Form.Item>
               {remote.variableNames.map((name) => (
                 <Form.Item

@@ -12,38 +12,37 @@ export function FcmTokenSendCard() {
   const { mutate: send, isPending } = useSendToToken();
   const [form] = Form.useForm<FormValues>();
 
-  function handleSend() {
-    form.validateFields().then((values) => {
-      send(
-        {
-          fcmTokenId: values.fcmTokenId,
-          title: values.title,
-          body: values.body,
+  function handleSend(values: FormValues) {
+    if (isPending) return;
+    send(
+      {
+        fcmTokenId: values.fcmTokenId,
+        title: values.title,
+        body: values.body,
+      },
+      {
+        onSuccess: (res) => {
+          notification.success({
+            title: "등록 토큰 테스트 발송 완료",
+            description: `messageId: ${res.messageId}`,
+          });
+          form.resetFields();
         },
-        {
-          onSuccess: (res) => {
-            notification.success({
-              title: "등록 토큰 테스트 발송 완료",
-              description: `messageId: ${res.messageId}`,
-            });
-            form.resetFields();
-          },
-          onError: (err) => {
-            const p = parseProblemDetail(err);
-            notification.error({ title: p?.title ?? "등록 토큰 테스트 발송 실패", description: p?.detail });
-          },
+        onError: (err) => {
+          const p = parseProblemDetail(err);
+          notification.error({ title: p?.title ?? "등록 토큰 테스트 발송 실패", description: p?.detail });
         },
-      );
-    });
+      },
+    );
   }
 
   return (
     <Card title="등록 토큰 ID 발송" size="small">
-      <Form form={form} layout="vertical">
+      <Form name="fcm-token-send" form={form} layout="vertical" onFinish={handleSend} disabled={isPending} scrollToFirstError={{ focus: true }}>
         <Form.Item
           label="FCM 토큰 ID"
           name="fcmTokenId"
-          rules={[{ required: true, message: "FCM 토큰 ID를 입력하세요." }]}
+          rules={[{ required: true, message: "FCM 토큰 ID를 입력하세요." }, { type: "integer", min: 1, message: "1 이상의 정수 ID를 입력하세요." }]}
         >
           <InputNumber min={1} precision={0} style={{ width: "100%" }} placeholder="123" />
         </Form.Item>
@@ -61,7 +60,7 @@ export function FcmTokenSendCard() {
         >
           <Input.TextArea rows={3} placeholder="테스트 메시지입니다." />
         </Form.Item>
-        <Button type="primary" onClick={handleSend} loading={isPending}>
+        <Button type="primary" htmlType="submit" loading={isPending} disabled={isPending}>
           발송
         </Button>
       </Form>

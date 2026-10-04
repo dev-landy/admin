@@ -1,8 +1,10 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Form, Input, InputNumber, Modal, Radio, Space, Typography } from "antd";
 import type { FormRule } from "antd";
 
+import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { buildCron, describeCron, parseCron } from "../cron";
 import type { CronMode } from "../cron";
@@ -126,27 +128,80 @@ function toCronExpression(values: Partial<ScheduleFormValues>): string | null {
   }
 }
 
-export function BatchScheduleEditModal({
-  schedule,
-  onClose,
-  disabled = false,
-}: {
-  schedule: BatchSchedule | null;
-  onClose: () => void;
-  disabled?: boolean;
-}) {
+type Props = { schedule: BatchSchedule | null; onClose: () => void; disabled?: boolean };
+
+export function BatchScheduleEditModal(props: Props) {
+  return <BatchScheduleEditor key={props.schedule?.key ?? "closed"} {...props} />;
+}
+
+function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
   const [form] = Form.useForm<ScheduleFormValues>();
-  const { notification } = App.useApp();
+  const { notification, modal } = App.useApp();
   const { mutate: update, isPending } = useUpdateBatchSchedule();
   const sharedPending = useIsBatchScheduleUpdating();
   const isUpdating = sharedPending || isPending;
 
-  const initialValues = toFormValues(schedule);
+  const [initialValues] = useState(() => toFormValues(schedule));
   // 모달은 destroyOnHidden이라 열 때마다 폼이 새로 마운트된다. 첫 렌더에는 watch 값이 없어
   // 초기값으로 채운다.
   const watched: Partial<ScheduleFormValues> | undefined = Form.useWatch([], form);
   const values = { ...initialValues, ...watched };
   const preview = toCronExpression(values);
+
+  const closeConfirmation = useRef<{ token: object; destroy: () => void } | null>(null);
+  const currentSession = useRef(false);
+  useEffect(() => {
+    currentSession.current = true;
+    return () => {
+      currentSession.current = false;
+      closeConfirmation.current?.destroy();
+      closeConfirmation.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    if (isUpdating) {
+      closeConfirmation.current?.destroy();
+      closeConfirmation.current = null;
+    }
+  }, [isUpdating]);
+
+  const hasUnsavedInput = useCallback(() => {
+    if (!schedule) return false;
+    const draft = { ...initialValues, ...form.getFieldsValue(true) };
+    return Object.entries(initialValues).some(([key, value]) => draft[key as keyof ScheduleFormValues] !== value);
+  }, [schedule, form, initialValues]);
+  const isDirty = Object.entries(initialValues).some(([key, value]) => values[key as keyof ScheduleFormValues] !== value);
+  const clearUnsavedChanges = useUnsavedChanges(schedule !== null && isDirty, hasUnsavedInput);
+
+  function handleClose() {
+    if (isUpdating || !schedule) return;
+    if (!hasUnsavedInput()) {
+      clearUnsavedChanges();
+      onClose();
+      return;
+    }
+    if (closeConfirmation.current) return;
+    const token = {};
+    const confirmation = modal.confirm({
+      title: "수정 중인 내용을 버릴까요?",
+      content: "저장하지 않은 배치 실행 시간 변경이 사라집니다.",
+      okText: "변경 내용 버리기",
+      cancelText: "계속 수정",
+      okButtonProps: { danger: true },
+      focusable: { autoFocusButton: "cancel" },
+      mask: { closable: false },
+      onOk: () => {
+        if (!currentSession.current || closeConfirmation.current?.token !== token) return;
+        closeConfirmation.current = null;
+        clearUnsavedChanges();
+        onClose();
+      },
+      afterClose: () => {
+        if (closeConfirmation.current?.token === token) closeConfirmation.current = null;
+      },
+    });
+    closeConfirmation.current = { token, destroy: confirmation.destroy };
+  }
 
   function handleSubmit(submitted: ScheduleFormValues) {
     if (!schedule || isUpdating || disabled) return;
@@ -165,10 +220,15 @@ export function BatchScheduleEditModal({
       },
       {
         onSuccess: () => {
+          if (!currentSession.current) return;
+          closeConfirmation.current?.destroy();
+          closeConfirmation.current = null;
+          clearUnsavedChanges();
           notification.success({ title: "실행 시간이 변경되었습니다." });
           onClose();
         },
         onError: (error) => {
+          if (!currentSession.current) return;
           const problem = parseProblemDetail(error);
           notification.error({
             title: problem?.title ?? "배치 수정 실패",
@@ -191,7 +251,7 @@ export function BatchScheduleEditModal({
       closable={!isUpdating}
       mask={{ closable: !isUpdating }}
       keyboard={!isUpdating}
-      onCancel={() => { if (!isUpdating) onClose(); }}
+      onCancel={handleClose}
       onOk={() => form.submit()}
       destroyOnHidden
     >
@@ -199,16 +259,17 @@ export function BatchScheduleEditModal({
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        scrollToFirstError={{ focus: true }}
         preserve={false}
         initialValues={initialValues}
         disabled={isUpdating || disabled}
       >
         <Form.Item label="실행 방식" name="mode">
-          <Radio.Group options={MODE_OPTIONS} />
+          <Radio.Group options={MODE_OPTIONS} className="admin-actions" />
         </Form.Item>
 
         {values.mode === "daily" && (
-          <Space size="middle" align="start">
+          <Space size="middle" align="start" wrap>
             <Form.Item
               label={`시 (0~${MAX_HOUR})`}
               name="hour"
@@ -227,7 +288,7 @@ export function BatchScheduleEditModal({
         )}
 
         {values.mode === "interval" && (
-          <Space size="middle" align="start">
+          <Space size="middle" align="start" wrap>
             <Form.Item
               label={`시 (0~${MAX_HOUR})`}
               name="hour"
@@ -254,7 +315,7 @@ export function BatchScheduleEditModal({
 
         {values.mode === "hourlyRange" && (
           <>
-            <Space size="middle" align="start">
+            <Space size="middle" align="start" wrap>
               <Form.Item
                 label={`시작 시 (0~${MAX_HOUR})`}
                 name="startHour"

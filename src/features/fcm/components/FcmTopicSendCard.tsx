@@ -16,6 +16,7 @@ export function FcmTopicSendCard() {
   const [form] = Form.useForm<FormValues>();
 
   function handleSend() {
+    if (isPending) return;
     form.validateFields().then((values) => {
       send(
         {
@@ -36,12 +37,12 @@ export function FcmTopicSendCard() {
           },
         },
       );
-    });
+    }).catch(() => undefined);
   }
 
   return (
     <Card title="토픽 발송" size="small">
-      <Form form={form} layout="vertical">
+      <Form name="fcm-topic-send" form={form} layout="vertical" disabled={isPending}>
         <Form.Item
           label="토픽"
           name="topic"
@@ -73,9 +74,10 @@ export function FcmTopicSendCard() {
           okText="발송"
           cancelText="취소"
           okButtonProps={isProd ? { danger: true } : undefined}
+          disabled={isPending}
           onConfirm={handleSend}
         >
-          <Button type="primary" danger={isProd} loading={isPending}>
+          <Button type="primary" danger={isProd} loading={isPending} disabled={isPending}>
             발송
           </Button>
         </Popconfirm>

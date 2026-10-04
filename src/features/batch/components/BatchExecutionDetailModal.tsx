@@ -143,7 +143,7 @@ export function BatchExecutionDetailModal({
               style={{ marginBottom: 16 }}
             />
           )}
-          <Descriptions bordered column={2} size="small" items={items} />
+          <Descriptions bordered column={{ xs: 1, md: 2 }} size="small" items={items} />
 
           <Typography.Title level={5} style={{ marginTop: 24 }}>
             스텝
@@ -161,7 +161,7 @@ export function BatchExecutionDetailModal({
             종료 메시지
           </Typography.Title>
           {data.exitMessage ? (
-            <pre style={EXIT_MESSAGE_STYLE}>{data.exitMessage}</pre>
+            <pre tabIndex={0} aria-label="배치 종료 메시지" style={EXIT_MESSAGE_STYLE}>{data.exitMessage}</pre>
           ) : (
             <Text type="secondary">종료 메시지가 없습니다.</Text>
           )}

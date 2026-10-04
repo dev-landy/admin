@@ -27,7 +27,11 @@ export function FcmTopicSubscriptionCard() {
   const [form] = Form.useForm<FormValues>();
   const [result, setResult] = useState<ActionResult | null>(null);
 
+  const isPending = isSubscribing || isUnsubscribing;
+
   function handleAction(action: "구독" | "구독 해제") {
+    if (isPending) return;
+    setResult(null);
     form.validateFields().then((values) => {
       const mutate = action === "구독" ? subscribe : unsubscribe;
       mutate(
@@ -40,12 +44,12 @@ export function FcmTopicSubscriptionCard() {
           },
         },
       );
-    });
+    }).catch(() => undefined);
   }
 
   return (
     <Card title="토픽 구독 관리" size="small">
-      <Form form={form} layout="vertical">
+      <Form name="fcm-topic-subscription" form={form} layout="vertical" disabled={isPending}>
         <Form.Item
           label="토픽"
           name="topic"
@@ -69,24 +73,26 @@ export function FcmTopicSubscriptionCard() {
         >
           <Input.TextArea rows={4} placeholder={"토큰1\n토큰2"} />
         </Form.Item>
-        <Space>
-          <Button type="primary" loading={isSubscribing} onClick={() => handleAction("구독")}>
+        <Space wrap>
+          <Button type="primary" loading={isSubscribing} disabled={isPending} onClick={() => handleAction("구독")}>
             구독
           </Button>
-          <Button danger loading={isUnsubscribing} onClick={() => handleAction("구독 해제")}>
+          <Button danger loading={isUnsubscribing} disabled={isPending} onClick={() => handleAction("구독 해제")}>
             구독 해제
           </Button>
         </Space>
       </Form>
       {result && (
         <Alert
+          role="status"
+          aria-live="polite"
           style={{ marginTop: 16 }}
           type={result.response.failureCount === 0 ? "success" : "warning"}
           showIcon
           title={`${result.action} 결과 — 성공 ${result.response.successCount} / 실패 ${result.response.failureCount}`}
           description={
             result.response.errors.length > 0 ? (
-              <Space direction="vertical" size={0}>
+              <Space orientation="vertical" size={0}>
                 {result.response.errors.map((e) => (
                   <Text key={e.index} type="danger">
                     #{e.index}: {e.reason}

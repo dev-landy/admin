@@ -69,6 +69,7 @@ export function BatchExecutionTable({
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="배치 작업 필터"
             placeholder="전체"
             value={filters.jobName}
             style={{ width: 240 }}
@@ -118,6 +119,7 @@ export function BatchExecutionTable({
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="실행 상태 필터"
             placeholder="전체"
             value={filters.status}
             style={{ width: 160 }}
@@ -142,9 +144,11 @@ export function BatchExecutionTable({
         <div style={{ padding: 8 }}>
           <Select
             allowClear
+            aria-label="종료 코드 필터"
             placeholder="전체"
             value={filters.exitCode}
-            style={{ width: 320 }}
+            style={{ width: 280, maxWidth: "100%" }}
+            popupMatchSelectWidth={false}
             onChange={(value) => onFilterChange("exitCode", value)}
             options={BATCH_EXIT_CODE_OPTIONS}
           />
@@ -204,6 +208,8 @@ export function BatchExecutionTable({
         pageSize={pageSize}
         total={total}
         onPageChange={onPageChange}
+        emptyText={Object.values(filters).some((value) => value !== undefined) ? "조건에 맞는 배치 실행 이력이 없습니다. 필터를 초기화해 전체 이력을 확인하세요." : "기록된 배치 실행 이력이 없습니다."}
+        ariaLabel="배치 실행 이력"
         rowKey={(execution) => String(execution.executionId)}
       />
       <BatchExecutionDetailModal

@@ -121,6 +121,7 @@ export function BatchScheduleTable({ data, loading, disabled = false }: Props) {
       align: "center",
       render: (value: boolean, schedule) => (
         <Switch
+          aria-label={`${schedule.label} 활성 상태`}
           checked={value}
           loading={togglingKey === schedule.key}
           disabled={isUpdating || disabled || editing !== null}
@@ -153,6 +154,7 @@ export function BatchScheduleTable({ data, loading, disabled = false }: Props) {
         rowKey={(schedule) => schedule.key}
         pagination={false}
         scroll={{ x: "max-content" }}
+        locale={{ emptyText: "등록된 배치 스케줄이 없습니다." }}
       />
       <BatchScheduleToggleModal
         schedule={toggleTarget?.schedule ?? null}
