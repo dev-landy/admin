@@ -15,6 +15,7 @@ describe("exchangeKakaoCode", () => {
     global.fetch = realFetch;
     process.env = { ...originalEnv };
     jest.clearAllMocks();
+    jest.useRealTimers();
   });
 
   function mockFetch(impl: jest.Mock) {
@@ -67,5 +68,22 @@ describe("exchangeKakaoCode", () => {
   test("throws when access_token is absent", async () => {
     mockFetch(jest.fn().mockResolvedValue({ ok: true, json: async () => ({ token_type: "bearer", expires_in: 1 }) }));
     await expect(exchangeKakaoCode("c")).rejects.toThrow(/no access_token/);
+  });
+
+  test("카카오가 응답하지 않으면 10초 후 실제 upstream 요청을 중단한다", async () => {
+    jest.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    mockFetch(jest.fn((_url, init: RequestInit) => new Promise((_resolve, reject) => {
+      signal = init.signal as AbortSignal;
+      signal.addEventListener("abort", () => reject(new Error("request aborted")), { once: true });
+    })));
+    const request = exchangeKakaoCode("single-use-code");
+    const rejected = expect(request).rejects.toThrow("request aborted");
+    jest.advanceTimersByTime(9_999);
+    expect(signal?.aborted).toBe(false);
+    jest.advanceTimersByTime(1);
+    expect(signal?.aborted).toBe(true);
+    await rejected;
+    expect(jest.getTimerCount()).toBe(0);
   });
 });

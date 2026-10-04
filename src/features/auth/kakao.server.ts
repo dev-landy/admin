@@ -7,6 +7,7 @@
  */
 
 import { serverEnv } from "@/config/env.server";
+import { KAKAO_TOKEN_EXCHANGE_TIMEOUT_MS } from "./kakao.constants";
 import type { KakaoTokenResponse } from "./types";
 
 if (typeof window !== "undefined") {
@@ -34,23 +35,30 @@ export async function exchangeKakaoCode(code: string): Promise<string> {
     body.set("client_secret", clientSecret);
   }
 
-  const response = await fetch(KAKAO_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
-    },
-    body: body.toString(),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), KAKAO_TOKEN_EXCHANGE_TIMEOUT_MS);
+  try {
+    const response = await fetch(KAKAO_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+      },
+      body: body.toString(),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Kakao token exchange failed (${response.status}): ${detail}`);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`Kakao token exchange failed (${response.status}): ${detail}`);
+    }
+
+    const data = (await response.json()) as KakaoTokenResponse;
+    if (!data.access_token) {
+      throw new Error("Kakao token exchange returned no access_token");
+    }
+
+    return data.access_token;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = (await response.json()) as KakaoTokenResponse;
-  if (!data.access_token) {
-    throw new Error("Kakao token exchange returned no access_token");
-  }
-
-  return data.access_token;
 }
