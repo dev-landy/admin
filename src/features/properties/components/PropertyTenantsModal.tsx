@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Modal, Table, Tag } from "antd";
-import type { TableColumnsType } from "antd";
+import type { ModalProps, TableColumnsType } from "antd";
 
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
@@ -17,10 +17,14 @@ export function PropertyTenantsModal({
   propertyId,
   propertyName,
   onClose,
+  afterClose,
+  focusable,
 }: {
   propertyId: number | null;
   propertyName?: string;
   onClose: () => void;
+  afterClose?: () => void;
+  focusable?: ModalProps["focusable"];
 }) {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(20);
@@ -90,6 +94,8 @@ export function PropertyTenantsModal({
       open={propertyId !== null}
       footer={null}
       width={900}
+      afterClose={afterClose}
+      focusable={focusable}
       onCancel={() => {
         setPage(1);
         setEditingTenantId(null);

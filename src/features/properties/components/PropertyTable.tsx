@@ -11,8 +11,7 @@ import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useDeleteProperty } from "../hooks";
 import type { PropertySummary } from "../types";
-import { PropertyEditModal } from "./PropertyEditModal";
-import { PropertyTenantsModal } from "./PropertyTenantsModal";
+import { DeferredPropertyEditModal, DeferredPropertyTenantsModal } from "./DeferredPropertyModals";
 
 type Props = {
   data: PropertySummary[];
@@ -140,8 +139,8 @@ export function PropertyTable({
         ariaLabel="건물 목록"
         emptyText="조건에 맞는 건물이 없습니다. 필터를 초기화하거나 이름·주소를 다시 확인해 주세요."
       />
-      <PropertyEditModal property={editing} onClose={() => setEditing(null)} />
-      <PropertyTenantsModal
+      <DeferredPropertyEditModal property={editing} onClose={() => setEditing(null)} />
+      <DeferredPropertyTenantsModal
         propertyId={tenantProperty?.propertyId ?? null}
         propertyName={tenantProperty?.name}
         onClose={() => setTenantProperty(null)}

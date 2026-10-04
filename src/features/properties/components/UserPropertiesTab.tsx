@@ -9,8 +9,7 @@ import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useDeleteProperty, useUserProperties } from "../hooks";
 import type { UserPropertySummary } from "../types";
-import { PropertyEditModal } from "./PropertyEditModal";
-import { PropertyTenantsModal } from "./PropertyTenantsModal";
+import { DeferredPropertyEditModal, DeferredPropertyTenantsModal } from "./DeferredPropertyModals";
 
 export function UserPropertiesTab({ userId }: { userId: number }) {
   const { notification } = App.useApp();
@@ -42,7 +41,7 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
         <Space wrap>
           <Button size="small" onClick={() => setTenantProperty(property)}>임차인</Button>
           <Button size="small" onClick={() => setEditing(property)}>수정</Button>
-          <Popconfirm description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다." title="건물을 삭제하시겠습니까?" okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting} onConfirm={() => handleDelete(property.propertyId)}>
+          <Popconfirm description={<><div>건물 #{property.propertyId} · {property.name}을 삭제합니다.</div><div>마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다.</div></>} title="건물을 삭제하시겠습니까?" okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting} onConfirm={() => handleDelete(property.propertyId)}>
             <Button size="small" danger loading={isDeleting && deletingId === property.propertyId} disabled={isDeleting}>삭제</Button>
           </Popconfirm>
         </Space>
@@ -59,11 +58,18 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
         loading={isLoading}
         rowKey={(property) => String(property.propertyId)}
         locale={{ emptyText: "이 사용자에게 등록된 건물이 없습니다." }}
-        pagination={false}
+        pagination={{
+          defaultPageSize: 20,
+          hideOnSinglePage: true,
+          responsive: true,
+          showSizeChanger: true,
+          pageSizeOptions: [20, 50, 100],
+          showTotal: (total) => `총 ${total}건`,
+        }}
         scroll={{ x: "max-content" }}
       />}
-      <PropertyEditModal property={editing} onClose={() => setEditing(null)} />
-      <PropertyTenantsModal
+      <DeferredPropertyEditModal property={editing} onClose={() => setEditing(null)} />
+      <DeferredPropertyTenantsModal
         propertyId={tenantProperty?.propertyId ?? null}
         propertyName={tenantProperty?.name}
         onClose={() => setTenantProperty(null)}

@@ -1,22 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { App, Checkbox, Form, Input, Modal } from "antd";
+import type { ModalProps } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUpdateProperty } from "../hooks";
 import type { PropertySummary, UpdatePropertyRequest, UserPropertySummary } from "../types";
 
 type EditableProperty = PropertySummary | UserPropertySummary;
-
-export function PropertyEditModal({
-  property,
-  onClose,
-}: {
+type Props = {
   property: EditableProperty | null;
   onClose: () => void;
-}) {
+  afterClose?: () => void;
+  focusable?: ModalProps["focusable"];
+};
+
+function editSession(property: EditableProperty | null, generation: number) {
+  return {
+    open: property !== null,
+    propertyId: property?.propertyId,
+    generation,
+    initialValues: property ? { name: property.name, address: property.address, clearAddress: false } : undefined,
+  };
+}
+
+export function PropertyEditModal(props: Props) {
+  const [session, setSession] = useState(() => editSession(props.property, 0));
+  if (props.property && (!session.open || session.propertyId !== props.property.propertyId)) {
+    setSession(editSession(props.property, session.generation + 1));
+  } else if (!props.property && session.open) {
+    setSession({ ...session, open: false });
+  }
+  // Keep the closing dialog mounted. Only a new editing session replaces the
+  // Form instance, so a previous draft cannot become another record's values.
+  return <PropertyEditSession key={session.generation} {...props} initialValues={session.initialValues} />;
+}
+
+function PropertyEditSession({ property, onClose, afterClose, focusable, initialValues }: Props & { initialValues?: UpdatePropertyRequest }) {
   const [form] = Form.useForm<UpdatePropertyRequest>();
   const { notification, modal } = App.useApp();
   const { mutate: update, isPending } = useUpdateProperty();
@@ -25,10 +47,10 @@ export function PropertyEditModal({
   const clearAddress = Form.useWatch("clearAddress", form);
 
   const hasUnsavedInput = useCallback(() => {
-    if (!property || !form.isFieldsTouched()) return false;
+    if (!property || !initialValues || !form.isFieldsTouched()) return false;
     const values = form.getFieldsValue();
-    return values.name?.trim() !== property.name.trim() || Boolean(values.clearAddress) || (values.address?.trim() || null) !== (property.address?.trim() || null);
-  }, [form, property]);
+    return values.name?.trim() !== initialValues.name.trim() || Boolean(values.clearAddress) || (values.address?.trim() || null) !== (initialValues.address?.trim() || null);
+  }, [form, property, initialValues]);
   const clearUnsavedChanges = useUnsavedChanges(false, hasUnsavedInput);
 
   function handleClose() {
@@ -81,13 +103,12 @@ export function PropertyEditModal({
       mask={{ closable: !isPending }}
       keyboard={!isPending}
       onCancel={handleClose}
+      afterClose={afterClose}
+      focusable={focusable}
       onOk={() => form.submit()}
-      afterOpenChange={(open) => {
-        if (open && property) form.setFieldsValue({ name: property.name, address: property.address, clearAddress: false });
-      }}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit} scrollToFirstError={{ focus: true }} preserve={false} disabled={isPending}>
+      <Form form={form} initialValues={initialValues} layout="vertical" onFinish={handleSubmit} scrollToFirstError={{ focus: true }} preserve={false} disabled={isPending}>
         <Form.Item label="건물명" name="name" rules={[{ required: true, whitespace: true, message: "건물명을 입력하세요." }, { validator: maxCodePoints }]}>
           <Input />
         </Form.Item>

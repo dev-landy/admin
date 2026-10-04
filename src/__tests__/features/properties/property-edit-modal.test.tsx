@@ -11,6 +11,7 @@ const property = { propertyId: 3, name: "건물", address: "기존 주소", acti
 
 beforeEach(() => jest.clearAllMocks());
 async function open() {
+  // jsdom은 CSS motion 완료 이벤트를 발생시키지 않는다. 공개 테마 설정으로 모션만 끈다.
   render(<ConfigProvider theme={{ token: { motion: false } }}><App><PropertyEditModal property={property} onClose={onClose} /></App></ConfigProvider>);
   const dialog = await screen.findByRole("dialog");
   await waitFor(() => expect(within(dialog).getByLabelText("건물명")).toHaveValue("건물"));

@@ -1,20 +1,27 @@
 "use client";
 
 import { type ReactNode, Suspense, use, useState } from "react";
+import dynamic from "next/dynamic";
 import { Tabs, Spin, Typography, Space, Button, Flex } from "antd";
 import { ArrowLeftOutlined, UserSwitchOutlined } from "@ant-design/icons";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { DeferredContentBoundary, DeferredContentError } from "@/components/DeferredContentBoundary";
 import { listReturnPath } from "@/lib/navigation/listReturn";
 
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { useUser } from "@/features/users/hooks";
 import { UserDetailCard } from "@/features/users/components/UserDetailCard";
-import { UserTenantsTab } from "@/features/users/components/UserTenantsTab";
-import { UserFcmTab } from "@/features/users/components/UserFcmTab";
 import { ImpersonationModal } from "@/features/users/components/ImpersonationModal";
 import { UserPropertiesTab } from "@/features/properties/components/UserPropertiesTab";
+
+function TabLoading() {
+  return <div role="status" aria-live="polite" aria-busy="true"><Spin /> 목록 화면을 불러오는 중입니다.</div>;
+}
+
+const UserTenantsTab = dynamic(() => import("@/features/users/components/UserTenantsTab").then((module) => module.UserTenantsTab), { loading: TabLoading });
+const UserFcmTab = dynamic(() => import("@/features/users/components/UserFcmTab").then((module) => module.UserFcmTab), { loading: TabLoading });
 
 type Props = { params: Promise<{ userId: string }> };
 
@@ -67,8 +74,8 @@ function UserDetailPageContent({ params }: Props) {
       <Tabs
         items={[
           { key: "properties", label: "건물 목록", children: <UserPropertiesTab key={userId} userId={userId} /> },
-          { key: "tenants", label: "임차인 목록", children: <UserTenantsTab key={userId} userId={userId} /> },
-          { key: "fcm", label: "FCM 토큰", children: <UserFcmTab key={userId} userId={userId} /> },
+          { key: "tenants", label: "임차인 목록", children: <DeferredContentBoundary key={userId} fallback={<DeferredContentError />}><UserTenantsTab userId={userId} /></DeferredContentBoundary> },
+          { key: "fcm", label: "FCM 토큰", children: <DeferredContentBoundary key={userId} fallback={<DeferredContentError />}><UserFcmTab userId={userId} /></DeferredContentBoundary> },
         ]}
       />
       <ImpersonationModal
