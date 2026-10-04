@@ -4,6 +4,8 @@ Landy 서버의 API를 소비하는 어드민 콘솔 (Next.js 16 App Router + An
 
 ## 시작하기
 
+Node.js `^22.22.2 || ^24.15.0 || >=26.0.0`을 사용한다. 검증 환경은 Node.js 24.18.0이다.
+
 1. `.env.example`을 `.env.local`로 복사하고 값을 채운다 (Kakao OAuth 로그인용 `KAKAO_*` 값 필요).
 2. 의존성 설치 후 개발 서버 실행:
 
@@ -13,6 +15,11 @@ npm run dev
 ```
 
 http://localhost:3000 접속 → Kakao 로그인 후 어드민 화면으로 이동한다.
+
+`npm run type-check`는 라우트 타입을 생성한 뒤 TypeScript 7 native 컴파일러로 검사한다.
+`npm run build`도 이 검사를 먼저 실행하며, Next.js의 TypeScript 6 검사도 유지한다.
+ESLint 등 컴파일러 API를 사용하는 도구를 위해 공식 TypeScript 6 호환 패키지를 병행한다.
+의존성 버전·호환 설정은 [업데이트 기록](docs/DEPENDENCY_UPGRADE.md), 테스트 정리는 [전수 조사](docs/TEST_AUDIT.md), Vercel 캐시·배포 생략과 측정은 [빌드 개선](docs/DEPLOYMENT_BUILD.md)을 참고한다.
 
 ## 구조 & 규칙
 
