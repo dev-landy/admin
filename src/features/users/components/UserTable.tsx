@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { listDetailPath } from "@/lib/navigation/listReturn";
 import { App, Button, Popconfirm, Select, Space, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
@@ -12,6 +13,7 @@ import type { UserSummary, UserRole, OAuthProvider, UserStatus } from "../types"
 import { USER_STATUS_OPTIONS, USER_STATUS_PRESENTATION } from "../userStatus";
 
 type Props = {
+  returnPath?: string;
   data: UserSummary[];
   loading: boolean;
   page: number;
@@ -23,6 +25,7 @@ type Props = {
 };
 
 export function UserTable({
+  returnPath = "/users",
   data,
   loading,
   page,
@@ -34,7 +37,7 @@ export function UserTable({
 }: Props) {
   const router = useRouter();
   const { notification } = App.useApp();
-  const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
+  const { mutate: deleteUser, isPending: isDeleting, variables: deletingId } = useDeleteUser();
 
   const columns: TableColumnsType<UserSummary> = [
     { title: "유저 ID", dataIndex: "userId", width: 90 },
@@ -43,6 +46,7 @@ export function UserTable({
     {
       title: "제공자",
       dataIndex: "provider",
+      filteredValue: filters.provider ? [filters.provider] : null,
       width: 100,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -59,11 +63,12 @@ export function UserTable({
           />
         </div>
       ),
-      render: (v: OAuthProvider) => <Tag>{v}</Tag>,
+      render: (v: OAuthProvider) => <Tag>{v === "KAKAO" ? "카카오" : "구글"}</Tag>,
     },
     {
       title: "역할",
       dataIndex: "role",
+      filteredValue: filters.role ? [filters.role] : null,
       width: 100,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -74,19 +79,20 @@ export function UserTable({
             style={{ width: 120 }}
             onChange={(v) => onFilterChange("role", v)}
             options={[
-              { label: "USER", value: "USER" },
-              { label: "ADMIN", value: "ADMIN" },
+              { label: "사용자", value: "USER" },
+              { label: "관리자", value: "ADMIN" },
             ]}
           />
         </div>
       ),
       render: (v: UserRole) => (
-        <Tag color={v === "ADMIN" ? "gold" : "default"}>{v}</Tag>
+        <Tag color={v === "ADMIN" ? "gold" : "default"}>{v === "ADMIN" ? "관리자" : "사용자"}</Tag>
       ),
     },
     {
       title: "상태",
       dataIndex: "status",
+      filteredValue: filters.status ? [filters.status] : null,
       width: 140,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -107,18 +113,21 @@ export function UserTable({
     },
     { title: "가입일", dataIndex: "createdAt", width: 140, render: (v: string) => formatKoreanDate(v) },
     {
-      title: "액션",
+      title: "동작",
       key: "action",
       width: 160,
       render: (_: unknown, record: UserSummary) => (
-        <Space>
-          <Button size="small" onClick={() => router.push(`/users/${record.userId}`)}>
+        <Space wrap>
+          <Button size="small" onClick={() => router.push(listDetailPath("/users", record.userId, returnPath))}>
             상세
           </Button>
           <Popconfirm
             title="유저를 삭제하시겠습니까?"
+            description={`유저 #${record.userId} · ${record.email} 계정을 삭제합니다. 삭제 후에는 되돌릴 수 없습니다.`}
+            okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting}
             onConfirm={() =>
               deleteUser(record.userId, {
+                onSuccess: () => notification.success({ title: `유저 #${record.userId}를 삭제했습니다.` }),
                 onError: (err) => {
                   const p = parseProblemDetail(err);
                   notification.error({
@@ -129,7 +138,7 @@ export function UserTable({
               })
             }
           >
-            <Button size="small" danger loading={isDeleting}>
+            <Button size="small" danger loading={isDeleting && deletingId === record.userId} disabled={isDeleting}>
               삭제
             </Button>
           </Popconfirm>
@@ -148,6 +157,8 @@ export function UserTable({
       total={total}
       onPageChange={onPageChange}
       rowKey={(r) => String(r.userId)}
+      ariaLabel="사용자 목록"
+      emptyText="조건에 맞는 사용자가 없습니다. 필터를 초기화하거나 다른 조건으로 조회해 주세요."
     />
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { App, Button, Input, Popconfirm, Space } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
+import { formatDateTime } from "@/lib/format/date";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useDeleteProperty } from "../hooks";
@@ -34,7 +36,7 @@ export function PropertyTable({
   onFilterChange,
 }: Props) {
   const { notification } = App.useApp();
-  const { mutate: remove, isPending: isDeleting } = useDeleteProperty();
+  const { mutate: remove, isPending: isDeleting, variables: deletingId } = useDeleteProperty();
   const [editing, setEditing] = useState<PropertySummary | null>(null);
   const [tenantProperty, setTenantProperty] = useState<PropertySummary | null>(null);
 
@@ -56,6 +58,7 @@ export function PropertyTable({
       width: 100,
       align: "center",
       filteredValue: filters.userId === undefined ? null : [filters.userId],
+      render: (value: number) => <Link href={`/users/${value}`}>{value}</Link>,
       filterDropdown: () => (
         <IdFilterDropdown
           value={filters.userId}
@@ -74,7 +77,9 @@ export function PropertyTable({
         <div style={{ padding: 8 }}>
           <Input.Search
             allowClear
+            key={filters.keyword ?? ""}
             defaultValue={filters.keyword}
+            aria-label="건물명 또는 주소 검색"
             placeholder="건물명 또는 주소"
             onSearch={(value) => onFilterChange("keyword", value.trim() || undefined)}
             style={{ width: 220 }}
@@ -97,7 +102,7 @@ export function PropertyTable({
       filteredValue: null,
       render: (value: number) => `${value}명`,
     },
-    { title: "생성일", dataIndex: "createdAt", width: 180, filteredValue: null },
+    { title: "생성일", dataIndex: "createdAt", width: 180, filteredValue: null, render: formatDateTime },
     {
       title: "액션",
       key: "actions",
@@ -105,15 +110,16 @@ export function PropertyTable({
       align: "center",
       filteredValue: null,
       render: (_value, property) => (
-        <Space>
+        <Space wrap>
           <Button size="small" onClick={() => setTenantProperty(property)}>임차인</Button>
           <Button size="small" onClick={() => setEditing(property)}>수정</Button>
           <Popconfirm
             title="건물을 삭제하시겠습니까?"
-            description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다."
+            okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting}
+            description={<><div>건물 #{property.propertyId} · {property.name}을 삭제합니다.</div><div>마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다.</div></>}
             onConfirm={() => handleDelete(property)}
           >
-            <Button size="small" danger loading={isDeleting}>삭제</Button>
+            <Button size="small" danger loading={isDeleting && deletingId === property.propertyId} disabled={isDeleting}>삭제</Button>
           </Popconfirm>
         </Space>
       ),
@@ -131,6 +137,8 @@ export function PropertyTable({
         total={total}
         onPageChange={onPageChange}
         rowKey={(property) => String(property.propertyId)}
+        ariaLabel="건물 목록"
+        emptyText="조건에 맞는 건물이 없습니다. 필터를 초기화하거나 이름·주소를 다시 확인해 주세요."
       />
       <PropertyEditModal property={editing} onClose={() => setEditing(null)} />
       <PropertyTenantsModal

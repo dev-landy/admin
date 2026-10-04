@@ -15,7 +15,7 @@ import { PropertyTenantsModal } from "./PropertyTenantsModal";
 export function UserPropertiesTab({ userId }: { userId: number }) {
   const { notification } = App.useApp();
   const { data, isLoading, error, isFetching, refetch } = useUserProperties(userId);
-  const { mutate: remove, isPending: isDeleting } = useDeleteProperty();
+  const { mutate: remove, isPending: isDeleting, variables: deletingId } = useDeleteProperty();
   const [editing, setEditing] = useState<UserPropertySummary | null>(null);
   const [tenantProperty, setTenantProperty] = useState<UserPropertySummary | null>(null);
 
@@ -39,11 +39,11 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
       key: "actions",
       width: 220,
       render: (_value, property) => (
-        <Space>
+        <Space wrap>
           <Button size="small" onClick={() => setTenantProperty(property)}>임차인</Button>
           <Button size="small" onClick={() => setEditing(property)}>수정</Button>
-          <Popconfirm description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다." title="건물을 삭제하시겠습니까?" onConfirm={() => handleDelete(property.propertyId)}>
-            <Button size="small" danger loading={isDeleting}>삭제</Button>
+          <Popconfirm description="마지막 남은 건물이거나 활성 임차인이 있으면 삭제할 수 없습니다." title="건물을 삭제하시겠습니까?" okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting} onConfirm={() => handleDelete(property.propertyId)}>
+            <Button size="small" danger loading={isDeleting && deletingId === property.propertyId} disabled={isDeleting}>삭제</Button>
           </Popconfirm>
         </Space>
       ),
@@ -58,6 +58,7 @@ export function UserPropertiesTab({ userId }: { userId: number }) {
         dataSource={data?.properties ?? []}
         loading={isLoading}
         rowKey={(property) => String(property.propertyId)}
+        locale={{ emptyText: "이 사용자에게 등록된 건물이 없습니다." }}
         pagination={false}
         scroll={{ x: "max-content" }}
       />}

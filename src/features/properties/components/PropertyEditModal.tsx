@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
+import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { App, Checkbox, Form, Input, Modal } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -16,9 +18,30 @@ export function PropertyEditModal({
   onClose: () => void;
 }) {
   const [form] = Form.useForm<UpdatePropertyRequest>();
-  const { notification } = App.useApp();
+  const { notification, modal } = App.useApp();
   const { mutate: update, isPending } = useUpdateProperty();
+  const closeConfirmation = useRef<{ destroy: () => void } | null>(null);
+  useEffect(() => () => { closeConfirmation.current?.destroy(); }, [property?.propertyId]);
   const clearAddress = Form.useWatch("clearAddress", form);
+
+  const hasUnsavedInput = useCallback(() => {
+    if (!property || !form.isFieldsTouched()) return false;
+    const values = form.getFieldsValue();
+    return values.name?.trim() !== property.name.trim() || Boolean(values.clearAddress) || (values.address?.trim() || null) !== (property.address?.trim() || null);
+  }, [form, property]);
+  const clearUnsavedChanges = useUnsavedChanges(false, hasUnsavedInput);
+
+  function handleClose() {
+    if (isPending) return;
+    if (!hasUnsavedInput()) { onClose(); return; }
+    closeConfirmation.current?.destroy();
+    closeConfirmation.current = modal.confirm({
+      title: "수정 중인 내용을 버릴까요?",
+      content: "저장하지 않은 건물 정보가 사라집니다.",
+      okText: "변경 내용 버리기", cancelText: "계속 수정", okButtonProps: { danger: true },
+      onOk: () => { clearUnsavedChanges(); onClose(); },
+    });
+  }
 
   function maxCodePoints(_rule: unknown, value?: string | null) {
     return Array.from(value ?? "").length > 255
@@ -35,6 +58,7 @@ export function PropertyEditModal({
       {
         onSuccess: () => {
           notification.success({ title: "건물 정보가 수정되었습니다." });
+          clearUnsavedChanges();
           onClose();
         },
         onError: (error) => {
@@ -47,7 +71,7 @@ export function PropertyEditModal({
 
   return (
     <Modal
-      title="건물 수정"
+      title={`건물 수정${property ? ` · ${property.name}` : ""}`}
       open={property !== null}
       okText="저장"
       cancelText="취소"
@@ -56,14 +80,14 @@ export function PropertyEditModal({
       closable={!isPending}
       mask={{ closable: !isPending }}
       keyboard={!isPending}
-      onCancel={() => { if (!isPending) onClose(); }}
+      onCancel={handleClose}
       onOk={() => form.submit()}
       afterOpenChange={(open) => {
         if (open && property) form.setFieldsValue({ name: property.name, address: property.address, clearAddress: false });
       }}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit} preserve={false} disabled={isPending}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit} scrollToFirstError={{ focus: true }} preserve={false} disabled={isPending}>
         <Form.Item label="건물명" name="name" rules={[{ required: true, whitespace: true, message: "건물명을 입력하세요." }, { validator: maxCodePoints }]}>
           <Input />
         </Form.Item>

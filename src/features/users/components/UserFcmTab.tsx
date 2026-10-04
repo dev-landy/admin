@@ -4,6 +4,7 @@ import { useState } from "react";
 import { App, Button, Popconfirm, Space, Switch, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { formatDateTime } from "@/lib/format/date";
 import { PagedTable } from "@/components/PagedTable";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
@@ -22,10 +23,10 @@ export function UserFcmTab({ userId }: { userId: number }) {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(20);
   const { data, isLoading, error, isFetching, refetch } = useUserFcmTokens(userId, page, size);
-  const { mutate: deactivate, isPending } = useDeactivateFcmToken(userId);
-  const { mutate: updateSilentWakeup, isPending: isUpdatingSilentWakeup } =
+  const { mutate: deactivate, isPending, variables: deactivatingTokenId } = useDeactivateFcmToken(userId);
+  const { mutate: updateSilentWakeup, isPending: isUpdatingSilentWakeup, variables: updatingSubscription } =
     useUpdateFcmTokenSilentWakeupSubscription(userId);
-  const { mutate: sendSilentMessage, isPending: isSendingSilent } = useSendFcmTokenSilentMessage();
+  const { mutate: sendSilentMessage, isPending: isSendingSilent, variables: sendingTokenId } = useSendFcmTokenSilentMessage();
   const [testSendTokenId, setTestSendTokenId] = useState<number | null>(null);
 
   // 마지막 행을 비활성화한 뒤 서버 총수가 줄면 표시와 다음 조회의 페이지를 함께 보정한다.
@@ -47,9 +48,10 @@ export function UserFcmTab({ userId }: { userId: number }) {
         }
         return (
           <Switch
-            size="small"
+            aria-label={`토큰 #${record.fcmTokenId} Silent Push 구독`}
             checked={record.silentWakeupSubscribed}
-            loading={isUpdatingSilentWakeup}
+            loading={isUpdatingSilentWakeup && updatingSubscription?.fcmTokenId === record.fcmTokenId}
+            disabled={isUpdatingSilentWakeup}
             checkedChildren="구독됨"
             unCheckedChildren="미구독"
             onChange={(subscribed) =>
@@ -69,8 +71,8 @@ export function UserFcmTab({ userId }: { userId: number }) {
       },
     },
     { title: "토큰 (마스킹)", dataIndex: "value" },
-    { title: "생성일", dataIndex: "createdAt", width: 180, ellipsis: true },
-    { title: "수정일", dataIndex: "updatedAt", width: 180, ellipsis: true },
+    { title: "생성일", dataIndex: "createdAt", width: 180, render: formatDateTime },
+    { title: "수정일", dataIndex: "updatedAt", width: 180, render: formatDateTime },
     {
       title: "액션",
       key: "action",
@@ -97,7 +99,7 @@ export function UserFcmTab({ userId }: { userId: number }) {
                 })
               }
             >
-              <Button size="small" loading={isSendingSilent}>
+              <Button size="small" loading={isSendingSilent && sendingTokenId === record.fcmTokenId} disabled={isSendingSilent}>
                 Silent 테스트
               </Button>
             </Popconfirm>
@@ -113,7 +115,7 @@ export function UserFcmTab({ userId }: { userId: number }) {
               })
             }
           >
-            <Button size="small" danger loading={isPending}>비활성화</Button>
+            <Button size="small" danger loading={isPending && deactivatingTokenId === record.fcmTokenId} disabled={isPending}>비활성화</Button>
           </Popconfirm>
         </Space>
       ),
@@ -127,6 +129,8 @@ export function UserFcmTab({ userId }: { userId: number }) {
         columns={columns}
         dataSource={data?.fcmTokens ?? []}
         loading={isLoading}
+        ariaLabel="사용자 FCM 토큰 목록"
+        emptyText="이 사용자에게 활성 FCM 토큰이 없습니다."
         rowKey={(r) => String(r.fcmTokenId)}
         page={data ? data.page + 1 : page}
         pageSize={data?.size ?? size}

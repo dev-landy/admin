@@ -2,21 +2,21 @@
 
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, Spin, Typography } from "antd";
+import { Button, Card, Space, Spin } from "antd";
 
+import { PageHeader } from "@/components/PageHeader";
+import { positiveInteger } from "@/lib/navigation/listParams";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { useDuplicates } from "@/features/payments/hooks";
 import { DuplicateTable } from "@/features/payments/components/DuplicateTable";
 
-const { Title } = Typography;
-
 function DuplicatesPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const page = Number(searchParams.get("page") ?? "1");
-  const size = Number(searchParams.get("size") ?? "20");
+  const page = positiveInteger(searchParams.get("page"), 1);
+  const size = positiveInteger(searchParams.get("size"), 20, 100);
 
   const { data, isLoading, error, isFetching, refetch } = useDuplicates({ page, size });
 
@@ -28,7 +28,9 @@ function DuplicatesPageContent() {
   }
 
   return (
-    <Card title={<Title level={4} style={{ margin: 0 }}>납부 중복 탐지</Title>}>
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+      <PageHeader title="납부 중복 탐지" description="동일 임차인·청구월에 여러 납부가 등록된 내역입니다. 임차인별 납부 내역을 확인해 주세요." extra={<Button href="/payments">납부 목록</Button>} />
+    <Card>
       <QueryErrorAlert error={error} title="중복 납부 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
       {(!error || data) && <DuplicateTable
         data={data?.duplicates ?? []}
@@ -39,6 +41,7 @@ function DuplicatesPageContent() {
         onPageChange={handlePageChange}
       />}
     </Card>
+    </Space>
   );
 }
 

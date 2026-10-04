@@ -1,9 +1,11 @@
 "use client";
 
-import { use } from "react";
+import { type ReactNode, Suspense, use } from "react";
 import { Button, Space, Spin, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { PageHeader } from "@/components/PageHeader";
+import { listReturnPath } from "@/lib/navigation/listReturn";
 
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
@@ -12,29 +14,44 @@ import { TenantDetailCard } from "@/features/tenants/components/TenantDetailCard
 
 type Props = { params: Promise<{ tenantId: string }> };
 
-export default function TenantDetailPage({ params }: Props) {
+function TenantDetailPageContent({ params }: Props) {
   const { tenantId: tenantIdStr } = use(params);
   const tenantId = Number(tenantIdStr);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnPath = listReturnPath(searchParams.get("returnTo"), "/tenants");
   const { data: tenant, isLoading, error, isFetching, refetch } = useTenant(tenantId);
 
+  function renderState(content: ReactNode) {
+    return <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+      <PageHeader title="임차인 상세" description={`임차인 #${tenantId}`} />
+      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>목록으로</Button>
+      {content}
+    </Space>;
+  }
+
   if (isLoading) {
-    return <Spin size="large" style={{ display: "block", textAlign: "center", marginTop: 80 }} />;
+    return renderState(<Spin size="large" aria-label="상세 정보를 불러오는 중" style={{ display: "block", textAlign: "center", marginTop: 80 }} />);
   }
 
   if (error && !tenant) {
-    return <QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} />;
+    return renderState(<QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} />);
   }
 
   if (!tenant) {
-    return <Typography.Text type="secondary">임차인을 찾을 수 없습니다.</Typography.Text>;
+    return renderState(<Typography.Text type="secondary">임차인을 찾을 수 없습니다.</Typography.Text>);
   }
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push("/tenants")}>목록으로</Button>
+      <PageHeader title="임차인 상세" description={`임차인 #${tenantId}`} />
+      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>목록으로</Button>
       <QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData />
-      <TenantDetailCard tenant={tenant} />
+      <TenantDetailCard tenant={tenant} returnPath={returnPath} />
     </Space>
   );
+}
+
+export default function TenantDetailPage(props: Props) {
+  return <Suspense fallback={<Spin aria-label="상세 정보를 불러오는 중" />}><TenantDetailPageContent {...props} /></Suspense>;
 }

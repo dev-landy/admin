@@ -1,8 +1,10 @@
 "use client";
 
-import { App, Button, Card, Descriptions, Popconfirm, Select, Space, Switch, Tag, Tooltip } from "antd";
+import { App, Button, Card, Descriptions, Popconfirm, Select, Space, Switch, Tag, Typography } from "antd";
 import { useRouter } from "next/navigation";
 
+import { useEffect, useRef } from "react";
+import { formatDateTime } from "@/lib/format/date";
 import { parseProblemDetail } from "@/lib/api/problem";
 import {
   useUpdateUserRole,
@@ -13,21 +15,44 @@ import {
 import type { UserDetail } from "../types";
 import { USER_STATUS_PRESENTATION } from "../userStatus";
 
-export function UserDetailCard({ user }: { user: UserDetail }) {
+export function UserDetailCard({ user, returnPath = "/users" }: { user: UserDetail; returnPath?: string }) {
   const router = useRouter();
-  const { notification } = App.useApp();
+  const { notification, modal } = App.useApp();
   const { mutate: updateRole, isPending: isRolePending } = useUpdateUserRole(user.userId);
   const { mutate: updateNotify, isPending: isNotifyPending } = useUpdateUserNotifySettings(user.userId);
   const { mutate: updateAlimtalk, isPending: isAlimtalkPending } = useUpdateUserAlimtalkEnabled(user.userId);
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
   const statusPresentation = USER_STATUS_PRESENTATION[user.status];
 
-  function handleRoleChange(role: "USER" | "ADMIN") {
+  function updateRoleConfirmed(role: "USER" | "ADMIN") {
     updateRole(role, {
       onSuccess: () => notification.success({ title: "역할이 변경되었습니다." }),
       onError: (err) => {
         const p = parseProblemDetail(err);
         notification.error({ title: p?.title ?? "역할 변경 실패", description: p?.detail });
+      },
+    });
+  }
+
+  const roleConfirmation = useRef<{ destroy: () => void } | null>(null);
+  useEffect(() => () => { roleConfirmation.current?.destroy(); }, [user.userId]);
+
+  function handleRoleChange(role: "USER" | "ADMIN") {
+    if (role === user.role || isRolePending) return;
+    roleConfirmation.current?.destroy();
+    roleConfirmation.current = modal.confirm({
+      title: `${role === "ADMIN" ? "관리자" : "사용자"} 역할로 변경할까요?`,
+      content: `유저 #${user.userId} · ${user.email}의 관리자 접근 권한이 ${role === "ADMIN" ? "허용" : "해제"}됩니다.`,
+      okText: "역할 변경", cancelText: "취소", onOk: () => updateRoleConfirmed(role),
+    });
+  }
+
+  function handleNotifyChange(field: "notifyDue" | "notifyOverdue", enabled: boolean) {
+    updateNotify({ [field]: enabled }, {
+      onSuccess: () => notification.success({ title: `${field === "notifyDue" ? "납부일" : "연체"} 알림을 ${enabled ? "켰습니다" : "껐습니다"}.` }),
+      onError: (err) => {
+        const problem = parseProblemDetail(err);
+        notification.error({ title: problem?.title ?? "알림 설정 변경 실패", description: problem?.detail });
       },
     });
   }
@@ -49,7 +74,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
 
   function handleDelete() {
     deleteUser(user.userId, {
-      onSuccess: () => router.replace("/users"),
+      onSuccess: () => { notification.success({ title: `유저 #${user.userId}를 삭제했습니다.` }); router.replace(returnPath); },
       onError: (err) => {
         const p = parseProblemDetail(err);
         notification.error({ title: p?.title ?? "삭제 실패", description: p?.detail });
@@ -61,65 +86,68 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
     <Card
       title={`유저 #${user.userId}`}
       extra={
-        <Popconfirm title="이 유저를 삭제하시겠습니까?" onConfirm={handleDelete}>
-          <Button danger loading={isDeleting}>삭제</Button>
+        <Popconfirm title="이 유저를 삭제하시겠습니까?" description={`유저 #${user.userId} · ${user.email} 계정을 삭제합니다. 삭제 후에는 되돌릴 수 없습니다.`} okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting} onConfirm={handleDelete}>
+          <Button danger loading={isDeleting} disabled={isDeleting}>삭제</Button>
         </Popconfirm>
       }
     >
-      <Descriptions column={2} bordered size="small">
-        <Descriptions.Item label="제공자">{user.provider}</Descriptions.Item>
-        <Descriptions.Item label="상태">
-          <Tag color={statusPresentation.color}>{statusPresentation.label}</Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="이메일">{user.email}</Descriptions.Item>
-        <Descriptions.Item label="전화번호">{user.phone ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="가입일">{user.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="수정일">{user.updatedAt}</Descriptions.Item>
-        <Descriptions.Item label="역할">
-          <Space>
-            <Select
-              value={user.role}
-              onChange={handleRoleChange}
-              loading={isRolePending}
-              options={[
-                { label: "USER", value: "USER" },
-                { label: "ADMIN", value: "ADMIN" },
-              ]}
-              style={{ width: 100 }}
-            />
-          </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="납부일 알림">
-          <Switch
-            checked={user.notifyDue}
-            loading={isNotifyPending}
-            onChange={(v) => updateNotify({ notifyDue: v })}
-          />
-        </Descriptions.Item>
-        <Descriptions.Item label="연체 알림">
-          <Switch
-            checked={user.notifyOverdue}
-            loading={isNotifyPending}
-            onChange={(v) => updateNotify({ notifyOverdue: v })}
-          />
-        </Descriptions.Item>
-        <Descriptions.Item label="세입자 알림톡">
-          <Tooltip title="임대인이 설정 화면에서 직접 켜고 끄는 값이며(기본 켜짐), 여기서는 지원 목적으로 대신 바꿉니다. 켜져 있어도 임차인별 설정(기본 꺼짐)을 따로 켜야 실제로 나가고, 끄면 임차인별 설정과 무관하게 전부 멈춥니다.">
-            <Space>
-              <Switch
-                checked={user.alimtalkEnabled}
-                loading={isAlimtalkPending}
-                checkedChildren="사용"
-                unCheckedChildren="중지"
-                onChange={handleAlimtalkChange}
+      <Descriptions
+        column={{ xs: 1, sm: 2 }} bordered size="small"
+        items={[
+          { key: "provider", label: "가입 경로", children: user.provider === "KAKAO" ? "카카오" : "구글" },
+          { key: "status", label: "상태", children: <Tag color={statusPresentation.color}>{statusPresentation.label}</Tag> },
+          { key: "email", label: "이메일", children: user.email },
+          { key: "phone", label: "전화번호", children: user.phone ?? "-" },
+          { key: "createdAt", label: "가입일", children: formatDateTime(user.createdAt) },
+          { key: "updatedAt", label: "수정일", children: formatDateTime(user.updatedAt) },
+          {
+            key: "role", label: "역할", children: (
+              <Select
+                value={user.role} onChange={handleRoleChange}
+                loading={isRolePending} disabled={isRolePending} aria-label="사용자 역할"
+                options={[{ label: "사용자", value: "USER" }, { label: "관리자", value: "ADMIN" }]}
+                style={{ width: 120 }}
               />
-              <Tag color={user.alimtalkEnabled ? "green" : "default"}>
-                {user.alimtalkEnabled ? "세입자 발송 사용" : "세입자 발송 중지"}
-              </Tag>
-            </Space>
-          </Tooltip>
-        </Descriptions.Item>
-      </Descriptions>
+            ),
+          },
+          {
+            key: "notifyDue", label: "납부일 알림", children: (
+              <Switch
+                checked={user.notifyDue} loading={isNotifyPending} aria-label="납부일 알림"
+                checkedChildren="활성" unCheckedChildren="비활성"
+                onChange={(enabled) => handleNotifyChange("notifyDue", enabled)}
+              />
+            ),
+          },
+          {
+            key: "notifyOverdue", label: "연체 알림", children: (
+              <Switch
+                checked={user.notifyOverdue} loading={isNotifyPending} aria-label="연체 알림"
+                checkedChildren="활성" unCheckedChildren="비활성"
+                onChange={(enabled) => handleNotifyChange("notifyOverdue", enabled)}
+              />
+            ),
+          },
+          {
+            key: "alimtalk", label: "세입자 알림톡", children: (
+              <Space orientation="vertical" size={8}>
+                <Space wrap>
+                  <Switch
+                    aria-label="세입자 알림톡" checked={user.alimtalkEnabled} loading={isAlimtalkPending}
+                    checkedChildren="사용" unCheckedChildren="중지" onChange={handleAlimtalkChange}
+                  />
+                  <Tag color={user.alimtalkEnabled ? "green" : "default"}>
+                    {user.alimtalkEnabled ? "세입자 발송 사용" : "세입자 발송 중지"}
+                  </Tag>
+                </Space>
+                <Typography.Text type="secondary">
+                  켜져 있어도 임차인별 알림톡 설정이 켜져 있어야 발송됩니다. 끄면 이 사용자의 세입자 발송이 모두 중지됩니다.
+                </Typography.Text>
+              </Space>
+            ),
+          },
+        ]}
+      />
     </Card>
   );
 }

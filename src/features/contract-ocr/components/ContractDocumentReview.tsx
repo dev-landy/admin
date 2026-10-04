@@ -17,6 +17,7 @@ import {
 } from "@/features/tenants/components/TenantInfoForm";
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
 import { useContractOverlapConfirmation } from "@/features/tenants/useContractOverlapConfirmation";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
@@ -376,11 +377,12 @@ export function ContractDocumentReview({ documentId, onBack, continuation }: {
   const document = documentQuery.data;
   return <div className={styles.review}>
     <Button className={styles.backButton} aria-label="목록으로" icon={<ArrowLeftOutlined />} onClick={() => requestNavigation(onBack)}>목록으로</Button>
-    <Title level={4} style={{ margin: 0 }}>계약서 검수</Title>
+    <Title level={1} style={{ margin: 0, fontSize: 22 }}>{document?.status === "PENDING_REVIEW" || !document ? "계약서 검수" : "계약서 열람"}</Title>
     {documentQuery.isPending ? <Spin /> : !document ? <Alert type="error" showIcon
       title={errorMessage(documentQuery.error, "계약서를 불러오지 못했습니다.")}
       action={<Button onClick={() => documentQuery.refetch()}>다시 조회</Button>} /> : <>
-      <Text type="secondary">문서 {document.documentId} · 유저 {document.userId} · 건물 {document.propertyId}</Text>
+      <Text type="secondary" style={{ overflowWrap: "anywhere" }}>문서 {document.documentId} · 유저 {document.userId} · 건물 {document.propertyId}</Text>
+      <QueryErrorAlert error={documentQuery.error} title="최신 계약서 상태를 불러오지 못했습니다." onRetry={documentQuery.refetch} isRetrying={documentQuery.isFetching} hasData />
       <div className={styles.workspace}>
         <ContractDocumentSourcePanel key={document.documentId} pageCount={filesQuery.data?.files.length}
           isLoading={filesQuery.isPending} hasError={filesQuery.isError} isRefreshing={filesQuery.isFetching}
@@ -388,7 +390,7 @@ export function ContractDocumentReview({ documentId, onBack, continuation }: {
           <Space orientation="vertical" size={16} style={{ width: "100%" }}>
             <Text type="secondary">원본에는 개인정보가 포함되어 있을 수 있습니다.<br />검수 목적으로만 열람해 주세요.</Text>
             {filesQuery.isPending ? <Spin /> : filesQuery.isError ? <Alert type="error" showIcon title={errorMessage(filesQuery.error, "원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")} /> :
-              <>{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
+              <>{filesQuery.data?.files.length === 0 && <Alert type="info" showIcon title="열람할 수 있는 계약서 원본이 없습니다." description="보관 기간이 지났거나 파일이 삭제되었을 수 있습니다." />}{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
           </Space>
         </ContractDocumentSourcePanel>
         <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}>

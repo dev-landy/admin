@@ -28,7 +28,7 @@
 }
 
 .sourceStatus {
-  color: #8c8c8c;
+  color: #596579;
 }
 
 .sourceErrorStatus {
@@ -115,4 +115,10 @@
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
   }
+}
+
+@media (max-width: 767px) {
+  .actions { margin-inline: -16px; padding-inline: 16px; }
+  .pendingBuilding { flex-wrap: wrap; }
+  .buildingRow { flex-wrap: wrap; }
 }

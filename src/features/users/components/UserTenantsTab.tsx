@@ -76,6 +76,8 @@ export function UserTenantsTab({ userId }: { userId: number }) {
         columns={columns}
         dataSource={data?.tenants ?? []}
         loading={isLoading}
+        ariaLabel="사용자 임차인 목록"
+        emptyText="이 사용자에게 등록된 임차인이 없습니다."
         rowKey={(r) => String(r.tenantId)}
         page={data ? data.page + 1 : page}
         pageSize={data?.size ?? size}

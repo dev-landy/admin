@@ -2,10 +2,12 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Button, Card, Collapse, Segmented, Space, Spin, Tag, Typography } from "antd";
+import { Button, Card, Collapse, Segmented, Space, Spin, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
+import { PageHeader } from "@/components/PageHeader";
+import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { PagedTable } from "@/components/PagedTable";
 import { useContractDocuments } from "@/features/contract-ocr/hooks";
 import { ContractStorageRetriesButton } from "@/features/contract-ocr/components/ContractStorageRetriesButton";
@@ -14,10 +16,10 @@ import type {
   ContractDocumentListStatus,
 } from "@/features/contract-ocr/types";
 
-import { parseProblemDetail } from "@/lib/api/problem";
+import { formatDateTime } from "@/lib/format/date";
 import { contractListReturnPath, contractReviewPath } from "@/features/contract-ocr/navigation";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const STATUS_META = {
   PENDING_REVIEW: { color: "gold", label: "검수 대기" },
@@ -28,11 +30,6 @@ const STATUS_META = {
 function statusTag(record: ContractDocument) {
   const meta = STATUS_META[record.status];
   return <Tag color={meta.color}>{meta.label}</Tag>;
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  const match = value?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-  return match ? `${match[1]} ${match[2]}` : "-";
 }
 
 // 탭·페이지 상태를 URL 쿼리에 둔다 — 열람 화면에서 뒤로가기해도 보던 탭이 유지된다.
@@ -118,11 +115,12 @@ function ContractOcrPageContent() {
   ];
 
   return (
-    <Card
-      title={<Title level={4} style={{ margin: 0 }}>계약서 관리</Title>}
+    <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+    <PageHeader title="계약서 관리"
       extra={
-        <Space size={12}>
+        <Space size={12} wrap>
           <Segmented
+            aria-label="계약서 처리 상태"
             value={listStatus}
             onChange={(value) =>
               navigate({
@@ -140,15 +138,16 @@ function ContractOcrPageContent() {
           </Button>
         </Space>
       }
-    >
+    />
+    <Card>
       <Space orientation="vertical" size={16} style={{ width: "100%" }}>
         <Text type="secondary">
           {listStatus === "PENDING"
             ? "원본을 확인해 직접 등록하거나 반려할 수 있습니다. OCR은 검수 화면에서 필요한 경우에만 요청합니다."
             : "등록 또는 반려 결정이 완료된 계약서 목록입니다(최신순). 보관 기간이 지난 원본은 열람할 수 없을 수 있습니다."}
         </Text>
-        {error && <Alert type="error" showIcon title={parseProblemDetail(error)?.detail ?? "계약서 목록을 불러오지 못했습니다."} />}
-        <PagedTable
+        <QueryErrorAlert error={error} title="계약서 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isRefetching} hasData={data !== undefined} />
+        {(!error || data) && <PagedTable
           columns={columns}
           dataSource={data?.documents ?? []}
           loading={isLoading}
@@ -162,7 +161,9 @@ function ContractOcrPageContent() {
             })
           }
           rowKey="documentId"
-        />
+          ariaLabel="계약서 목록"
+          emptyText={listStatus === "PENDING" ? "검수 대기 중인 계약서가 없습니다." : "처리가 완료된 계약서가 없습니다."}
+        />}
         <Collapse
           size="small"
           items={[{
@@ -179,6 +180,7 @@ function ContractOcrPageContent() {
         />
       </Space>
     </Card>
+    </Space>
   );
 }
 

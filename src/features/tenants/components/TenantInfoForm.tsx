@@ -14,9 +14,10 @@ import {
   Space,
   theme,
 } from "antd";
-import type { FormInstance, InputNumberProps, InputProps } from "antd";
+import type { DatePickerProps, FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
+import { commitDateInput } from "@/components/date-input";
 
 import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
@@ -225,34 +226,47 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
 // 달력 버튼을 Space.Compact로 붙인다. 숫자 8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
 function DateAddonPicker({
   field,
-  id,
   value,
   onChange,
-  placeholder,
   disabled,
+  style,
+  ...pickerProps
 }: {
   field: "startDate" | "endDate";
-  id?: string;
-  value?: Dayjs | null;
   onChange?: (value: Dayjs | null) => void;
-  placeholder: string;
-  disabled?: boolean;
-}) {
+} & Omit<DatePickerProps<Dayjs, false>, "onChange">) {
   const [open, setOpen] = useState(false);
+  const form = Form.useFormInstance<TenantInfoFormValues>();
+
+  function commitDate(next: Dayjs | null) {
+    const current: Dayjs | null | undefined = form.getFieldValue(field);
+    if ((!next && !current) || (next && dayjs.isDayjs(current) && current.isSame(next, "day"))) return;
+    onChange?.(next);
+  }
+
+  function commitTypedInput(target: EventTarget | null) {
+    if (disabled) return;
+    commitDateInput(target, ["YYYY-MM-DD", "YYYYMMDD"], form.getFieldValue(field), commitDate);
+  }
+
   return (
     <Space.Compact data-tenant-date-field={field} style={{ width: "100%" }}>
       <DatePicker
-        id={id}
+        {...pickerProps}
         value={value ?? null}
-        onChange={(next) => onChange?.(next)}
+        onChange={commitDate}
         format={["YYYY-MM-DD", "YYYYMMDD"]}
-        onKeyDown={(event) => {
+        onBlur={(event, ...args) => {
+          commitTypedInput(event.target);
+          pickerProps.onBlur?.(event, ...args);
+        }}
+        onKeyDown={(event, ...args) => {
           // DatePicker의 날짜 확정은 유지하고 Enter로 폼 전체가 제출되는 기본 동작만 막는다.
           if (event.key === "Enter") event.preventDefault();
+          pickerProps.onKeyDown?.(event, ...args);
         }}
-        placeholder={placeholder}
         disabled={disabled}
-        style={{ width: "100%" }}
+        style={{ width: "100%", ...style }}
         open={open}
         onOpenChange={setOpen}
         suffixIcon={null}
@@ -420,7 +434,7 @@ export function TenantInfoFormFields({
     rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
   return (
     <Row gutter={12} className={styles.fields}>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="카테고리"
           name="contractType"
@@ -441,7 +455,7 @@ export function TenantInfoFormFields({
           />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         {isParking ? (
           <Form.Item label="차량 번호" name="vehicleNumber">
             <Input maxLength={32} placeholder="예: 12가3456" />
@@ -495,7 +509,7 @@ export function TenantInfoFormFields({
           </Row>
         )}
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="세입자 이름"
           name="name"
@@ -504,7 +518,7 @@ export function TenantInfoFormFields({
           <Input maxLength={100} placeholder="홍길동" />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="연락처"
           name="phone"
@@ -518,7 +532,7 @@ export function TenantInfoFormFields({
           <Input placeholder="010-1111-2222" inputMode="numeric" maxLength={13} />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <Form.Item
           label="계약 시작일"
           name="startDate"
@@ -541,7 +555,7 @@ export function TenantInfoFormFields({
           />
         </Form.Item>
       </Col>
-      <Col span={12}>
+      <Col xs={24} sm={12}>
         <div
           style={{
             display: "flex",
@@ -563,7 +577,7 @@ export function TenantInfoFormFields({
                 <Button
                   key={months}
                   size="small"
-                  style={{ height: 22 }}
+                  style={{ minHeight: 32, height: "auto" }}
                   shape="round"
                   htmlType="button"
                   color={selected ? "primary" : "default"}
@@ -571,7 +585,12 @@ export function TenantInfoFormFields({
                   aria-pressed={selected}
                   disabled={!nextEndDate || undefined}
                   title={nextEndDate ? `${nextEndDate.format("YYYY-MM-DD")}까지` : "계약 시작일을 먼저 선택해 주세요."}
-                  onClick={() => form.setFieldValue("endDate", nextEndDate)}
+                  onClick={(event) => {
+                    // 날짜 blur 확정과 연속 클릭하면 useWatch보다 Form 값이 먼저 갱신된다.
+                    const currentStart: Dayjs | null | undefined = form.getFieldValue("startDate");
+                    if (event.currentTarget.hasAttribute("disabled") || !dayjs.isDayjs(currentStart) || !currentStart.isValid()) return;
+                    form.setFieldValue("endDate", getContractEndDate(currentStart, months));
+                  }}
                 >
                   {label}
                 </Button>

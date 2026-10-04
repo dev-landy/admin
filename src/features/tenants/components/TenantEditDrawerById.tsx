@@ -24,8 +24,8 @@ export function TenantEditDrawerById({
   });
 
   if (!data) {
-    return <Drawer title="임차인 정보 수정" open onClose={onClose} size={480}>
-      {isLoading && <Spin />}
+    return <Drawer title="임차인 정보 수정" open onClose={onClose} size="min(480px, 100vw)">
+      {isLoading && <Spin aria-label="임차인 정보를 불러오는 중" />}
       <QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} />
     </Drawer>;
   }

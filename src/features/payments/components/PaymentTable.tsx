@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Select, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
+import { formatDateTime } from "@/lib/format/date";
 import { PagedTable } from "@/components/PagedTable";
 import { formatYearMonth } from "@/lib/format/date";
 import { PAYMENT_SOURCE_OPTIONS, PAYMENT_SOURCE_PRESENTATION } from "../paymentSource";
@@ -38,6 +40,7 @@ export function PaymentTable({
       width: 110,
       align: "center",
       filteredValue: filters.userId === undefined ? null : [filters.userId],
+      render: (value: number) => <Link href={`/users/${value}`}>{value}</Link>,
       filterDropdown: () => (
         <IdFilterDropdown
           value={filters.userId}
@@ -52,6 +55,7 @@ export function PaymentTable({
       width: 120,
       align: "center",
       filteredValue: filters.tenantId === undefined ? null : [filters.tenantId],
+      render: (value: number) => <Link href={`/tenants/${value}`}>{value}</Link>,
       filterDropdown: () => (
         <IdFilterDropdown
           value={filters.tenantId}
@@ -71,13 +75,15 @@ export function PaymentTable({
     {
       title: "금액",
       dataIndex: "amount",
-      width: 120,
-      align: "center",
+      width: 140,
+      align: "right",
+      className: "admin-numeric",
       render: (v: number) => v.toLocaleString() + "원",
     },
     {
       title: "출처",
       dataIndex: "paymentSource",
+      filteredValue: filters.source ? [filters.source] : null,
       width: 130,
       align: "center",
       filterDropdown: () => (
@@ -97,7 +103,7 @@ export function PaymentTable({
         return <Tag color={presentation.color}>{presentation.label}</Tag>;
       },
     },
-    { title: "수정일", dataIndex: "updatedAt", width: 170, align: "center", ellipsis: true },
+    { title: "수정일", dataIndex: "updatedAt", width: 170, align: "center", render: formatDateTime },
   ];
 
   return (
@@ -110,6 +116,8 @@ export function PaymentTable({
       total={total}
       onPageChange={onPageChange}
       rowKey={(r) => String(r.paymentId)}
+      ariaLabel="납부 목록"
+      emptyText="조건에 맞는 납부 내역이 없습니다. 필터를 초기화하거나 청구월을 확인해 주세요."
     />
   );
 }

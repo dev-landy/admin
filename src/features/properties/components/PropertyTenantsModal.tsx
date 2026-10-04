@@ -27,6 +27,11 @@ export function PropertyTenantsModal({
   const [editingTenantId, setEditingTenantId] = useState<number | null>(null);
   const { data, isLoading, error, isFetching, refetch } = usePropertyTenants(propertyId, page, size);
 
+  if (data && !error && !isFetching) {
+    const lastPage = Math.max(1, Math.ceil(data.totalElements / size));
+    if (page > lastPage) setPage(lastPage);
+  }
+
   const columns: TableColumnsType<PropertyTenant> = [
     { title: "임차인 ID", dataIndex: "tenantId", width: 110 },
     { title: "이름", dataIndex: "name" },
@@ -87,6 +92,7 @@ export function PropertyTenantsModal({
       width={900}
       onCancel={() => {
         setPage(1);
+        setEditingTenantId(null);
         onClose();
       }}
       destroyOnHidden
@@ -105,10 +111,11 @@ export function PropertyTenantsModal({
           pageSizeOptions: [20, 50, 100],
           showTotal: (total) => `총 ${total}건`,
           onChange: (nextPage, nextSize) => {
-            setPage(nextPage);
+            setPage(nextSize === size ? nextPage : 1);
             setSize(nextSize);
           },
         }}
+        locale={{ emptyText: "이 건물에 등록된 임차인이 없습니다." }}
         scroll={{ x: "max-content" }}
       />}
       {editingTenantId != null && (
