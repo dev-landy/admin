@@ -23,7 +23,7 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
   const toggleRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const status = isLoading ? "불러오는 중" : hasError ? "원본 조회 실패" : pageCount === undefined ? "" : `${pageCount}페이지`;
-  const refresh = onRefresh && <Button aria-label="원본 새로고침" icon={<ReloadOutlined />} loading={isRefreshing} onClick={onRefresh}>원본 새로고침</Button>;
+  const refresh = onRefresh && <Button aria-label="원본 새로고침" icon={<ReloadOutlined />} loading={isRefreshing} disabled={isRefreshing} onClick={onRefresh}>원본 새로고침</Button>;
 
   useLayoutEffect(() => {
     if (isSplitView || !open) return;

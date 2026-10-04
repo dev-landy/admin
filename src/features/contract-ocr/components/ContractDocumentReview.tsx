@@ -2,7 +2,7 @@
 
 import { type RefObject, useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Flex, Form, Image, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
+import { Alert, App, Button, Card, Flex, Form, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 
 import {
@@ -21,6 +21,7 @@ import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
+import { ContractDocumentSourceImage } from "./ContractDocumentSourceImage";
 import { ContractDocumentActions } from "./ContractDocumentActions";
 import { ContractDocumentPropertyField, toContractPropertyRequest, type ContractPropertySelection } from "./ContractDocumentPropertyField";
 import { useNavigationGuard, useUnsavedChanges } from "@/components/NavigationGuard";
@@ -374,6 +375,15 @@ export function ContractDocumentReview({ documentId, onBack, continuation }: {
   const [completed, setCompleted] = useState<"REGISTERED" | "REJECTED">();
   const documentQuery = useContractDocument(documentId);
   const filesQuery = useContractDocumentFiles(documentId);
+  const sourceRefreshRef = useRef<{ documentId: string; token: symbol } | null>(null);
+  function refreshSource() {
+    if (filesQuery.isFetching || sourceRefreshRef.current?.documentId === documentId) return;
+    const token = Symbol("source-refresh");
+    sourceRefreshRef.current = { documentId, token };
+    void filesQuery.refetch().finally(() => {
+      if (sourceRefreshRef.current?.token === token) sourceRefreshRef.current = null;
+    });
+  }
   const document = documentQuery.data;
   return <div className={styles.review}>
     <Button className={styles.backButton} aria-label="목록으로" icon={<ArrowLeftOutlined />} onClick={() => requestNavigation(onBack)}>목록으로</Button>
@@ -386,11 +396,13 @@ export function ContractDocumentReview({ documentId, onBack, continuation }: {
       <div className={styles.workspace}>
         <ContractDocumentSourcePanel key={document.documentId} pageCount={filesQuery.data?.files.length}
           isLoading={filesQuery.isPending} hasError={filesQuery.isError} isRefreshing={filesQuery.isFetching}
-          onRefresh={() => { void filesQuery.refetch(); }} actionBarRef={actionBarRef}>
+          onRefresh={refreshSource} actionBarRef={actionBarRef}>
           <Space orientation="vertical" size={16} style={{ width: "100%" }}>
             <Text type="secondary">원본에는 개인정보가 포함되어 있을 수 있습니다.<br />검수 목적으로만 열람해 주세요.</Text>
             {filesQuery.isPending ? <Spin /> : filesQuery.isError ? <Alert type="error" showIcon title={errorMessage(filesQuery.error, "원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")} /> :
-              <>{filesQuery.data?.files.length === 0 && <Alert type="info" showIcon title="열람할 수 있는 계약서 원본이 없습니다." description="보관 기간이 지났거나 파일이 삭제되었을 수 있습니다." />}{filesQuery.data?.files.map((file) => <Image key={file.fileId} preview={false} width="100%" src={file.url} alt={`계약서 ${file.fileIndex + 1}페이지`} style={{ marginBottom: 12 }} />)}</>}
+              <>{filesQuery.data?.files.length === 0 && <Alert type="info" showIcon title="열람할 수 있는 계약서 원본이 없습니다." description="보관 기간이 지났거나 파일이 삭제되었을 수 있습니다." />}{filesQuery.data?.files.map((file) => <ContractDocumentSourceImage
+                key={JSON.stringify([file.fileId, file.url, filesQuery.dataUpdatedAt])} file={file}
+                isRefreshing={filesQuery.isFetching} onRefresh={refreshSource} />)}</>}
           </Space>
         </ContractDocumentSourcePanel>
         <section className={styles.pane} aria-label="계약서 입력 영역" tabIndex={0}>

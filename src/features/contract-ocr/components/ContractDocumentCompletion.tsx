@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Card, Space } from "antd";
 import { findNextPendingContract, contractReviewPath } from "../navigation";
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -15,20 +15,27 @@ export function ContractDocumentCompletion({ status, documentId, returnPath, pos
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const inProgress = useRef(false);
+  const pendingRequest = useRef<object | null>(null);
+  useEffect(() => () => { pendingRequest.current = null; }, []);
   async function continueReview() {
-    if (inProgress.current) return;
-    inProgress.current = true;
+    if (pendingRequest.current) return;
+    const request = {};
+    pendingRequest.current = request;
     setLoading(true);
     setError(undefined);
     try {
       const next = await findNextPendingContract(documentId, returnPath, position);
+      // A queue lookup does not own navigation after this review has been left.
+      if (pendingRequest.current !== request) return;
       onNavigate(next.document ? contractReviewPath(next.document.documentId, next.returnPath, next.position) : next.returnPath);
     } catch (error) {
+      if (pendingRequest.current !== request) return;
       setError(parseProblemDetail(error)?.detail ?? (error instanceof Error ? error.message : "다음 계약서 목록을 불러오지 못했습니다."));
     } finally {
-      inProgress.current = false;
-      setLoading(false);
+      if (pendingRequest.current === request) {
+        pendingRequest.current = null;
+        setLoading(false);
+      }
     }
   }
   return <Card title="계약서 처리 완료">

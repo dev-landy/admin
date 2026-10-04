@@ -44,6 +44,7 @@ let client: QueryClient;
 function renderReview(cachedTenant?: typeof TENANT, continuation?: { returnPath: string; position: number; onNavigate: (path: string) => void }) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   if (cachedTenant) client.setQueryData(tenantKeys.detail(cachedTenant.tenantId), cachedTenant);
+  // jsdom은 CSS motion 완료 이벤트를 발생시키지 않는다. 공개 테마 설정으로 모션만 끈다.
   render(<QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><NavigationGuardProvider><ContractDocumentReview documentId={DOCUMENT.documentId} onBack={onBack} continuation={continuation} /></NavigationGuardProvider></App></ConfigProvider></QueryClientProvider>);
 }
 async function applyDraft() {
@@ -257,33 +258,45 @@ test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음
 
 test("좁은 화면의 원본은 기본으로 접고 열기·새로고침·닫기 중 임차인 입력을 유지한다", async () => {
   renderReview();
-  const toggle = await screen.findByRole("button", { name: "계약서 원본 펼치기" });
+  const source = await screen.findByRole("region", { name: "계약서 원본 영역" });
+  const sourceView = within(source);
+  const toggle = sourceView.getByRole("button", { name: "계약서 원본 펼치기" });
+  const input = await screen.findByLabelText("세입자 이름");
+  // 원본 조작은 해당 패널에서 조회한다. 매번 입력 폼 전체의 CSS 가시성을 다시 계산하지 않는다.
+  async function openSource() {
+    expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
+    fireEvent.click(toggle);
+    return sourceView.findByRole("img", { name: "계약서 1페이지" });
+  }
   await waitFor(() => expect(within(toggle).getByText("1페이지")).toBeInTheDocument());
   expect(toggle).toHaveAttribute("aria-expanded", "false");
-  expect(screen.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "입력 중인 이름" } });
-  await openOriginal();
-  expect(screen.getByRole("button", { name: "계약서 원본 접기" })).toHaveAttribute("aria-expanded", "true");
-  fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
+  expect(sourceView.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
+  fireEvent.change(input, { target: { value: "입력 중인 이름" } });
+  await openSource();
+  expect(toggle).toHaveAccessibleName("계약서 원본 접기");
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const refresh = sourceView.getByRole("button", { name: "원본 새로고침" });
+  fireEvent.click(refresh);
   await waitFor(() => expect(mockFiles).toHaveBeenCalledTimes(2));
-  const source = screen.getByRole("region", { name: "계약서 원본 영역" });
   act(() => source.focus());
   expect(source).toHaveFocus();
-  const original = screen.getByRole("img", { name: "계약서 1페이지" });
+  const original = sourceView.getByRole("img", { name: "계약서 1페이지" });
   fireEvent.mouseEnter(original);
   fireEvent.click(original);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   fireEvent.keyDown(source, { key: "Escape" });
-  expect(screen.getByRole("button", { name: "계약서 원본 펼치기" })).toHaveFocus();
-  expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
-  expect(screen.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
+  expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
+  expect(toggle).toHaveFocus();
+  expect(input).toHaveValue("입력 중인 이름");
+  expect(sourceView.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
   const inputPane = screen.getByRole("region", { name: "계약서 입력 영역" });
   act(() => inputPane.focus());
   expect(inputPane).toHaveFocus();
-  await openOriginal();
-  expect(screen.getByLabelText("세입자 이름")).toHaveValue("입력 중인 이름");
-  fireEvent.blur(screen.getByRole("button", { name: "원본 새로고침" }), { relatedTarget: screen.getByLabelText("세입자 이름") });
-  expect(screen.getByRole("button", { name: "계약서 원본 펼치기" })).toHaveAttribute("aria-expanded", "false");
+  await openSource();
+  expect(input).toHaveValue("입력 중인 이름");
+  fireEvent.blur(refresh, { relatedTarget: input });
+  expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
 
 test("원본을 접어도 조회 실패를 헤더에 표시하고 펼치면 다시 조회할 수 있다", async () => {
@@ -296,6 +309,40 @@ test("원본을 접어도 조회 실패를 헤더에 표시하고 펼치면 다�
   mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
   fireEvent.click(screen.getByRole("button", { name: "원본 새로고침" }));
   expect(await screen.findByRole("img", { name: "계약서 1페이지" })).toBeInTheDocument();
+});
+
+test.each(["same", "new"])("원본 이미지 실패 후 %s URL을 다시 발급하면 이미지 상태를 복구하고 임차인 초안을 유지한다", async (kind) => {
+  let now = Date.now();
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+  renderReview();
+  const input = await screen.findByLabelText("세입자 이름");
+  fireEvent.change(input, { target: { value: "보존할 임차인 초안" } });
+  const original = await openOriginal();
+  fireEvent.error(original);
+  expect(screen.getByText("계약서 1페이지를 표시할 수 없습니다.")).toBeVisible();
+  expect(screen.getByText("브라우저에서 원본을 불러오지 못했습니다. 원본 새로고침으로 다시 시도해 주세요.")).toBeVisible();
+
+  const url = kind === "same" ? "https://example.test/contract.jpg" : "https://example.test/refreshed-contract.jpg";
+  let resolveRefresh!: (value: Awaited<ReturnType<typeof fetchContractDocumentFiles>>) => void;
+  mockFiles.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+  const refresh = screen.getByRole("button", { name: "계약서 1페이지 원본 새로고침" });
+  fireEvent.click(refresh);
+  fireEvent.click(refresh);
+  await waitFor(() => expect(refresh).toBeDisabled());
+  expect(screen.getByRole("button", { name: "원본 새로고침" })).toBeDisabled();
+  expect(mockFiles).toHaveBeenCalledTimes(2);
+  expect(input).toHaveValue("보존할 임차인 초안");
+
+  now += 1;
+  await act(async () => { resolveRefresh({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url, expiresAt: "2026-10-04T12:00:00Z" }] }); });
+  const refreshed = await screen.findByRole("img", { name: "계약서 1페이지" });
+  expect(refreshed).toHaveAttribute("src", url);
+  expect(refreshed).not.toBe(original);
+  expect(screen.queryByText("계약서 1페이지를 표시할 수 없습니다.")).not.toBeInTheDocument();
+  expect(input).toHaveValue("보존할 임차인 초안");
+  expect(screen.getByRole("button", { name: "원본 새로고침" })).toBeEnabled();
+  fireEvent.load(refreshed);
+  expect(screen.queryByText("계약서 1페이지를 표시할 수 없습니다.")).not.toBeInTheDocument();
 });
 
 test("해당 임대인의 건물을 선택해 등록하고 목록 재조회와 OCR 도착에도 선택·임차인 입력을 유지한다", async () => {
