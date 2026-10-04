@@ -65,6 +65,8 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
         rejectQueue(error);
         tokenStore.clearTokens();
+        // 인증 상태와 사용자별 Query 캐시까지 새 문서에서 초기화해야 하므로 전체 이동한다.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
         return Promise.reject(error);
       }
@@ -78,6 +80,8 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         rejectQueue(refreshError);
         tokenStore.clearTokens();
+        // 인증 상태와 사용자별 Query 캐시까지 새 문서에서 초기화해야 하므로 전체 이동한다.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
@@ -93,6 +97,8 @@ apiClient.interceptors.response.use(
       if (problem?.type.endsWith("admin-forbidden")) {
         tokenStore.clearTokens();
         if (typeof window !== "undefined") {
+          // 권한이 없는 세션의 상태와 캐시를 초기화하고 거절 사유를 표시한다.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/login?denied=1";
         }
       }

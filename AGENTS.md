@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Landy Admin
@@ -10,7 +14,7 @@ Landy 서버의 API를 소비하는 Next.js 기반 어드민 콘솔.
 
 ## Stack
 
-- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript**
+- **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript 7 native** (JavaScript API는 TypeScript 6 호환 패키지 병행)
 - **Ant Design v6** — UI 컴포넌트 (`antd`, `@ant-design/icons`)
   - App Router SSR 스타일 추출: `@ant-design/nextjs-registry`
 - **TanStack Query v5** — 서버 상태/데이터 페칭 (`@tanstack/react-query`)
@@ -27,7 +31,7 @@ npm run dev            # 개발 서버 (Turbopack)
 npm run build          # 프로덕션 빌드
 npm run start          # 프로덕션 서버
 npm run lint           # ESLint
-npm run type-check     # tsc --noEmit
+npm run type-check     # 라우트 타입 생성 + TypeScript 7 native 검사
 npm test               # Jest 테스트
 npm run test:watch     # Jest watch 모드
 npm run test:coverage  # 커버리지 리포트
