@@ -46,7 +46,6 @@ export function useUpdateUserRole(userId: number) {
   return useMutation({
     mutationFn: (role: UserRole) => updateUserRole(userId, role),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: userKeys.detail(userId) });
       qc.invalidateQueries({ queryKey: userKeys.all });
     },
   });
@@ -74,7 +73,16 @@ export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (userId: number) => deleteUser(userId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.all }),
+    // 계정 삭제는 소유 데이터도 정리하므로 다른 화면의 삭제 전 캐시가 남지 않게 한다.
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: userKeys.all }),
+      qc.invalidateQueries({ queryKey: ["properties"] }),
+      qc.invalidateQueries({ queryKey: ["tenants"] }),
+      qc.invalidateQueries({ queryKey: ["payments"] }),
+      qc.invalidateQueries({ queryKey: ["notifications"] }),
+      qc.invalidateQueries({ queryKey: ["contract-documents"] }),
+      qc.invalidateQueries({ queryKey: ["alimtalks", "list"] }),
+    ]),
   });
 }
 

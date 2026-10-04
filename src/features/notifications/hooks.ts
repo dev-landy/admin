@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { OPERATIONAL_QUERY_OPTIONS } from "@/lib/query/query-policy";
 import { fetchNotifications, fetchOutbox, requeueOutbox, dispatchNotifications, sendCustomNotification } from "./api";
 import type { NotificationsListParams, OutboxListParams, SendCustomNotificationRequest } from "./types";
 
@@ -8,11 +9,11 @@ export const notificationKeys = {
 };
 
 export function useNotifications(params: NotificationsListParams) {
-  return useQuery({ queryKey: notificationKeys.list(params), queryFn: () => fetchNotifications(params) });
+  return useQuery({ queryKey: notificationKeys.list(params), queryFn: () => fetchNotifications(params), ...OPERATIONAL_QUERY_OPTIONS });
 }
 
 export function useOutbox(params: OutboxListParams) {
-  return useQuery({ queryKey: notificationKeys.outbox(params), queryFn: () => fetchOutbox(params) });
+  return useQuery({ queryKey: notificationKeys.outbox(params), queryFn: () => fetchOutbox(params), ...OPERATIONAL_QUERY_OPTIONS });
 }
 
 export function useRequeueOutbox() {

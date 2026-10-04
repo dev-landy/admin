@@ -1,4 +1,5 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { OPERATIONAL_QUERY_OPTIONS } from "@/lib/query/query-policy";
 import {
   fetchBatchExecution,
   fetchBatchExecutions,
@@ -27,6 +28,7 @@ export function useBatchExecutions(params: BatchExecutionsListParams) {
   return useQuery({
     queryKey: batchKeys.executionList(params),
     queryFn: () => fetchBatchExecutions(params),
+    ...OPERATIONAL_QUERY_OPTIONS,
   });
 }
 

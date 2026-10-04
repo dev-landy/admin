@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { OPERATIONAL_QUERY_OPTIONS } from "@/lib/query/query-policy";
 
 import {
   fetchAlimtalkTemplates,
@@ -24,7 +25,7 @@ export const alimtalkKeys = {
 };
 
 export function useAlimtalks(params: AlimtalksListParams) {
-  return useQuery({ queryKey: alimtalkKeys.list(params), queryFn: () => fetchAlimtalks(params) });
+  return useQuery({ queryKey: alimtalkKeys.list(params), queryFn: () => fetchAlimtalks(params), ...OPERATIONAL_QUERY_OPTIONS });
 }
 
 export function useResolveAlimtalk() {
@@ -46,10 +47,9 @@ export function useUpdateAlimtalkTemplate() {
   return useMutation({
     mutationFn: ({ type, body }: { type: AlimtalkType; body: UpdateAlimtalkTemplateRequest }) =>
       updateAlimtalkTemplate(type, body),
-    onSuccess: (_result, { type }) => {
+    onSuccess: () => {
+      // 승인 템플릿 키도 이 접두사에 포함되어 저장 후 일치 여부를 다시 조회한다.
       qc.invalidateQueries({ queryKey: alimtalkKeys.templates });
-      // 본문을 바꿨으면 승인 본문과 일치하는지도 다시 봐야 한다.
-      qc.invalidateQueries({ queryKey: alimtalkKeys.remoteTemplate(type) });
     },
   });
 }

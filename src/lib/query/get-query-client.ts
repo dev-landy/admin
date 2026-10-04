@@ -1,4 +1,5 @@
 import { isServer, QueryClient } from "@tanstack/react-query";
+import { queryRetryDelay, shouldRetryQuery } from "./query-policy";
 
 const STALE_TIME_MS = 60_000;
 
@@ -7,7 +8,8 @@ function makeQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         staleTime: STALE_TIME_MS,
-        retry: 1,
+        retry: shouldRetryQuery,
+        retryDelay: queryRetryDelay,
         refetchOnWindowFocus: false,
       },
     },

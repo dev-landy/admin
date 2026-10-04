@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { OPERATIONAL_QUERY_OPTIONS } from "@/lib/query/query-policy";
 import {
   fetchContractDocument, fetchContractDocuments, fetchContractDocumentDraft, fetchContractDocumentFiles,
   fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
@@ -21,7 +22,7 @@ export function useContractDocument(documentId: string) {
 }
 
 export function useContractDocuments(status: ContractDocumentListStatus, page: number, size: number) {
-  return useQuery({ queryKey: contractDocumentKeys.list(status, page, size), queryFn: () => fetchContractDocuments(status, page, size) });
+  return useQuery({ queryKey: contractDocumentKeys.list(status, page, size), queryFn: () => fetchContractDocuments(status, page, size), ...OPERATIONAL_QUERY_OPTIONS });
 }
 
 // 원본 URL의 만료를 고려해 화면 진입과 명시적 새로고침에서 다시 발급한다.
