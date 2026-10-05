@@ -5,10 +5,15 @@ export type BillingTiming = "PREPAID" | "POSTPAID";
 export type BillingCycle = "MONTHLY" | "YEARLY";
 
 export type ContractType = "ROOM" | "COMMERCIAL" | "PARKING" | "OTHERS";
+export type ContractStatus = "UPCOMING" | "ACTIVE" | "ENDED";
 
 export type TenantSummary = {
   tenantId: number;
   userId: number;
+  propertyId?: number;
+  propertyName?: string | null;
+  userEmail?: string | null;
+  phone?: string | null;
   name: string;
   roomNumber: number | string;
   contractType?: ContractType | null;
@@ -31,6 +36,8 @@ export type TenantSummary = {
 };
 
 export type TenantDetail = TenantSummary & {
+  propertyAddress?: string | null;
+  userPhone?: string | null;
   phone: string;
   createdAt: string;
   updatedAt: string;
@@ -44,13 +51,21 @@ export type TenantsListResponse = {
 };
 
 export type TenantsListParams = {
+  sort?: string;
   page?: number;
   size?: number;
   userId?: number;
+  keyword?: string;
+  tenantId?: number;
+  propertyId?: number;
+  contractType?: ContractType;
+  contractStatus?: ContractStatus;
   notifyEnabled?: boolean;
   startDate?: string;
   endDate?: string;
 };
+
+export type TenantSearchParams = Pick<TenantsListParams, "keyword" | "tenantId" | "propertyId" | "contractType" | "contractStatus" | "notifyEnabled">;
 
 export type UpdateTenantRequest = {
   allowContractOverlap?: boolean;

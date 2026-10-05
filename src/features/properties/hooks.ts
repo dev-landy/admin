@@ -6,28 +6,28 @@ import {
   fetchUserProperties,
   updateProperty,
 } from "./api";
-import type { PropertiesListParams, UpdatePropertyRequest } from "./types";
+import type { PropertiesListParams, PropertyTenantsParams, UpdatePropertyRequest } from "./types";
 
 export const propertyKeys = {
   all: ["properties"] as const,
   list: (params: PropertiesListParams) => ["properties", "list", params] as const,
   user: (userId: number) => ["properties", "user", userId] as const,
-  tenants: (propertyId: number, page: number, size: number) =>
-    ["properties", propertyId, "tenants", page, size] as const,
+  tenants: (propertyId: number, page: number, size: number, filters: PropertyTenantsParams = {}) =>
+    ["properties", propertyId, "tenants", page, size, filters] as const,
 };
 
-export function useProperties(params: PropertiesListParams) {
-  return useQuery({ queryKey: propertyKeys.list(params), queryFn: () => fetchProperties(params) });
+export function useProperties(params: PropertiesListParams, enabled = true) {
+  return useQuery({ queryKey: propertyKeys.list(params), queryFn: () => fetchProperties(params), enabled });
 }
 
 export function useUserProperties(userId: number) {
   return useQuery({ queryKey: propertyKeys.user(userId), queryFn: () => fetchUserProperties(userId) });
 }
 
-export function usePropertyTenants(propertyId: number | null, page: number, size: number) {
+export function usePropertyTenants(propertyId: number | null, page: number, size: number, filters: PropertyTenantsParams = {}) {
   return useQuery({
-    queryKey: propertyKeys.tenants(propertyId ?? 0, page, size),
-    queryFn: () => fetchPropertyTenants(propertyId as number, { page, size }),
+    queryKey: propertyKeys.tenants(propertyId ?? 0, page, size, filters),
+    queryFn: () => fetchPropertyTenants(propertyId as number, { ...filters, page, size }),
     enabled: propertyId !== null,
   });
 }

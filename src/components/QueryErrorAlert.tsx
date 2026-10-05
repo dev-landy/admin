@@ -1,6 +1,8 @@
 "use client";
 
-import { Alert, Button } from "antd";
+import { Alert } from "antd";
+
+import { RefreshButton } from "@/components/RefreshButton";
 
 import { parseProblemDetail } from "@/lib/api/problem";
 
@@ -24,7 +26,7 @@ export function QueryErrorAlert({ error, onRetry, isRetrying = false, hasData = 
         {problem?.detail && <div>{problem.detail}</div>}
         <div>{hasData ? "마지막으로 조회한 정보를 표시하고 있습니다. 다시 조회해 주세요." : "잠시 후 다시 조회해 주세요."}</div>
       </>}
-      action={<Button size="small" loading={isRetrying} disabled={isRetrying} onClick={() => { void onRetry(); }}>다시 조회</Button>}
+      action={<RefreshButton size="small" loading={isRetrying} disabled={isRetrying} onClick={() => { void onRetry(); }}>다시 조회</RefreshButton>}
       style={{ marginBottom: 16 }}
     />
   );

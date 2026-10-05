@@ -8,7 +8,8 @@ import type {
   UserRole,
   ImpersonationTokensResponse,
   FcmMessageResponse,
-  UserListPageParams,
+  UserTenantsParams,
+  UserFcmTokensParams,
 } from "./types";
 
 export async function fetchUsers(params: UsersListParams): Promise<UsersListResponse> {
@@ -21,12 +22,12 @@ export async function fetchUser(userId: number): Promise<UserDetail> {
   return data;
 }
 
-export async function fetchUserTenants(userId: number, params: UserListPageParams = {}): Promise<UserTenantsResponse> {
+export async function fetchUserTenants(userId: number, params: UserTenantsParams = {}): Promise<UserTenantsResponse> {
   const { data } = await apiClient.get<UserTenantsResponse>(`/v1/admin/users/${userId}/tenants`, { params });
   return data;
 }
 
-export async function fetchUserFcmTokens(userId: number, params: UserListPageParams = {}): Promise<UserFcmTokensResponse> {
+export async function fetchUserFcmTokens(userId: number, params: UserFcmTokensParams = {}): Promise<UserFcmTokensResponse> {
   const { data } = await apiClient.get<UserFcmTokensResponse>(`/v1/admin/users/${userId}/fcm-tokens`, { params });
   return data;
 }

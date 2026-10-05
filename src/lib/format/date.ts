@@ -37,7 +37,13 @@ export function formatSeconds(value: string | null | undefined): string {
     return "-";
   }
 
-  return match[1];
+  return match[1].replace("T", " ");
+}
+
+/** Exact server-local time for diagnosis, including fractions and any offset. */
+export function formatTechnicalDateTime(value: string | null | undefined): string {
+  if (!value || !LOCAL_DATE_TIME.test(value)) return "-";
+  return value.replace("T", " ");
 }
 
 /**

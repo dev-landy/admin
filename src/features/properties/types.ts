@@ -1,4 +1,4 @@
-import type { BillingCycle, BillingTiming } from "@/features/tenants/types";
+import type { BillingCycle, BillingTiming, ContractType, TenantSearchParams } from "@/features/tenants/types";
 
 export type PropertySummary = {
   propertyId: number;
@@ -11,7 +11,10 @@ export type PropertySummary = {
   updatedAt: string;
 };
 
-export type UserPropertySummary = Omit<PropertySummary, "userId" | "userEmail">;
+export type UserPropertySummary = Omit<PropertySummary, "userId" | "userEmail"> & {
+  deletedAt?: string | null;
+  retainedTenantCount?: number | null;
+};
 
 export type PropertiesListResponse = {
   properties: PropertySummary[];
@@ -23,9 +26,11 @@ export type PropertiesListResponse = {
 export type UserPropertiesResponse = { properties: UserPropertySummary[] };
 
 export type PropertiesListParams = {
+  sort?: string;
   page?: number;
   size?: number;
   userId?: number;
+  propertyId?: number;
   keyword?: string;
 };
 
@@ -46,8 +51,11 @@ export type PropertyTenant = {
   tenantId: number;
   userId: number;
   propertyId: number;
+  propertyName?: string | null;
+  userEmail?: string | null;
   name: string;
-  roomNumber: number;
+  roomNumber: number | string;
+  contractType?: ContractType;
   phone: string;
   rentPrice: number;
   maintenanceFee?: number | null;
@@ -68,3 +76,5 @@ export type PropertyTenantsResponse = {
   size: number;
   totalElements: number;
 };
+
+export type PropertyTenantsParams = { page?: number; size?: number; sort?: string } & Omit<TenantSearchParams, "propertyId">;

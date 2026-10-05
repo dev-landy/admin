@@ -3,6 +3,7 @@ import type {
   PropertiesListParams,
   PropertiesListResponse,
   PropertyTenantsResponse,
+  PropertyTenantsParams,
   UpdatePropertyRequest,
   UpdatePropertyResponse,
   UserPropertiesResponse,
@@ -20,7 +21,7 @@ export async function fetchUserProperties(userId: number): Promise<UserPropertie
 
 export async function fetchPropertyTenants(
   propertyId: number,
-  params: { page?: number; size?: number },
+  params: PropertyTenantsParams,
 ): Promise<PropertyTenantsResponse> {
   const { data } = await apiClient.get<PropertyTenantsResponse>(
     `/v1/admin/properties/${propertyId}/tenants`,

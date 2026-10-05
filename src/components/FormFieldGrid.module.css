@@ -1,0 +1,53 @@
+.container {
+  container-type: inline-size;
+  container-name: admin-form-field-grid;
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.withActions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.threeColumns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.threeColumns.withActions {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
+.grid > :global(.ant-form-item) {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.grid :global(.ant-input-number) {
+  width: 100%;
+}
+
+.actions {
+  justify-self: end;
+}
+
+@media (max-width: 767px) {
+  .actions :global(.ant-btn) { min-width: 44px; min-height: 44px; }
+}
+
+@container admin-form-field-grid (max-width: 575px) {
+  .grid,
+  .withActions,
+  .threeColumns.withActions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actions :global(.ant-form-item-label) {
+    display: none;
+  }
+}

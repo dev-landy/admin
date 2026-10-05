@@ -1,8 +1,9 @@
-import type { BillingCycle, BillingTiming } from "@/features/tenants/types";
+import type { BillingCycle, BillingTiming, TenantSearchParams } from "@/features/tenants/types";
 
 export type UserRole = "USER" | "ADMIN";
 export type OAuthProvider = "KAKAO" | "GOOGLE" | "APPLE";
 export type UserStatus = "DRAFT" | "VERIFIED" | "ONBOARDED";
+export type UserAccountState = "ALL" | "ACTIVE" | "WITHDRAWN";
 
 export type UserSummary = {
   userId: number;
@@ -12,9 +13,14 @@ export type UserSummary = {
   role: UserRole;
   status: UserStatus;
   createdAt: string;
+  /** 탈퇴 여부는 가입 단계와 별개이며, 구버전 API에서는 누락될 수 있다. */
+  deletedAt?: string | null;
+  /** 현재 등록된 FCM 기기의 OS 집계. 구버전 API의 필드 누락은 미확인으로 표시한다. */
+  fcmPlatforms?: FcmToken["platform"][] | null;
 };
 
 export type UserDetail = {
+  deletedAt?: string | null;
   userId: number;
   provider: OAuthProvider;
   role: UserRole;
@@ -30,10 +36,20 @@ export type UserDetail = {
 };
 
 export type AdminUserTenant = {
+  deletedAt?: string | null;
+  createdAt?: string | null;
+  maintenanceFee?: number | null;
+  parkingEnabled?: boolean;
+  vehicleNumber?: string | null;
   tenantId: number;
   userId: number;
+  propertyId?: number;
+  propertyName?: string | null;
+  userEmail?: string | null;
+  phone?: string | null;
+  contractType?: import("@/features/tenants/types").ContractType;
   name: string;
-  roomNumber: number;
+  roomNumber: number | string | null;
   rentPrice: number;
   depositAmount?: number | null;
   paymentDay: number;
@@ -63,7 +79,9 @@ export type UsersListResponse = {
   totalElements: number;
 };
 
-export type UserListPageParams = { page?: number; size?: number };
+export type UserListPageParams = { page?: number; size?: number; sort?: string };
+export type UserTenantsParams = UserListPageParams & TenantSearchParams;
+export type UserFcmTokensParams = UserListPageParams & { platform?: FcmToken["platform"]; silentWakeupSubscribed?: boolean; fcmTokenId?: number };
 export type UserTenantsResponse = { tenants: AdminUserTenant[]; page: number; size: number; totalElements: number };
 export type UserFcmTokensResponse = { fcmTokens: FcmToken[]; page: number; size: number; totalElements: number };
 
@@ -77,7 +95,11 @@ export type FcmMessageResponse = { messageId: string };
 export type UsersListParams = {
   page?: number;
   size?: number;
+  keyword?: string;
+  userId?: number;
   provider?: OAuthProvider;
   status?: UserStatus;
   role?: UserRole;
+  accountState?: UserAccountState;
+  sort?: string;
 };

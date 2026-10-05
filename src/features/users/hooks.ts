@@ -13,16 +13,17 @@ import {
   issueImpersonationTokens,
   sendFcmTokenSilentMessage,
 } from "./api";
-import type { UsersListParams, UserRole } from "./types";
+import type { UsersListParams, UserRole, UserTenantsParams, UserFcmTokensParams } from "./types";
 
 export const userKeys = {
   all: ["users"] as const,
+  lists: ["users", "list"] as const,
   list: (p: UsersListParams) => ["users", "list", p] as const,
   detail: (id: number) => ["users", id] as const,
   tenants: (id: number) => ["users", id, "tenants"] as const,
-  tenantPage: (id: number, page: number, size: number) => ["users", id, "tenants", { page, size }] as const,
+  tenantPage: (id: number, page: number, size: number, filters: UserTenantsParams = {}) => ["users", id, "tenants", { ...filters, page, size }] as const,
   fcmTokens: (id: number) => ["users", id, "fcm-tokens"] as const,
-  fcmTokenPage: (id: number, page: number, size: number) => ["users", id, "fcm-tokens", { page, size }] as const,
+  fcmTokenPage: (id: number, page: number, size: number, filters: UserFcmTokensParams = {}) => ["users", id, "fcm-tokens", { ...filters, page, size }] as const,
 };
 
 export function useUsers(params: UsersListParams) {
@@ -33,12 +34,12 @@ export function useUser(userId: number) {
   return useQuery({ queryKey: userKeys.detail(userId), queryFn: () => fetchUser(userId) });
 }
 
-export function useUserTenants(userId: number, page = 1, size = 20) {
-  return useQuery({ queryKey: userKeys.tenantPage(userId, page, size), queryFn: () => fetchUserTenants(userId, { page, size }) });
+export function useUserTenants(userId: number, page = 1, size = 20, filters: UserTenantsParams = {}) {
+  return useQuery({ queryKey: userKeys.tenantPage(userId, page, size, filters), queryFn: () => fetchUserTenants(userId, { ...filters, page, size }) });
 }
 
-export function useUserFcmTokens(userId: number, page = 1, size = 20) {
-  return useQuery({ queryKey: userKeys.fcmTokenPage(userId, page, size), queryFn: () => fetchUserFcmTokens(userId, { page, size }) });
+export function useUserFcmTokens(userId: number, page = 1, size = 20, filters: UserFcmTokensParams = {}) {
+  return useQuery({ queryKey: userKeys.fcmTokenPage(userId, page, size, filters), queryFn: () => fetchUserFcmTokens(userId, { ...filters, page, size }) });
 }
 
 export function useUpdateUserRole(userId: number) {
@@ -90,7 +91,11 @@ export function useDeactivateFcmToken(userId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (fcmTokenId: number) => deactivateFcmToken(fcmTokenId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.fcmTokens(userId) }),
+    // 등록 기기가 사라지면 사용자 목록의 OS 집계도 바뀐다.
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: userKeys.fcmTokens(userId) }),
+      qc.invalidateQueries({ queryKey: userKeys.lists }),
+    ]),
   });
 }
 

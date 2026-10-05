@@ -1,4 +1,4 @@
-import { formatDateTime, formatKoreanDate, formatMillis, formatSeconds, formatYearMonth } from "@/lib/format/date";
+import { formatDateTime, formatKoreanDate, formatMillis, formatSeconds, formatYearMonth, formatTechnicalDateTime } from "@/lib/format/date";
 
 describe("date format", () => {
   it("날짜와 시간이 포함된 값을 한국어 날짜로 표시한다", () => {
@@ -17,9 +17,9 @@ describe("date format", () => {
 });
 
 test("목록 표기는 소수점 이하를 버리고 초 단위까지만 보여준다", () => {
-  expect(formatSeconds("2026-09-03T12:30:08")).toBe("2026-09-03T12:30:08");
-  expect(formatSeconds("2026-09-03T12:30:08.123")).toBe("2026-09-03T12:30:08");
-  expect(formatSeconds("2026-09-03T12:30:08.123456")).toBe("2026-09-03T12:30:08");
+  expect(formatSeconds("2026-09-03T12:30:08")).toBe("2026-09-03 12:30:08");
+  expect(formatSeconds("2026-09-03T12:30:08.123")).toBe("2026-09-03 12:30:08");
+  expect(formatSeconds("2026-09-03T12:30:08.123456")).toBe("2026-09-03 12:30:08");
 });
 
 test("읽기 쉬운 시각 표시는 서버 날짜와 시간을 브라우저 타임존으로 바꾸지 않는다", () => {
@@ -48,4 +48,10 @@ test("값이 없거나 형식이 다르면 - 로 표시한다", () => {
   expect(formatMillis("")).toBe("-");
   expect(formatMillis("2026-09-03")).toBe("-");
   expect(formatMillis("어제")).toBe("-");
+});
+
+ test("정밀 시각은 날짜와 시간을 읽기 쉽게 나누면서 소수부와 offset을 유지한다", () => {
+  expect(formatTechnicalDateTime("2026-09-03T12:30:08.123456+09:00")).toBe("2026-09-03 12:30:08.123456+09:00");
+  expect(formatTechnicalDateTime("2026-09-03T12:30:08Z")).toBe("2026-09-03 12:30:08Z");
+  expect(formatTechnicalDateTime("invalid")).toBe("-");
 });
