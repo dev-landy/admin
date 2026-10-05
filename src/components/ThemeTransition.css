@@ -1,0 +1,57 @@
+/* The root snapshot includes the sidebar, body and Ant Design portals together. */
+html[data-admin-theme-transition="snapshot"],
+html[data-admin-theme-transition="snapshot"] *,
+html[data-admin-theme-transition="snapshot"] *::before,
+html[data-admin-theme-transition="snapshot"] *::after,
+html[data-admin-theme-transition="instant"],
+html[data-admin-theme-transition="instant"] *,
+html[data-admin-theme-transition="instant"] *::before,
+html[data-admin-theme-transition="instant"] *::after {
+  transition: none !important;
+}
+
+html[data-admin-theme-transition="snapshot"] * {
+  view-transition-name: none !important;
+}
+
+html[data-admin-theme-transition="snapshot"]::view-transition {
+  pointer-events: none;
+}
+
+html[data-admin-theme-transition="snapshot"]::view-transition-group(root) {
+  animation: none;
+}
+
+html[data-admin-theme-transition="snapshot"]::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-admin-theme-transition="snapshot"]::view-transition-new(root) {
+  animation: admin-theme-enter var(--admin-theme-transition-duration) ease both;
+  mix-blend-mode: normal;
+}
+
+@keyframes admin-theme-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Older browsers interpolate the same palette properties with the same timing. */
+html[data-admin-theme-transition="colors"],
+html[data-admin-theme-transition="colors"] *,
+html[data-admin-theme-transition="colors"] *::before,
+html[data-admin-theme-transition="colors"] *::after {
+  transition-property: color, background-color, border-color, box-shadow, fill, stroke, filter, outline-color, text-decoration-color, caret-color !important;
+  transition-duration: var(--admin-theme-transition-duration) !important;
+  transition-timing-function: ease !important;
+  transition-delay: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-admin-theme-transition]::view-transition-new(root) { animation: none; }
+  html[data-admin-theme-transition="colors"],
+  html[data-admin-theme-transition="colors"] *,
+  html[data-admin-theme-transition="colors"] *::before,
+  html[data-admin-theme-transition="colors"] *::after { transition: none !important; }
+}

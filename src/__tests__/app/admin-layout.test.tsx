@@ -19,22 +19,8 @@ jest.mock("@/features/auth/context", () => ({
   useAuth: () => ({ isAuthenticated: true, isLoading: false, isLoggingOut: mockIsLoggingOut, logout: mockLogout }),
 }));
 
-// 브레이크포인트는 antd Grid.useBreakpoint를 갈아끼워 제어한다. jsdom의 matchMedia는
-// 항상 matches:false라 responsiveObserver로는 데스크톱 상태를 만들 수 없다.
-type Screens = Record<string, boolean>;
-
-// 실제 responsiveObserver는 구독 시 모든 브레이크포인트 키를 boolean으로 채워 내려준다.
-const DESKTOP_SCREENS: Screens = { xs: true, sm: true, md: true, lg: true, xl: true, xxl: false, xxxl: false };
-const MOBILE_SCREENS: Screens = { xs: true, sm: false, md: false, lg: false, xl: false, xxl: false, xxxl: false };
-
-let mockScreens: Screens = DESKTOP_SCREENS;
-jest.mock("antd", () => {
-  const actual = jest.requireActual("antd");
-  return {
-    ...actual,
-    Grid: { ...actual.Grid, useBreakpoint: () => mockScreens },
-  };
-});
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
 
 import AdminLayout from "@/app/(admin)/layout";
 import { appEnvMeta } from "@/config/app-env";
@@ -65,7 +51,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 test("작성 중 데스크톱 사이드바 이동은 취소하거나 확인 후 이동할 수 있다", async () => {
-  mockScreens = DESKTOP_SCREENS;
+  mockViewport = "wide";
   await renderLayout(true);
   expect(screen.getByText(appEnvMeta.description)).toBeInTheDocument();
   fireEvent.click(screen.getByText("건물 관리"));
@@ -77,7 +63,7 @@ test("작성 중 데스크톱 사이드바 이동은 취소하거나 확인 후 
 });
 
 test("메뉴는 처음에 미리 내려받지 않고 hover 또는 키보드 focus 대상만 한 번 준비한다", async () => {
-  mockScreens = DESKTOP_SCREENS;
+  mockViewport = "wide";
   await renderLayout();
   expect(mockPrefetch).not.toHaveBeenCalled();
   const properties = screen.getByRole("menuitem", { name: /건물 관리/ });
@@ -92,7 +78,7 @@ test("메뉴는 처음에 미리 내려받지 않고 hover 또는 키보드 focu
 });
 
 test("작성 중 모바일 메뉴 이동을 취소하면 드로어와 현재 화면을 유지한다", async () => {
-  mockScreens = MOBILE_SCREENS;
+  mockViewport = "mobile";
   await renderLayout(true);
   fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));
   expect(await screen.findByRole("button", { name: "로그아웃" })).toBeInTheDocument();
@@ -106,14 +92,14 @@ test("작성 중 모바일 메뉴 이동을 취소하면 드로어와 현재 화
 });
 
 test("데스크톱의 로그아웃 동작을 인증 provider에 전달한다", async () => {
-  mockScreens = DESKTOP_SCREENS;
+  mockViewport = "wide";
   await renderLayout();
   fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
   expect(mockLogout).toHaveBeenCalledTimes(1);
 });
 
 test("로그아웃 요청 중에는 표시된 버튼이 잠기고 재요청하지 않는다", async () => {
-  mockScreens = DESKTOP_SCREENS;
+  mockViewport = "wide";
   mockIsLoggingOut = true;
   await renderLayout();
   const logout = screen.getByRole("button", { name: "로그아웃" });
@@ -123,7 +109,7 @@ test("로그아웃 요청 중에는 표시된 버튼이 잠기고 재요청하�
 });
 
 test("드로어에서 로그아웃을 누르면 로그아웃되고 드로어가 닫힌다", async () => {
-  mockScreens = MOBILE_SCREENS;
+  mockViewport = "mobile";
 
   await renderLayout();
   fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));

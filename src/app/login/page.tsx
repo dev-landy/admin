@@ -7,6 +7,8 @@ import { MessageOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/features/auth/context";
 import { EnvTag } from "@/components/EnvIndicator";
+import { ThemeSelector } from "@/components/ThemeSelector";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const { Title, Text } = Typography;
 
@@ -33,13 +35,14 @@ function LoginContent() {
         padding: 20,
         alignItems: "center",
         justifyContent: "center",
-        background: "#f5f5f5",
+        background: "var(--admin-bg)",
       }}
     >
+      <div className="admin-auth-theme"><ThemeSelector /></div>
       <Card style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ marginBottom: 24, textAlign: "center" }}>
           <Title level={1} style={{ marginBottom: 4, fontSize: 24 }}>
-            Landy Admin
+            <BrandLogo />
           </Title>
           <Space size={8}>
             <EnvTag />

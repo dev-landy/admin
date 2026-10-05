@@ -1,0 +1,87 @@
+.brand {
+  --brand-ink: #082567;
+  /* The wordmark viewBox ends 408 font units below its y=0 baseline. */
+  --brand-descender: calc(20px * 408 / 1856);
+  --brand-motion-duration: var(--admin-sidebar-motion-duration, 240ms);
+  --brand-motion-ease: var(--admin-sidebar-motion-ease, cubic-bezier(0.2, 0, 0, 1));
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  white-space: nowrap;
+  color: var(--brand-ink);
+  transition: gap var(--brand-motion-duration) var(--brand-motion-ease);
+}
+
+.compact {
+  gap: 0;
+}
+
+:global(:root[data-theme="dark"]) .brand { --brand-ink: #ffffff; }
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .brand { --brand-ink: #ffffff; }
+}
+
+.symbol {
+  display: block;
+  width: 19.621px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--brand-ink);
+  mask: url("/brand/landy-symbol-tight.svg") center / 100% 100% no-repeat;
+  transition: width var(--brand-motion-duration) var(--brand-motion-ease), height var(--brand-motion-duration) var(--brand-motion-ease);
+}
+
+.compact .symbol {
+  width: 24.526px;
+  height: 25px;
+}
+
+.lockup {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 109.181px;
+  overflow: visible;
+  opacity: 1;
+  visibility: visible;
+  flex-shrink: 0;
+  /* Center the house/body box; the y descender paints below its baseline. */
+  margin-bottom: calc(-1 * var(--brand-descender));
+  transition: width var(--brand-motion-duration) var(--brand-motion-ease), opacity var(--brand-motion-duration) var(--brand-motion-ease);
+}
+
+.compact .lockup {
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  /* Hide the outline immediately while its space and the rail narrow together. */
+}
+
+.wordmark {
+  width: 60.305px;
+  height: 20px;
+  background: var(--brand-ink);
+  mask: url("/brand/landy-wordmark.svg") center / 100% 100% no-repeat;
+}
+
+.context {
+  width: 40.876px;
+  height: 10px;
+  background: var(--admin-text-secondary);
+  mask: url("/brand/landy-admin-label.svg") center / 100% 100% no-repeat;
+  /* Admin's outline has a 12-unit round overshoot below the same baseline. */
+  margin-bottom: calc(var(--brand-descender) - 10px * 12 / 730.6);
+}
+
+/* Preserve natural type hierarchy; the house and both words share baseline y=0. */
+.wordmark, .context { display: block; flex-shrink: 0; font-size: 0; line-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand, .symbol, .lockup, .compact, .compact .symbol, .compact .lockup {
+    transition: none;
+  }
+}

@@ -1,0 +1,35 @@
+.trigger:global(.ant-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--admin-text-secondary);
+}
+
+.trigger:global(.ant-btn):hover,
+.trigger:global(.ant-btn)[aria-expanded="true"] {
+  color: var(--admin-text);
+  background: var(--admin-hover);
+}
+
+.trigger:global(.ant-btn):focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+}
+
+.icon { display: block; flex-shrink: 0; width: 20px; height: 20px; }
+
+.popup :global(.ant-dropdown-menu) { min-width: 164px; padding: 6px; }
+.option:global(.ant-dropdown-menu-item) { min-height: 40px; padding: 8px 10px; column-gap: 10px; }
+.check { display: inline-flex; align-items: center; width: 20px; height: 20px; margin-inline-start: 20px; }
+.check svg { display: block; width: 18px; height: 18px; }
+
+@media (max-width: 767px) {
+  .trigger:global(.ant-btn) { width: 44px; min-width: 44px; height: 44px; }
+  .option:global(.ant-dropdown-menu-item) { min-height: 44px; }
+}
