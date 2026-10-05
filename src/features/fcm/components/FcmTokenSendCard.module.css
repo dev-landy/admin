@@ -1,0 +1,24 @@
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; min-width: 0; }
+.workspace section { min-width: 0; }
+/* This disclosure has one ID field; keep its actions on their own full-width row. */
+.workspace :global(.admin-filter-more-fields) { grid-template-columns: minmax(0, 1fr); }
+.workspace :global(.admin-filter-buttons .ant-form-item-label) { display: none; }
+.target { margin-top: 16px; padding: 16px; border: 1px solid var(--admin-border); border-radius: 8px; background: var(--admin-surface-subtle); }
+.token { color: var(--admin-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.devicePagination { flex-wrap: wrap; row-gap: 8px; margin-bottom: 12px; }
+@media (min-width: 1200px) { .workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; } }
+@media (max-width: 767px) {
+  .workspace :global(.ant-btn) { min-height: 44px; }
+  .workspace :global(.ant-select) { height: 44px; }
+  .workspace .devicePagination :global(.ant-pagination-item),
+  .workspace .devicePagination :global(.ant-pagination-prev),
+  .workspace .devicePagination :global(.ant-pagination-next),
+  .workspace .devicePagination :global(.ant-pagination-jump-prev),
+  .workspace .devicePagination :global(.ant-pagination-jump-next) {
+    min-width: 44px;
+    height: 44px;
+    line-height: 42px;
+  }
+}
+
+.scope { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-block: -8px 16px; color: var(--admin-text-secondary); font-size: 13px; }

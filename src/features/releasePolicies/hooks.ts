@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchReleasePolicies, updateReleasePolicy } from "./api";
-import type { UpdateReleasePolicyRequest } from "./types";
+import type { ReleasePoliciesListParams, UpdateReleasePolicyRequest } from "./types";
 
 export const releasePolicyKeys = {
   all: ["releasePolicies"] as const,
+  list: (params: ReleasePoliciesListParams) => ["releasePolicies", "list", params] as const,
 };
 
-export function useReleasePolicies() {
-  return useQuery({ queryKey: releasePolicyKeys.all, queryFn: fetchReleasePolicies });
+export function useReleasePolicies(params: ReleasePoliciesListParams = {}) {
+  return useQuery({ queryKey: releasePolicyKeys.list(params), queryFn: () => fetchReleasePolicies(params) });
 }
 
 export function useUpdateReleasePolicy() {

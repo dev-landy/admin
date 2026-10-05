@@ -1,9 +1,13 @@
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
+beforeEach(() => { mockViewport = "wide"; });
+
 import "@/test-utils/antd";
 
 import { StrictMode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 
 import { AlimtalkHistoryTable } from "@/features/alimtalk/components/AlimtalkHistoryTable";
@@ -35,7 +39,7 @@ function History() {
 async function renderHistory(rows: AlimtalkSummary[] = [ready]) {
   respondWith(rows);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  render(<StrictMode><QueryClientProvider client={client}><App><History /></App></QueryClientProvider></StrictMode>);
+  render(<StrictMode><QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><History /></App></ConfigProvider></QueryClientProvider></StrictMode>);
   await screen.findByText(String(rows[0].alimtalkId));
 }
 
@@ -44,8 +48,26 @@ function row(id: number) {
 }
 
 async function openResolution(id = 501) {
-  fireEvent.click(row(id).getByRole("button", { name: "미결 종결" }));
+  fireEvent.click(row(id).getByRole("button", { name: `알림톡 #${id} 더보기` }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /^미결 종결/ }));
   return within(await screen.findByRole("dialog"));
+}
+
+async function resolutionItem(id: number) {
+  fireEvent.click(row(id).getByRole("button", { name: `알림톡 #${id} 더보기` }));
+  return screen.findByRole("menuitem", { name: /^미결 종결/ });
+}
+async function closeMenu(id: number) {
+  fireEvent.click(row(id).getByRole("button", { name: `알림톡 #${id} 더보기` }));
+  await waitFor(() => expect(screen.queryByRole("menuitem", { name: /^미결 종결/ })).not.toBeInTheDocument());
+}
+async function expectResolved(id: number) {
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  const item = await resolutionItem(id);
+  await waitFor(() => expect(item).toHaveAttribute("aria-disabled", "true"));
+  fireEvent.click(item);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await closeMenu(id);
 }
 
 beforeEach(() => jest.resetAllMocks());
@@ -63,8 +85,20 @@ test("새 이력 ID·수신자와 다섯 상태를 표시하며 미결 건만 �
   expect(row(501).getByText("임차인 #42")).toBeInTheDocument();
   expect(row(502).getByText("결과 대기")).toBeInTheDocument();
   expect(row(502).getByText("유저 #9")).toBeInTheDocument();
-  for (const id of [501, 502]) expect(row(id).getByRole("button", { name: "미결 종결" })).toBeEnabled();
-  for (const id of [503, 504, 505]) expect(row(id).getByRole("button", { name: "미결 종결" })).toBeDisabled();
+  for (const id of [501, 502, 503, 504, 505]) {
+    expect(row(id).getByRole("button", { name: "상세" })).toBeEnabled();
+    const item = await resolutionItem(id);
+    if (id < 503) expect(item).not.toHaveAttribute("aria-disabled", "true");
+    else {
+      expect(item).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(item);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    }
+    await closeMenu(id);
+  }
+  fireEvent.click(row(503).getByRole("button", { name: "상세" }));
+  expect(await screen.findByRole("dialog")).toHaveTextContent("알림톡 #503");
+  expect(mockResolve).not.toHaveBeenCalled();
 });
 
 test("READY는 확인 후 FAILED로만 종결하고 메시지 ID를 보내지 않는다", async () => {
@@ -83,7 +117,7 @@ test("READY는 확인 후 FAILED로만 종결하고 메시지 ID를 보내지 �
   fireEvent.click(dialog.getByRole("button", { name: "종결" }));
 
   await waitFor(() => expect(mockResolve).toHaveBeenCalledWith(501, { status: "FAILED" }));
-  await waitFor(() => expect(row(501).getByRole("button", { name: "미결 종결" })).toBeDisabled());
+  await expectResolved(501);
   expect(row(501).getByText("MANUAL")).toBeInTheDocument();
 });
 
@@ -103,7 +137,7 @@ test.each([
   fireEvent.click(dialog.getByRole("button", { name: "종결" }));
 
   await waitFor(() => expect(mockResolve).toHaveBeenCalledWith(501, { status, messageId: "M_123" }));
-  await waitFor(() => expect(row(501).getByRole("button", { name: "미결 종결" })).toBeDisabled());
+  await expectResolved(501);
 });
 
 test("상태 충돌이면 재요청하지 않고 서버의 최신 상태를 다시 표시한다", async () => {
@@ -118,6 +152,37 @@ test("상태 충돌이면 재요청하지 않고 서버의 최신 상태를 다�
   fireEvent.click(dialog.getByRole("button", { name: "종결" }));
 
   expect(await screen.findByText("상태가 변경되었거나 이미 종결된 요청입니다. 갱신된 이력을 확인하세요.")).toBeInTheDocument();
-  await waitFor(() => expect(row(501).getByRole("button", { name: "미결 종결" })).toBeDisabled());
+  await expectResolved(501);
   expect(mockResolve).toHaveBeenCalledTimes(1);
+});
+
+test("요청한 임대인과 실제 USER 수신자의 이메일을 섞지 않는다", async () => {
+  await renderHistory([{ ...ready, recipientType: "USER", recipientId: 9, userEmail: "owner@example.test",
+    recipientEmail: "receiver@example.test", recipientPhone: "010-0000-7777" }]);
+  expect(row(501).getByText("receiver@example.test")).toBeInTheDocument();
+  expect(row(501).getByText("요청 유저 owner@example.test")).toBeInTheDocument();
+  expect(row(501).getByText("010-0000-7777")).toBeInTheDocument();
+  expect(mockResolve).not.toHaveBeenCalled();
+});
+
+
+test("모바일 수신 카드에서 상세 조회는 발송하지 않으며 접수된 건의 종결은 잠근다", async () => {
+  mockViewport = "mobile";
+  respondWith([{ ...ready, status: "SENT", recipientPhone: "010-1234-5678" }]);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  render(<QueryClientProvider client={client}><ConfigProvider theme={{ token: { motion: false } }}><App><History /></App></ConfigProvider></QueryClientProvider>);
+  const card = within(await screen.findByRole("article", { name: "알림톡 #501" }));
+  expect(document.querySelector(".ant-table-wrapper")).not.toBeInTheDocument();
+  expect(card.getByText("010-1234-5678")).toBeInTheDocument();
+  expect(card.getByText("업무 대상일")).toBeInTheDocument();
+  expect(card.getByText("실제 요청 시각")).toBeInTheDocument();
+  fireEvent.click(card.getByRole("button", { name: "알림톡 #501 더보기" }));
+  const resolve = await screen.findByRole("menuitem", { name: /^미결 종결/ });
+  expect(resolve).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(resolve);
+  expect(mockResolve).not.toHaveBeenCalled();
+  fireEvent.click(card.getByRole("button", { name: "알림톡 #501 더보기" }));
+  fireEvent.click(card.getByRole("button", { name: "상세" }));
+  expect(await screen.findByRole("dialog")).toHaveTextContent("알림톡 #501");
+  expect(mockResolve).not.toHaveBeenCalled();
 });

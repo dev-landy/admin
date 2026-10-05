@@ -15,6 +15,9 @@ jest.mock("@/features/properties/hooks", () => ({ useProperties: () => mockQuery
 jest.mock("@/features/tenants/hooks", () => ({ useTenants: () => mockQuery() }));
 jest.mock("@/features/payments/hooks", () => ({ usePayments: () => mockQuery(), useDuplicates: () => mockQuery() }));
 jest.mock("@/features/batch/hooks", () => ({ useBatchSchedules: () => mockQuery() }));
+// Selector requests are covered independently; these cases own list-query failure recovery.
+jest.mock("@/components/EntityLookupSelect", () => ({ UserLookupSelect: () => null, TenantLookupSelect: () => null }));
+jest.mock("@/features/properties/components/PropertyLookupSelect", () => ({ PropertyLookupSelect: () => null }));
 jest.mock("@/features/users/components/UserTable", () => ({ UserTable: () => <div role="table">조회 결과</div> }));
 jest.mock("@/features/properties/components/PropertyTable", () => ({ PropertyTable: () => <div role="table">조회 결과</div> }));
 jest.mock("@/features/tenants/components/TenantTable", () => ({ TenantTable: () => <div role="table">조회 결과</div> }));
@@ -35,12 +38,12 @@ test.each(pages)("%p 조회 상태가 바뀌어도 최초 실패·캐시 실패�
   fireEvent.click(screen.getByRole("button", { name: "다시 조회" }));
   expect(mockRetry).toHaveBeenCalledTimes(1);
 
-  mockQuery.mockReturnValue({ data: {}, error: new Error("network"), isLoading: false, isFetching: false, refetch: mockRetry });
+  mockQuery.mockReturnValue({ data: { totalElements: 0 }, error: new Error("network"), isLoading: false, isFetching: false, refetch: mockRetry });
   view.rerender(<Page />);
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(screen.getByText(/마지막으로 조회한 정보/)).toBeInTheDocument();
 
-  mockQuery.mockReturnValue({ data: {}, error: null, isLoading: false, isFetching: false, refetch: mockRetry });
+  mockQuery.mockReturnValue({ data: { totalElements: 0 }, error: null, isLoading: false, isFetching: false, refetch: mockRetry });
   view.rerender(<Page />);
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(screen.queryByText("잠시 후 다시 조회해 주세요.")).not.toBeInTheDocument();

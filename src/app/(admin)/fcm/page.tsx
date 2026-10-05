@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Col, Row } from "antd";
+import { Alert, Tabs } from "antd";
+import { RelatedPageBack } from "@/components/RelatedPageBack";
 
 import { PageHeader } from "@/components/PageHeader";
 import { FcmTokenSendCard } from "@/features/fcm/components/FcmTokenSendCard";
@@ -10,25 +11,18 @@ import { FcmSilentPushCard } from "@/features/fcm/components/FcmSilentPushCard";
 export default function FcmPage() {
   return (
     <>
-      <PageHeader title="FCM 테스트" description="등록된 기기의 푸시를 점검하고 토픽 구독과 백그라운드 알림을 관리합니다." />
-      <Alert
-        type="info"
-        showIcon
-        title="등록 토큰 테스트 알림은 CUSTOM 타입으로 저장하고 선택한 토큰에 직접 발송합니다."
-        description="outbox는 생성하지 않으며, Silent Push와 토픽 구독 관리도 DB 알림 발송 대상이 아닙니다."
-        style={{ marginBottom: 16 }}
-      />
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
+      <PageHeader title="FCM 테스트" description="대상 기기를 확인한 뒤 필요한 테스트나 구독 작업을 선택하세요." extra={<RelatedPageBack />} />
+      <Tabs aria-label="FCM 작업" defaultActiveKey="device" items={[
+        { key: "device", label: "기기 테스트", children: <div className="admin-operation-workspace" style={{ maxWidth: "none" }}>
           <FcmTokenSendCard />
-        </Col>
-        <Col xs={24} lg={12}>
-          <FcmTopicSubscriptionCard />
-        </Col>
-        <Col xs={24} lg={12}>
+        </div> },
+        { key: "topic", label: "토픽 구독", children: <div className="admin-operation-workspace"><FcmTopicSubscriptionCard /></div> },
+        { key: "silent", label: "백그라운드 푸시", children: <div className="admin-operation-workspace">
+          <Alert type="info" showIcon title="기기의 백그라운드 작업을 호출합니다."
+            description="Silent Push는 DB 알림이나 Outbox로 저장되지 않습니다. 운영 토픽과 임의 토픽의 발송 대상을 구분해 확인하세요." style={{ marginBottom: 16 }} />
           <FcmSilentPushCard />
-        </Col>
-      </Row>
+        </div> },
+      ]} />
     </>
   );
 }

@@ -1,18 +1,42 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import { Alert, Descriptions, Modal, Spin, Table, Tag, Typography } from "antd";
+import { useListSort } from "@/lib/navigation/useListSort";
+import { sortRecords } from "@/lib/table/sort-records";
+
+import { useState, type CSSProperties } from "react";
+import { Alert, Descriptions, Modal, Spin, Tag, Typography } from "antd";
 import type { DescriptionsProps, TableColumnsType } from "antd";
 
+import { PagedTable } from "@/components/PagedTable";
+import { RecordCard } from "@/components/RecordCard";
+import { EntityCell } from "@/components/EntityCell";
+import { useAdminViewport } from "@/components/useAdminViewport";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
 import { formatMillis } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
-import { batchExecutionStatusColor } from "../executionStatus";
+import { batchExecutionStatusColor, batchExecutionStatusLabel } from "../executionStatus";
 import { useBatchExecution } from "../hooks";
 import type { BatchStepExecution, BatchStepKind } from "../types";
 
 const { Text } = Typography;
+
+const BATCH_STEP_COLUMN_SIZING = {
+  stepExecutionId: { min: 100 },
+  stepName: { min: 240, preferred: 500, grow: 2 },
+  kind: { min: 100 },
+  status: { min: 260 },
+  exitCode: { min: 240, preferred: 300, grow: 1 },
+  readCount: { min: 80 },
+  writeCount: { min: 80 },
+  commitCount: { min: 80 },
+  rollbackCount: { min: 80 },
+  startTime: { min: 220, preferred: 260, grow: 0.5 },
+  endTime: { min: 220, preferred: 260, grow: 0.5 },
+  step: { min: 280, preferred: 480, grow: 2 },
+  result: { min: 240, preferred: 360, grow: 1 },
+  counts: { min: 220, preferred: 360, grow: 1 },
+} as const;
 
 const STEP_KIND_COLOR: Record<BatchStepKind, string> = {
   CHUNK: "blue",
@@ -32,8 +56,8 @@ const EXIT_MESSAGE_STYLE: CSSProperties = {
   maxHeight: 240,
   overflow: "auto",
   padding: 12,
-  background: "#fafafa",
-  border: "1px solid #f0f0f0",
+  background: "var(--admin-code-bg)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 6,
   whiteSpace: "pre-wrap",
   wordBreak: "break-all",
@@ -43,7 +67,7 @@ const EXIT_MESSAGE_STYLE: CSSProperties = {
 
 const stepColumns: TableColumnsType<BatchStepExecution> = [
   { title: "스텝 ID", dataIndex: "stepExecutionId", width: 100 },
-  { title: "스텝명", dataIndex: "stepName" },
+  { title: "스텝명", dataIndex: "stepName", width: 240 },
   {
     title: "유형",
     dataIndex: "kind",
@@ -53,31 +77,31 @@ const stepColumns: TableColumnsType<BatchStepExecution> = [
   {
     title: "상태",
     dataIndex: "status",
-    width: 120,
+    width: 260,
     render: (value: BatchStepExecution["status"]) => (
-      <Tag color={batchExecutionStatusColor(value)}>{value}</Tag>
+      <Tag color={batchExecutionStatusColor(value)}>{batchExecutionStatusLabel(value)}</Tag>
     ),
   },
   {
     title: "종료 코드",
     dataIndex: "exitCode",
-    width: 120,
+    width: 240,
     render: (value: string | null) => value ?? "-",
   },
-  { title: "읽음", dataIndex: "readCount", width: 80, render: renderItemCount },
-  { title: "씀", dataIndex: "writeCount", width: 80, render: renderItemCount },
-  { title: "커밋", dataIndex: "commitCount", width: 80 },
-  { title: "롤백", dataIndex: "rollbackCount", width: 80 },
+  { title: "읽음", dataIndex: "readCount", width: 80, align: "right", className: "admin-numeric", render: renderItemCount },
+  { title: "씀", dataIndex: "writeCount", width: 80, align: "right", className: "admin-numeric", render: renderItemCount },
+  { title: "커밋", dataIndex: "commitCount", width: 80, align: "right", className: "admin-numeric" },
+  { title: "롤백", dataIndex: "rollbackCount", width: 80, align: "right", className: "admin-numeric" },
   {
     title: "시작",
     dataIndex: "startTime",
-    width: 200,
+    width: 220,
     render: (value: string | null) => formatMillis(value),
   },
   {
     title: "종료",
     dataIndex: "endTime",
-    width: 200,
+    width: 220,
     render: (value: string | null) => formatMillis(value),
   },
 ];
@@ -89,7 +113,13 @@ export function BatchExecutionDetailModal({
   executionId: number | null;
   onClose: () => void;
 }) {
+  const viewport = useAdminViewport();
+  const [stepPage, setStepPage] = useState(1);
+  const [stepPageSize, setStepPageSize] = useState(20);
   const { data, isLoading, error, isFetching, refetch } = useBatchExecution(executionId);
+  const sort = useListSort({ fields: [{ value: "stepExecutionId", label: "스텝 ID" }, { value: "startTime", label: "시작 시각" }], defaultField: "stepExecutionId", defaultDirection: "asc", navigation: undefined });
+  const steps = sort.requestParams.sort ? sortRecords(data?.steps ?? [], sort.field, sort.direction, "stepExecutionId") : data?.steps ?? [];
+  const sortControl = { ...sort.control, onChange: (field: string, direction: "asc" | "desc") => { sort.control.onChange(field, direction); setStepPage(1); } };
 
   const items: DescriptionsProps["items"] = data
     ? [
@@ -103,7 +133,7 @@ export function BatchExecutionDetailModal({
           label: "상태",
           children: (
             <>
-              <Tag color={batchExecutionStatusColor(data.status)}>{data.status}</Tag>
+              <Tag color={batchExecutionStatusColor(data.status)}>{batchExecutionStatusLabel(data.status)}</Tag>
               {data.stale && <Tag color="warning">지연</Tag>}
             </>
           ),
@@ -119,6 +149,25 @@ export function BatchExecutionDetailModal({
         },
       ]
     : [];
+
+  const renderStepDetails = (step: BatchStepExecution) => <Descriptions column={1} size="small" layout="vertical" items={[
+    { key: "id", label: "스텝 ID", children: step.stepExecutionId },
+    { key: "kind", label: "유형", children: step.kind },
+    { key: "exit", label: "종료 코드", children: step.exitCode ?? "-" },
+    { key: "read", label: "읽음", children: renderItemCount(step.readCount, step) },
+    { key: "write", label: "씀", children: renderItemCount(step.writeCount, step) },
+    { key: "commit", label: "커밋", children: step.commitCount },
+    { key: "rollback", label: "롤백", children: step.rollbackCount },
+    { key: "start", label: "시작", children: formatMillis(step.startTime) },
+    { key: "end", label: "종료", children: formatMillis(step.endTime) },
+    { key: "message", label: "스텝 종료 메시지", children: step.exitMessage ? <pre style={EXIT_MESSAGE_STYLE}>{step.exitMessage}</pre> : "없음" },
+  ]} />;
+  const compactStepColumns: TableColumnsType<BatchStepExecution> = [
+    { title: "스텝", key: "step", width: 280, render: (_, step) => <EntityCell primary={step.stepName} secondary={step.kind} meta={`스텝 #${step.stepExecutionId}`} /> },
+    { title: "결과", key: "result", width: 240, render: (_, step) => <EntityCell primary={<Tag color={batchExecutionStatusColor(step.status)}>{batchExecutionStatusLabel(step.status)}</Tag>} secondary={step.exitCode ?? "-"} /> },
+    { title: "처리량", key: "counts", width: 220, render: (_, step) => <EntityCell primary={`읽음 ${renderItemCount(step.readCount, step)} · 씀 ${renderItemCount(step.writeCount, step)}`} secondary={`커밋 ${step.commitCount} · 롤백 ${step.rollbackCount}`} /> },
+  ];
+  const currentStepPage = Math.min(stepPage, Math.max(1, Math.ceil((data?.steps.length ?? 0) / stepPageSize)));
 
   return (
     <Modal
@@ -143,19 +192,19 @@ export function BatchExecutionDetailModal({
               style={{ marginBottom: 16 }}
             />
           )}
-          <Descriptions bordered column={{ xs: 1, md: 2 }} size="small" items={items} />
+          <Descriptions bordered layout={viewport === "mobile" ? "vertical" : "horizontal"} column={{ xs: 1, md: 2 }} size="small" items={items} />
 
           <Typography.Title level={5} style={{ marginTop: 24 }}>
             스텝
           </Typography.Title>
-          <Table
-            columns={stepColumns}
-            dataSource={data.steps}
-            rowKey={(step) => String(step.stepExecutionId)}
-            pagination={false}
-            size="small"
-            scroll={{ x: "max-content" }}
-          />
+          <PagedTable sortControl={sortControl} columns={stepColumns} compactColumns={compactStepColumns} columnSizing={BATCH_STEP_COLUMN_SIZING} renderCompactDetails={renderStepDetails}
+            renderCard={(step) => <RecordCard title={step.stepName} subtitle={`${step.kind} · 스텝 #${step.stepExecutionId}`}
+              meta={<Tag color={batchExecutionStatusColor(step.status)}>{batchExecutionStatusLabel(step.status)}</Tag>} ariaLabel={`배치 스텝 #${step.stepExecutionId}`}
+              fields={[{ label: "종료 코드", value: step.exitCode ?? "-" }, { label: "읽음 · 씀", value: `${renderItemCount(step.readCount, step)} · ${renderItemCount(step.writeCount, step)}` }, { label: "커밋 · 롤백", value: `${step.commitCount} · ${step.rollbackCount}` }, { label: "시작", value: formatMillis(step.startTime) }, { label: "종료", value: formatMillis(step.endTime) }]}
+              details={renderStepDetails(step)} />}
+            dataSource={steps.slice((currentStepPage - 1) * stepPageSize, currentStepPage * stepPageSize)} loading={false}
+            rowKey={(step) => String(step.stepExecutionId)} page={currentStepPage} pageSize={stepPageSize} total={data.steps.length}
+            onPageChange={(page, size) => { setStepPage(page); setStepPageSize(size); }} ariaLabel="배치 스텝 목록" emptyText="실행된 스텝이 없습니다." />
 
           <Typography.Title level={5} style={{ marginTop: 24 }}>
             종료 메시지

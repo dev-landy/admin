@@ -1,7 +1,8 @@
 import "@/test-utils/antd";
 import { createRef, type ReactNode } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Button, Grid } from "antd";
+import { Button } from "antd";
+import { Grid } from "antd";
 import { ContractDocumentActions } from "@/features/contract-ocr/components/ContractDocumentActions";
 
 class TestVisualViewport extends EventTarget {

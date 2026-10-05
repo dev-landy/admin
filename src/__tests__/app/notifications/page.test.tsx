@@ -2,6 +2,7 @@ import "@/test-utils/antd";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import koKR from "antd/locale/ko_KR";
 import NotificationsPage from "@/app/(admin)/notifications/page";
 import OutboxPage from "@/app/(admin)/notifications/outbox/page";
@@ -25,6 +26,8 @@ jest.mock("@/features/notifications/hooks", () => ({
   useDispatchNotifications: () => ({ mutate: mockDispatch, isPending: false }),
 }));
 jest.mock("@/features/notifications/components/SendNotificationModal", () => ({ SendNotificationModal: () => null }));
+jest.mock("@/features/users/api", () => ({ fetchUser: jest.fn(async (userId: number) => ({ userId, email: `user${userId}@example.com` })), fetchUsers: jest.fn(async () => ({ users: [] })) }));
+jest.mock("@/features/tenants/api", () => ({ fetchTenant: jest.fn(), fetchTenants: jest.fn(async () => ({ tenants: [] })) }));
 jest.mock("@/features/notifications/components/NotificationTable", () => ({
   NotificationTable: ({ onFilterChange }: { onFilterChange: (key: string, value: number) => void }) =>
     <button onClick={() => onFilterChange("userId", 12)}>알림 사용자 필터</button>,
@@ -36,7 +39,8 @@ jest.mock("@/features/notifications/components/OutboxTable", () => ({
 }));
 
 function renderPage(page: "notifications" | "outbox") {
-  return render(<ConfigProvider locale={koKR}><App>{page === "notifications" ? <NotificationsPage /> : <OutboxPage />}</App></ConfigProvider>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}><ConfigProvider locale={koKR} theme={{ token: { motion: false } }}><App>{page === "notifications" ? <NotificationsPage /> : <OutboxPage />}</App></ConfigProvider></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -48,7 +52,7 @@ beforeEach(() => {
 
 test("사용자 상세에서 전달한 ID로 알림을 조회하고 필터 변경 시 페이지를 초기화한다", () => {
   renderPage("notifications");
-  expect(useNotifications).toHaveBeenCalledWith({ page: 3, size: 50, userId: 7, type: undefined, isRead: undefined });
+  expect(useNotifications).toHaveBeenCalledWith({ page: 3, size: 50, userId: 7, type: undefined, isRead: undefined, notificationId: undefined, tenantId: undefined, keyword: undefined, createdFrom: undefined, createdTo: undefined, targetFrom: undefined, targetTo: undefined });
   fireEvent.click(screen.getByRole("button", { name: "알림 사용자 필터" }));
   expect(mockPush).toHaveBeenCalledWith("?page=1&size=50&userId=12");
 });
@@ -57,7 +61,7 @@ test("Outbox 사용자·오류 코드 필터를 서버에 전달하며 다른 �
   mockSearchParams.set("status", "FAILED");
   mockSearchParams.set("errorCode", "INTERNAL");
   renderPage("outbox");
-  expect(useOutbox).toHaveBeenCalledWith({ page: 3, size: 50, userId: 7, status: "FAILED", errorCode: "INTERNAL" });
+  expect(useOutbox).toHaveBeenCalledWith({ page: 3, size: 50, userId: 7, status: "FAILED", errorCode: "INTERNAL", notificationId: undefined, fcmTokenId: undefined, lastAttemptedFrom: undefined, lastAttemptedTo: undefined, sentFrom: undefined, sentTo: undefined });
   fireEvent.click(screen.getByRole("button", { name: "오류 코드 필터" }));
   expect(mockPush).toHaveBeenCalledWith("?page=1&size=50&userId=7&status=FAILED&errorCode=UNAVAILABLE");
 });

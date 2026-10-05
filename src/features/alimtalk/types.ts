@@ -12,8 +12,17 @@ export type AlimtalkStatus = "READY" | "PENDING" | "SENT" | "FAILED" | "UNKNOWN"
 
 export type AlimtalkRecipientType = "TENANT" | "USER";
 
-/** 수신자 이름·전화번호는 이력에 저장하지 않는다. 실제 발송 건은 `messageId`로 공급자 콘솔에서 찾는다. */
+/** 수신자 이름·전화번호는 이력 snapshot이 아니다. 표시 정보는 현재 활성 연결 정보이며 실제 발송 건은 `messageId`로 공급자 콘솔에서 찾는다. */
 export type AlimtalkSummary = {
+  userEmail?: string | null;
+  userPhone?: string | null;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  propertyName?: string | null;
+  roomNumber?: string | null;
+  recipientEmail?: string | null;
+  recipientPhone?: string | null;
+
   alimtalkId: number;
   userId: number;
   recipientType: AlimtalkRecipientType;
@@ -35,7 +44,7 @@ export type ResolveAlimtalkRequest = {
   messageId?: string;
 };
 
-export type AlimtalksListParams = {
+export type AlimtalksListParams = { sort?: string;
   page?: number;
   size?: number;
   userId?: number;
@@ -45,6 +54,10 @@ export type AlimtalksListParams = {
   status?: AlimtalkStatus;
   from?: string;
   to?: string;
+  alimtalkId?: number;
+  messageId?: string;
+  requestedFrom?: string;
+  requestedTo?: string;
 };
 
 export type AlimtalksListResponse = {

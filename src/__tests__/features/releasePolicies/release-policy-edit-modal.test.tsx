@@ -36,8 +36,8 @@ const policy: ReleasePolicy = {
   updatedAt: "2026-09-01T12:00:00",
 };
 
-const LATEST_BUILD_LABEL = "최신 빌드 번호 (1 이상)";
-const MIN_BUILD_LABEL = "최소 지원 빌드 번호 (1 이상, 최신 빌드 번호 이하)";
+const LATEST_BUILD_LABEL = "최신 빌드 번호";
+const MIN_BUILD_LABEL = "최소 지원 빌드 번호";
 
 function badRequest(): AxiosError {
   return new AxiosError("unprocessable", undefined, undefined, undefined, {
@@ -88,6 +88,8 @@ test("수정 모달은 현재 정책 값으로 채워지고 플랫폼·채널은
   expect(within(dialog).getByLabelText("최신 버전")).toHaveValue("1.4.2");
   expect(within(dialog).getByLabelText(LATEST_BUILD_LABEL)).toHaveValue("42");
   expect(within(dialog).getByLabelText(MIN_BUILD_LABEL)).toHaveValue("30");
+  expect(within(dialog).getByLabelText(LATEST_BUILD_LABEL)).toHaveAccessibleDescription("1 이상의 정수로 입력합니다.");
+  expect(within(dialog).getByLabelText(MIN_BUILD_LABEL)).toHaveAccessibleDescription(/1 이상, 최신 빌드 번호 이하/);
   expect(within(dialog).getByLabelText("스토어 URL")).toHaveValue(
     "https://apps.apple.com/app/id123456789",
   );

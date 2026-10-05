@@ -71,7 +71,8 @@ test("화면 진입만으로는 공급자 승인 템플릿을 부르지 않는�
 test("본문 사본이 승인 본문과 다르면 경고하고 가져올 수 있게 한다", async () => {
   render(<AlimtalkTemplateCard template={template} />);
 
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  fireEvent.click(screen.getByRole("button", { name: "납부일 안내 더보기" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "승인 템플릿 조회" }));
 
   await screen.findByText(
     "본문 사본이 승인 본문과 다릅니다 — 임대인 미리보기가 실제 발송과 어긋납니다.",
@@ -103,8 +104,13 @@ test("저장은 채널·템플릿·본문·사용 여부를 함께 보낸다", a
   });
 });
 
-test("발송 불가 상태는 이유를 화면에 남긴다", () => {
+test("발송 불가 상태는 이유와 복구 조회를 직접 제공하며 조회 전에는 공급자를 부르지 않는다", async () => {
   render(<AlimtalkTemplateCard template={{ ...template, sendable: false, enabled: false }} />);
 
   expect(screen.getByText("이 종류는 지금 발송되지 않습니다")).toBeInTheDocument();
+  expect(screen.getByText("발송 불가")).toBeInTheDocument();
+  expect(remoteEnabledCalls.every((value) => !value)).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  expect(await screen.findByText("공급자 승인 템플릿")).toBeInTheDocument();
+  expect(mockUpdate).not.toHaveBeenCalled();
 });

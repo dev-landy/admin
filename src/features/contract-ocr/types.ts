@@ -10,6 +10,14 @@ export type RejectContractDocumentRequest = {
 };
 
 export type ContractDocument = {
+  userEmail?: string | null;
+  userPhone?: string | null;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  propertyName?: string | null;
+  roomNumber?: string | null;
+  propertyAddress?: string | null;
+
   documentId: string;
   uploadId: string;
   userId: number;
@@ -84,4 +92,16 @@ export type ContractOcrAnalysis = {
   warnings: { field: string; code: string; message: string }[];
   failureType?: string | null;
   requestedAt: string;
+};
+
+export type ContractDocumentListFilters = { sort?: string;
+  uploadId?: string;
+  userId?: number;
+  propertyId?: number;
+  tenantId?: number;
+  documentStatus?: "REGISTERED" | "REJECTED";
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
 };

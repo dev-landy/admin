@@ -1,5 +1,9 @@
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
+beforeEach(() => { mockViewport = "wide"; });
+
 import "@/test-utils/antd";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import { AxiosError, AxiosHeaders } from "axios";
 
@@ -14,6 +18,8 @@ type UpdateOptions = {
 };
 
 const mockUpdate = jest.fn();
+const mockPush = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush }), useSearchParams: () => new URLSearchParams() }));
 
 jest.mock("@/features/batch/hooks", () => ({
   useUpdateBatchSchedule: () => ({ mutate: mockUpdate, isPending: false }),
@@ -80,9 +86,10 @@ async function openToggleDialog(index = 0): Promise<HTMLElement> {
 
 beforeEach(() => {
   mockUpdate.mockReset();
+  mockPush.mockClear();
 });
 
-test("스케줄 목록은 실행 시각 설명과 크론 식을 함께 보여준다", () => {
+test("스케줄 목록은 실행 시각 설명과 크론 식을 함께 보여준다", async () => {
   renderTable();
 
   expect(screen.getByRole("columnheader", { name: "실행 시각" })).toBeInTheDocument();
@@ -90,13 +97,14 @@ test("스케줄 목록은 실행 시각 설명과 크론 식을 함께 보여준
   expect(screen.getByText("매일 09:00")).toBeInTheDocument();
   expect(screen.getByText("0 0 9 * * *")).toBeInTheDocument();
 
-  // Job · 작업 · 실행 시각 · 다음 실행 예정 · 수정일 · 활성 · 액션 순서
-  const cells = screen.getAllByRole("cell");
-  expect(cells[0]).toHaveTextContent("dailyNotificationJob");
-  expect(cells[1]).toHaveTextContent("일일 알림 발송");
-  expect(cells[3]).toHaveTextContent("2026-09-04T09:00:00");
-  expect(within(cells[5]).getByRole("switch")).toHaveAttribute("aria-checked", "true");
-  expect(within(cells[6]).getByRole("button", { name: "수정" })).toBeInTheDocument();
+  const row = within(screen.getByText("일일 알림 발송").closest("tr")!);
+  expect(row.getByText("dailyNotificationJob")).toBeInTheDocument();
+  expect(row.getByText("2026-09-04 09:00:00")).toBeInTheDocument();
+  expect(row.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  expect(row.getByRole("button", { name: "수정" })).toBeInTheDocument();
+  await act(async () => { fireEvent.click(row.getByRole("button", { name: "일일 알림 발송 더보기" })); });
+  const history = screen.getByRole("link", { name: "실행 이력" });
+  expect(history).toHaveAttribute("href", "/batch?jobName=dailyNotificationJob");
 });
 
 test("해석할 수 없는 크론 식은 원문만 한 번 보여준다", () => {
@@ -113,7 +121,7 @@ test.each(maintenanceSchedules)(
     expect(screen.getByText(maintenanceSchedule.label)).toBeInTheDocument();
     expect(screen.getByText(maintenanceSchedule.jobName)).toBeInTheDocument();
     expect(screen.getByText(maintenanceSchedule.cronExpression)).toBeInTheDocument();
-    expect(screen.getByText(maintenanceSchedule.nextExecutionAt!)).toBeInTheDocument();
+    expect(screen.getByText(maintenanceSchedule.nextExecutionAt!.replace("T", " "))).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "수정" }));
 
@@ -139,9 +147,9 @@ test.each(maintenanceSchedules)(
 test("비활성 스케줄과 예정 시각 없음을 구분해 표시한다", () => {
   renderTable([{ ...schedule, enabled: false, nextExecutionAt: null }]);
 
-  const cells = screen.getAllByRole("cell");
-  expect(cells[3]).toHaveTextContent("-");
-  expect(within(cells[5]).getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  const row = within(screen.getByText("일일 알림 발송").closest("tr")!);
+  expect(row.getByText("-")).toBeInTheDocument();
+  expect(row.getByRole("switch")).toHaveAttribute("aria-checked", "false");
 });
 
 test("실행 시각은 소수점 이하 없이 초 단위까지만 표시한다", () => {
@@ -153,9 +161,10 @@ test("실행 시각은 소수점 이하 없이 초 단위까지만 표시한다"
     },
   ]);
 
-  const cells = screen.getAllByRole("cell");
-  expect(cells[3].textContent).toBe("2026-09-04T09:00:00");
-  expect(cells[4].textContent).toBe("2026-09-01T12:00:00");
+  const row = within(screen.getByText("일일 알림 발송").closest("tr")!);
+  expect(row.getByText("2026-09-04 09:00:00")).toBeInTheDocument();
+  expect(row.getByText("수정 2026-09-01 12:00:00")).toBeInTheDocument();
+  expect(row.queryByText(/\.123456|\.5/)).not.toBeInTheDocument();
 });
 
 test("비활성 스케줄은 활성화 확인을 거쳐 활성으로 요청한다", async () => {
@@ -342,5 +351,21 @@ test("크론식 직접 입력에서 식이 비면 수정을 요청하지 않는�
   fireEvent.click(within(dialog).getByRole("button", { name: "저장" }));
 
   expect(await within(dialog).findByText("크론 식을 입력하세요.")).toBeInTheDocument();
+  expect(mockUpdate).not.toHaveBeenCalled();
+});
+
+
+test("모바일 일정 카드에서 활성 변경은 확인을 거치며 취소하면 서버값과 요청 횟수를 보존한다", async () => {
+  mockViewport = "mobile";
+  renderTable();
+  expect(document.querySelector(".ant-table-wrapper")).not.toBeInTheDocument();
+  const card = within(screen.getByRole("article", { name: "배치 일정 일일 알림 발송" }));
+  expect(card.getByText("매일 09:00")).toBeInTheDocument();
+  fireEvent.click(card.getByRole("switch"));
+  const dialog = await screen.findByRole("dialog");
+  expect(mockUpdate).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(card.getByRole("switch")).toBeChecked();
   expect(mockUpdate).not.toHaveBeenCalled();
 });

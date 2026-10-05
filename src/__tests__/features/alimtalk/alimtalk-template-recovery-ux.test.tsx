@@ -1,3 +1,7 @@
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
+beforeEach(() => { mockViewport = "wide"; });
+
 import "@/test-utils/antd";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -48,6 +52,7 @@ function beforeUnload() {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUpdate.mockReset();
   mockRemoteError = null;
   mockRemote = undefined;
   mockRemoteFetching = false;
@@ -102,46 +107,90 @@ test("저장 성공은 서버의 확정값을 기준으로 보호를 해제하�
   expect(mockNavigate).toHaveBeenCalledTimes(1);
 });
 
-test("승인 본문 가져오기도 저장되지 않은 편집으로 보호한다", () => {
+async function lookupRemote() {
+  fireEvent.click(screen.getByRole("button", { name: "납부일 안내 더보기" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "승인 템플릿 조회" }));
+}
+
+test.each(["wide", "mobile"] as const)("%s에서도 승인 본문 가져오기를 초안으로 보호한다", async (viewport) => {
+  mockViewport = viewport;
   mockRemote = remote;
   render(tree());
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  await lookupRemote();
   fireEvent.click(screen.getByRole("button", { name: "승인 본문 가져오기" }));
   expect(screen.getByLabelText("본문 사본")).toHaveValue(remote.content);
   expect(beforeUnload()).toBe(true);
 });
 
-test("일반 네트워크 실패를 보여 주고 복구 버튼과 기존 조회 버튼으로 다시 조회한다", () => {
+test("일반 네트워크 실패를 보여 주고 복구 버튼과 기존 조회 버튼으로 다시 조회한다", async () => {
   mockRemoteError = new Error("network");
   render(tree());
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  await lookupRemote();
   expect(screen.getByText("승인 템플릿을 불러오지 못했습니다.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "다시 조회" }));
   expect(mockRefetch).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  await lookupRemote();
   expect(mockRefetch).toHaveBeenCalledTimes(2);
 });
 
-test("재조회 중에는 캐시를 유지하면서 중복 조회를 막는다", () => {
+test("재조회 중에는 캐시를 유지하면서 중복 조회를 막는다", async () => {
   mockRemote = remote;
   mockRemoteError = new Error("refresh failed");
   const view = render(tree());
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
+  await lookupRemote();
   expect(screen.getByText("공급자 승인 템플릿")).toBeInTheDocument();
   expect(screen.getByText("마지막으로 조회한 정보를 표시하고 있습니다. 다시 조회해 주세요.")).toBeInTheDocument();
   mockRemoteFetching = true;
   view.rerender(tree());
-  expect(screen.getByRole("button", { name: /승인 템플릿 조회$/ })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "납부일 안내 더보기" })).toBeDisabled();
   expect(screen.getByRole("button", { name: /다시 조회$/ })).toBeDisabled();
   expect(screen.getByText("공급자 승인 템플릿")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /승인 템플릿 조회$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "납부일 안내 더보기" }));
   fireEvent.click(screen.getByRole("button", { name: /다시 조회$/ }));
   expect(mockRefetch).not.toHaveBeenCalled();
   mockRemoteFetching = false;
   mockRemoteError = null;
   view.rerender(tree());
-  expect(screen.getByRole("button", { name: /승인 템플릿 조회$/ })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "납부일 안내 더보기" })).toBeEnabled();
   expect(screen.queryByText("승인 템플릿을 불러오지 못했습니다.")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /승인 템플릿 조회$/ }));
+  await lookupRemote();
   expect(mockRefetch).toHaveBeenCalledTimes(1);
+});
+
+
+test("모바일은 하단 저장 하나로 중복 요청을 막고 실패 후 같은 초안으로 재시도한다", async () => {
+  mockViewport = "mobile";
+  render(tree());
+  fireEvent.change(screen.getByLabelText("본문 사본"), { target: { value: "저장할 초안" } });
+  expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
+  const footerSave = screen.getByRole("button", { name: "납부일 안내 변경 사항 저장" });
+  fireEvent.click(footerSave);
+  fireEvent.click(footerSave);
+  await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+  expect(footerSave).toBeDisabled();
+  expect(screen.getByLabelText("본문 사본")).toBeDisabled();
+  await act(async () => { mockUpdate.mock.calls[0][1].onError(new Error("network")); });
+  expect(footerSave).toBeEnabled();
+  expect(screen.getByLabelText("본문 사본")).toHaveValue("저장할 초안");
+  fireEvent.click(footerSave);
+  await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(2));
+  expect(mockUpdate).toHaveBeenLastCalledWith({ type: "DUE", body: { pfId: "channel", templateId: "template", body: "저장할 초안", enabled: true } }, expect.any(Object));
+});
+
+
+test("모바일 발송 불가 안내는 본문 아래 복구 조회와 하단 저장 하나를 제공한다", async () => {
+  mockViewport = "mobile";
+  mockRemote = remote;
+  render(tree({ ...template, sendable: false }));
+  const warning = screen.getByRole("alert");
+  const recovery = screen.getByRole("button", { name: "승인 템플릿 조회" });
+  expect(warning).toContainElement(recovery);
+  expect(recovery.closest(".ant-alert-description")).not.toBeNull();
+  expect(warning.querySelector(".ant-alert-actions")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "납부일 안내 변경 사항 저장" })).toBeEnabled();
+  expect(screen.queryByText("공급자 승인 템플릿")).not.toBeInTheDocument();
+  fireEvent.click(recovery);
+  expect(await screen.findByText("공급자 승인 템플릿")).toBeInTheDocument();
+  expect(mockUpdate).not.toHaveBeenCalled();
 });

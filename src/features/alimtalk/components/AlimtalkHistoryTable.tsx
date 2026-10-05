@@ -1,11 +1,19 @@
 "use client";
 
+import type { ListSortControl } from "@/lib/navigation/useListSort";
+
 import { useState } from "react";
-import { Button, Select, Tag, Typography } from "antd";
+import Link from "next/link";
+import { Button, Descriptions, Drawer, Select, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 
 import { DateFilterDropdown } from "@/components/DateFilterDropdown";
 import { IdFilterDropdown } from "@/components/IdFilterDropdown";
+import { listDetailPath } from "@/lib/navigation/listReturn";
+import { useAdminViewport } from "@/components/useAdminViewport";
+import { RecordCard } from "@/components/RecordCard";
+import { EntityCell } from "@/components/EntityCell";
+import { RowActions } from "@/components/RowActions";
 import { PagedTable } from "@/components/PagedTable";
 import { formatSeconds, formatYearMonth } from "@/lib/format/date";
 import { formatManwon } from "@/lib/format/currency";
@@ -22,6 +30,15 @@ import { AlimtalkResolutionModal } from "./AlimtalkResolutionModal";
 
 const { Text } = Typography;
 
+const ALIMTALK_COLUMN_SIZING = {
+  send: { min: 220 },
+  recipient: { min: 320, preferred: 540, grow: 2 },
+  result: { min: 280, preferred: 440, grow: 1 },
+  billing: { min: 220 },
+  times: { min: 240, preferred: 280, grow: 0.5 },
+  actions: { min: 144 },
+} as const;
+
 export type AlimtalkHistoryFilters = {
   userId?: number;
   tenantId?: number;
@@ -33,6 +50,8 @@ export type AlimtalkHistoryFilters = {
 };
 
 type Props = {
+  sortControl?: ListSortControl;
+  returnPath?: string;
   data: AlimtalkSummary[];
   loading: boolean;
   page: number;
@@ -62,7 +81,7 @@ function selectFilter<T extends string>(
   );
 }
 
-export function AlimtalkHistoryTable({
+export function AlimtalkHistoryTable({ sortControl, returnPath: sourceReturnPath,
   data,
   loading,
   page,
@@ -72,161 +91,92 @@ export function AlimtalkHistoryTable({
   filters,
   onFilterChange,
 }: Props) {
+  const viewport = useAdminViewport();
+  const [selected, setSelected] = useState<AlimtalkSummary | null>(null);
   const [resolving, setResolving] = useState<AlimtalkSummary | null>(null);
+  const returnParams = new URLSearchParams({ page: String(page), size: String(pageSize) });
+  for (const [key, value] of Object.entries(filters)) if (value !== undefined) returnParams.set(key, String(value));
+  returnParams.set("tab", "history");
+  const returnPath = sourceReturnPath ?? "/alimtalk?" + returnParams.toString();
+
+  const renderActions = (record: AlimtalkSummary) => <RowActions subject={`알림톡 #${record.alimtalkId}`}
+    primary={<Button size="small" onClick={() => setSelected(record)}>상세</Button>}
+    items={[{ key: "resolve", label: record.status === "READY" || record.status === "PENDING" ? "미결 종결" : "미결 종결 · 제출 전/결과 대기만 가능", disabled: record.status !== "READY" && record.status !== "PENDING",
+      onClick: () => { if (record.status === "READY" || record.status === "PENDING") setResolving(record); } }]} />;
+  const renderDetails = (record: AlimtalkSummary) => <Descriptions size="small" column={1} layout="vertical" items={[
+    { key: "ids", label: "식별자", children: `알림톡 #${record.alimtalkId} · ${record.recipientType} #${record.recipientId} · 요청 유저 #${record.userId}` },
+    { key: "type", label: "발송 목적", children: ALIMTALK_TYPE_PRESENTATION[record.type].label },
+    { key: "trigger", label: "발동 경로", children: ALIMTALK_TRIGGER_PRESENTATION[record.triggerSource].label },
+    { key: "amount", label: "청구 금액 · 귀속월", children: `${formatManwon(record.amount)} · ${formatYearMonth(record.billingMonth)}` },
+    { key: "message", label: "공급자 메시지 ID", children: record.messageId ? <Text code copyable>{record.messageId}</Text> : "-" },
+    { key: "provider", label: "공급자 결과 코드", children: record.providerCode ?? "-" },
+    { key: "updated", label: "갱신일", children: formatSeconds(record.updatedAt) },
+  ]} />;
   const columns: TableColumnsType<AlimtalkSummary> = [
-    { title: "발송 ID", dataIndex: "alimtalkId", width: 100, align: "center" },
     {
-      title: "유저 ID",
-      dataIndex: "userId",
-      width: 110,
-      align: "center",
-      filteredValue: filters.userId === undefined ? null : [filters.userId],
-      filterDropdown: () => (
-        <IdFilterDropdown
-          value={filters.userId}
-          placeholder="유저 ID"
-          onApply={(value) => onFilterChange("userId", value)}
-        />
-      ),
+      title: "발송", key: "send", width: 220,
+      filteredValue: filters.type || filters.triggerSource ? [filters.type ?? "", filters.triggerSource ?? ""] : null,
+      filterDropdown: () => <div><Text type="secondary">종류</Text>{selectFilter(filters.type, ALIMTALK_TYPE_OPTIONS, (value) => onFilterChange("type", value))}
+        <Text type="secondary">발동 경로</Text>{selectFilter(filters.triggerSource, ALIMTALK_TRIGGER_OPTIONS, (value) => onFilterChange("triggerSource", value))}</div>,
+      render: (_, record) => <EntityCell primary={<Tag color={ALIMTALK_TYPE_PRESENTATION[record.type].color}>{ALIMTALK_TYPE_PRESENTATION[record.type].label}</Tag>}
+        secondary={<Tag color={ALIMTALK_TRIGGER_PRESENTATION[record.triggerSource].color}>{ALIMTALK_TRIGGER_PRESENTATION[record.triggerSource].label}</Tag>}
+        meta={<>발송 #<span>{record.alimtalkId}</span></>} />,
     },
     {
-      title: "수신자 (임차인 ID 필터)",
-      key: "recipient",
-      width: 200,
-      align: "center",
-      render: (_value, record) => `${record.recipientType === "TENANT" ? "임차인" : "유저"} #${record.recipientId}`,
-      filteredValue: filters.tenantId === undefined ? null : [filters.tenantId],
-      filterDropdown: () => (
-        <IdFilterDropdown
-          value={filters.tenantId}
-          placeholder="임차인 ID"
-          onApply={(value) => onFilterChange("tenantId", value)}
-        />
-      ),
+      title: "수신 대상 · 현재 정보", key: "recipient", width: 320,
+      filteredValue: filters.userId || filters.tenantId ? [filters.userId ?? "", filters.tenantId ?? ""] : null,
+      filterDropdown: () => <div><IdFilterDropdown value={filters.userId} placeholder="유저 ID" onApply={(value) => onFilterChange("userId", value)} />
+        <IdFilterDropdown value={filters.tenantId} placeholder="임차인 ID" onApply={(value) => onFilterChange("tenantId", value)} /></div>,
+      render: (_, record) => <EntityCell primary={<Link href={listDetailPath(record.recipientType === "TENANT" ? "/tenants" : "/users", record.recipientId, returnPath)}>{record.recipientType === "TENANT" ? record.tenantName || `임차인 #${record.recipientId}` : record.recipientEmail || `유저 #${record.recipientId}`}</Link>}
+        secondary={[record.propertyName, record.roomNumber, record.recipientPhone].filter(Boolean).join(" · ") || undefined}
+        meta={`요청 유저 ${record.userEmail || `#${record.userId}`}`} />,
     },
     {
-      title: "종류",
-      dataIndex: "type",
-      width: 120,
-      align: "center",
-      filteredValue: filters.type === undefined ? null : [filters.type],
-      filterDropdown: () =>
-        selectFilter(filters.type, ALIMTALK_TYPE_OPTIONS, (next) => onFilterChange("type", next)),
-      render: (value: AlimtalkType) => (
-        <Tag color={ALIMTALK_TYPE_PRESENTATION[value].color}>{ALIMTALK_TYPE_PRESENTATION[value].label}</Tag>
-      ),
-    },
-    {
-      title: "발동",
-      dataIndex: "triggerSource",
-      width: 130,
-      align: "center",
-      filteredValue: filters.triggerSource === undefined ? null : [filters.triggerSource],
-      filterDropdown: () =>
-        selectFilter(filters.triggerSource, ALIMTALK_TRIGGER_OPTIONS, (next) =>
-          onFilterChange("triggerSource", next),
-        ),
-      render: (value: AlimtalkTrigger) => (
-        <Tag color={ALIMTALK_TRIGGER_PRESENTATION[value].color}>
-          {ALIMTALK_TRIGGER_PRESENTATION[value].label}
-        </Tag>
-      ),
-    },
-    {
-      title: "상태",
-      dataIndex: "status",
-      width: 120,
-      align: "center",
+      title: "결과", key: "result", width: 280,
       filteredValue: filters.status === undefined ? null : [filters.status],
-      filterDropdown: () =>
-        selectFilter(filters.status, ALIMTALK_STATUS_OPTIONS, (next) => onFilterChange("status", next)),
-      render: (value: AlimtalkStatus) => (
-        <Tag color={ALIMTALK_STATUS_PRESENTATION[value].color}>
-          {ALIMTALK_STATUS_PRESENTATION[value].label}
-        </Tag>
-      ),
+      filterDropdown: () => selectFilter(filters.status, ALIMTALK_STATUS_OPTIONS, (value) => onFilterChange("status", value)),
+      render: (_, record) => <EntityCell primary={<Tag color={ALIMTALK_STATUS_PRESENTATION[record.status].color}>{ALIMTALK_STATUS_PRESENTATION[record.status].label}</Tag>}
+        secondary={record.providerCode} meta={record.messageId ? <Text code copyable>{record.messageId}</Text> : "메시지 ID 없음"} />,
     },
     {
-      title: "귀속월",
-      dataIndex: "billingMonth",
-      width: 120,
-      align: "center",
-      render: (value: string) => formatYearMonth(value),
+      title: "청구 대상", key: "billing", width: 220,
+      filteredValue: filters.from || filters.to ? [filters.from ?? "", filters.to ?? ""] : null,
+      filterDropdown: () => <div><Text type="secondary">대상 시작일</Text><DateFilterDropdown value={filters.from} onApply={(value) => onFilterChange("from", value)} />
+        <Text type="secondary">대상 종료일</Text><DateFilterDropdown value={filters.to} onApply={(value) => onFilterChange("to", value)} /></div>,
+      render: (_, record) => <EntityCell primary={`대상일 ${record.targetDate}`} secondary={`귀속월 ${formatYearMonth(record.billingMonth)}`} meta={formatManwon(record.amount)} />,
     },
     {
-      title: "대상일",
-      dataIndex: "targetDate",
-      width: 130,
-      align: "center",
-      // 범위 양끝을 한 컬럼에 몰아 둔다. targetDate 하나를 두 조건으로 거르는 것이라 컬럼을 나누면 더 헷갈린다.
-      filteredValue: filters.from === undefined && filters.to === undefined ? null : [filters.from ?? "", filters.to ?? ""],
-      filterDropdown: () => (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <Text type="secondary" style={{ padding: "8px 8px 0" }}>
-            시작일
-          </Text>
-          <DateFilterDropdown value={filters.from} onApply={(value) => onFilterChange("from", value)} />
-          <Text type="secondary" style={{ padding: "0 8px" }}>
-            종료일
-          </Text>
-          <DateFilterDropdown value={filters.to} onApply={(value) => onFilterChange("to", value)} />
-        </div>
-      ),
+      title: "처리 시각", key: "times", width: 240,
+      render: (_, record) => <EntityCell primary={`요청 ${formatSeconds(record.requestedAt)}`} secondary={`갱신 ${formatSeconds(record.updatedAt)}`} />,
     },
     {
-      title: "금액",
-      dataIndex: "amount",
-      width: 120,
-      align: "center",
-      render: (value: number | null) => formatManwon(value),
+      title: "작업", key: "actions", width: 144, fixed: "right",
+      render: (_, record) => renderActions(record),
     },
-    {
-      title: "메시지 ID",
-      dataIndex: "messageId",
-      width: 220,
-      // 공급자 콘솔에서 건을 찾는 유일한 키라 잘라내지 않고 그대로 보여준다.
-      render: (value: string | null) => (value ? <Text code copyable>{value}</Text> : "-"),
-    },
-    {
-      title: "결과 코드",
-      dataIndex: "providerCode",
-      width: 120,
-      align: "center",
-      render: (value: string | null) => value ?? "-",
-    },
-    {
-      title: "요청일",
-      dataIndex: "requestedAt",
-      width: 180,
-      render: (value: string) => formatSeconds(value),
-    },
-    {
-      title: "갱신일",
-      dataIndex: "updatedAt",
-      width: 180,
-      render: (value: string) => formatSeconds(value),
-    },
-    {
-      title: "액션",
-      key: "actions",
-      width: 110,
-      fixed: "right",
-      render: (_value, record) => (
-        <Button
-          size="small"
-          disabled={record.status !== "READY" && record.status !== "PENDING"}
-          onClick={() => setResolving(record)}
-        >
-          미결 종결
-        </Button>
-      ),
-    },
+  ];
+
+  const compactColumns: TableColumnsType<AlimtalkSummary> = [
+    { title: "알림톡 · 현재 대상", key: "recipient", width: 320, render: (_, record) => <EntityCell primary={<Link href={listDetailPath(record.recipientType === "TENANT" ? "/tenants" : "/users", record.recipientId, returnPath)}>{record.recipientType === "TENANT" ? record.tenantName || `임차인 #${record.recipientId}` : record.recipientEmail || `유저 #${record.recipientId}`}</Link>}
+      secondary={[record.propertyName, record.roomNumber, record.recipientPhone].filter(Boolean).join(" · ")} meta={ALIMTALK_TYPE_PRESENTATION[record.type].label} /> },
+    { title: "결과 · 일정", key: "result", width: 280, render: (_, record) => <EntityCell primary={<Tag color={ALIMTALK_STATUS_PRESENTATION[record.status].color}>{ALIMTALK_STATUS_PRESENTATION[record.status].label}</Tag>}
+      secondary={`대상일 ${record.targetDate}`} meta={`요청 ${formatSeconds(record.requestedAt)}`} /> },
+    { title: "작업", key: "actions", width: 144, render: (_, record) => renderActions(record) },
   ];
 
   return (
     <>
-      <PagedTable
-        columns={columns}
+      <PagedTable sortControl={sortControl}
+        columns={columns} compactColumns={compactColumns} columnSizing={ALIMTALK_COLUMN_SIZING} renderCompactDetails={renderDetails}
+        renderCard={(record) => <RecordCard title={ALIMTALK_TYPE_PRESENTATION[record.type].label}
+          subtitle={<Link href={listDetailPath(record.recipientType === "TENANT" ? "/tenants" : "/users", record.recipientId, returnPath)}>{record.recipientType === "TENANT" ? record.tenantName || `임차인 #${record.recipientId}` : record.recipientEmail || `유저 #${record.recipientId}`}</Link>}
+          meta={<Tag color={ALIMTALK_STATUS_PRESENTATION[record.status].color}>{ALIMTALK_STATUS_PRESENTATION[record.status].label}</Tag>}
+          ariaLabel={`알림톡 #${record.alimtalkId}`} fields={[
+            { label: "수신자 현재 연락처", value: record.recipientPhone ?? "-" },
+            { label: "건물 · 호실", value: [record.propertyName, record.roomNumber].filter(Boolean).join(" · ") || "-" },
+            { label: "요청 유저", value: record.userEmail || `#${record.userId}` },
+            { label: "업무 대상일", value: record.targetDate },
+            { label: "실제 요청 시각", value: formatSeconds(record.requestedAt) },
+          ]} actions={renderActions(record)} details={renderDetails(record)} />}
         dataSource={data}
         loading={loading}
         page={page}
@@ -238,6 +188,24 @@ export function AlimtalkHistoryTable({
         rowKey={(r) => String(r.alimtalkId)}
       />
       <AlimtalkResolutionModal alimtalk={resolving} onClose={() => setResolving(null)} />
+      <Drawer title={selected ? `알림톡 #${selected.alimtalkId}` : "발송 이력"} open={selected !== null} onClose={() => setSelected(null)} size="min(560px, 100vw)" destroyOnHidden>
+        {selected && <Descriptions layout={viewport === "mobile" ? "vertical" : "horizontal"} column={1} size="small" bordered items={[
+          { key: "recipient", label: "수신자", children: `${selected.recipientType === "TENANT" ? "임차인" : "유저"} #${selected.recipientId}` },
+          { key: "owner", label: "요청 유저", children: selected.userEmail ? `${selected.userEmail} · #${selected.userId}` : `#${selected.userId}` },
+          { key: "contact", label: "현재 수신자 연락처", children: selected.recipientPhone ?? "-" },
+          { key: "building", label: "건물 · 호실", children: [selected.propertyName, selected.roomNumber].filter(Boolean).join(" · ") || "-" },
+          { key: "type", label: "종류", children: ALIMTALK_TYPE_PRESENTATION[selected.type].label },
+          { key: "trigger", label: "발동", children: ALIMTALK_TRIGGER_PRESENTATION[selected.triggerSource].label },
+          { key: "status", label: "상태", children: ALIMTALK_STATUS_PRESENTATION[selected.status].label },
+          { key: "target", label: "대상일", children: selected.targetDate },
+          { key: "month", label: "귀속월", children: formatYearMonth(selected.billingMonth) },
+          { key: "amount", label: "금액", children: formatManwon(selected.amount) },
+          { key: "message", label: "메시지 ID", children: selected.messageId ? <Text code copyable>{selected.messageId}</Text> : "-" },
+          { key: "provider", label: "결과 코드", children: selected.providerCode ?? "-" },
+          { key: "requested", label: "발송 요청일", children: formatSeconds(selected.requestedAt) },
+          { key: "updated", label: "갱신일", children: formatSeconds(selected.updatedAt) },
+        ]} />}
+      </Drawer>
     </>
   );
 }

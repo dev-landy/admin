@@ -66,7 +66,7 @@ export type BatchExecutionDetail = BatchExecutionSummary & {
   steps: BatchStepExecution[];
 };
 
-export type BatchExecutionsListParams = {
+export type BatchExecutionsListParams = { sort?: string;
   page?: number;
   size?: number;
   jobName?: string;
@@ -75,6 +75,9 @@ export type BatchExecutionsListParams = {
   // targetDate job 파라미터 기준 양끝 포함 범위 (YYYY-MM-DD).
   targetDateFrom?: string;
   targetDateTo?: string;
+  executionId?: number;
+  startedFrom?: string;
+  startedTo?: string;
 };
 
 export type BatchExecutionsListResponse = {

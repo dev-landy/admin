@@ -1,0 +1,6 @@
+@media (max-width: 767px) {
+  .detailCard :global(.admin-row-actions .ant-btn) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

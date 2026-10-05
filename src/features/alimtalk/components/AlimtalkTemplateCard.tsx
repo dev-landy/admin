@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Alert, Button, Card, Descriptions, Form, Input, Space, Switch, Tag, Typography } from "antd";
 
+import { useAdminViewport } from "@/components/useAdminViewport";
+import styles from "./AlimtalkTemplateCard.module.css";
+import { RowActions } from "@/components/RowActions";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
@@ -38,6 +41,9 @@ function toFormValues(template: AlimtalkTemplate): FormValues {
  */
 export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate }) {
   const { notification } = App.useApp();
+  const viewport = useAdminViewport();
+  const saveInProgress = useRef(false);
+  const [validating, setValidating] = useState(false);
   const [form] = Form.useForm<FormValues>();
   const hasDraftChanges = useRef(false);
   const savedValues = useRef(toFormValues(template));
@@ -49,6 +55,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
     error: remoteError,
     refetch: refetchRemote,
   } = useRemoteAlimtalkTemplate(template.type, remoteOpen);
+  const saving = isPending || validating;
   const presentation = ALIMTALK_TYPE_PRESENTATION[template.type];
 
   // 백그라운드 재조회는 편집 중인 초안을 덮어쓰지 않는다. 깨끗한 폼만 최신 값으로 맞춘다.
@@ -67,24 +74,29 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
   useUnsavedChanges(false, hasUnsavedInput);
 
   function handleRemoteLookup() {
-    if (isRemoteFetching) return;
+    if (isRemoteFetching || saveInProgress.current || isPending) return;
     if (remoteOpen) void refetchRemote();
     else setRemoteOpen(true);
   }
 
   function handleSave() {
-    if (isPending) return;
+    if (isPending || saveInProgress.current) return;
+    saveInProgress.current = true;
+    setValidating(true);
+    const finish = () => { saveInProgress.current = false; setValidating(false); };
     form.validateFields().then((values) => {
       update(
         { type: template.type, body: values },
         {
           onSuccess: (saved) => {
+            finish();
             hasDraftChanges.current = false;
             savedValues.current = toFormValues(saved);
             form.setFieldsValue(savedValues.current);
             notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` });
           },
           onError: (error) => {
+            finish();
             const problem = parseProblemDetail(error);
             notification.error({ title: problem?.title ?? "저장 실패", description: problem?.detail });
           },
@@ -92,42 +104,45 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
       );
     })
       // 폼이 오류를 그 자리에 표시하므로 여기서 더 할 일이 없다. 잡지 않으면 미처리 거부로 새어 나간다.
-      .catch(() => undefined);
+      .catch(finish);
   }
 
   return (
     <Card
-      className="admin-operation-card"
+      className={`admin-operation-card ${styles.templateCard}`}
+      classNames={{ header: styles.header, title: styles.title, extra: styles.extra }}
       title={
-        <Space wrap>
-          <Tag color={presentation.color}>{presentation.label}</Tag>
-          <Text type="secondary">{template.type}</Text>
-        </Space>
+        <div className={styles.headerIdentity}>
+          <h3 className={styles.heading}>{presentation.label}</h3>
+          <div className={styles.metadata}>
+            <span className={styles.typeCode}>{template.type}</span>
+            <Tag color={template.sendable ? "green" : "warning"}>{template.sendable ? "발송 가능" : "발송 불가"}</Tag>
+          </div>
+        </div>
       }
       extra={
-        <Space wrap>
-          <Tag color={template.sendable ? "green" : "default"}>
-            {template.sendable ? "발송 가능" : "발송 불가"}
-          </Tag>
-          <Button loading={isRemoteFetching} disabled={isRemoteFetching} onClick={handleRemoteLookup}>
-            승인 템플릿 조회
-          </Button>
-          <Button type="primary" loading={isPending} disabled={isPending} onClick={handleSave}>
-            저장
-          </Button>
-        </Space>
+        <div className={`admin-cell-stack ${styles.headerActions}`}>
+          <RowActions subject={presentation.label}
+            primary={viewport === "mobile" ? null : <Button type="primary" loading={saving} disabled={saving} onClick={handleSave}>저장</Button>}
+            disabled={saving || isRemoteFetching}
+            items={[{ key: "remote", label: "승인 템플릿 조회", disabled: isRemoteFetching, onClick: handleRemoteLookup }]} />
+        </div>
       }
     >
       {!template.sendable && (
         <Alert
+          className={styles.recoveryAlert}
+          classNames={{ actions: styles.alertActions }}
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
           title="이 종류는 지금 발송되지 않습니다"
-          description="켜짐 여부와 채널 ID·템플릿 ID·본문이 모두 채워져야 발송됩니다. 하나라도 비면 미리보기도 막힙니다."
+          description={<><span>켜짐 여부와 채널 ID·템플릿 ID·본문이 모두 채워져야 발송됩니다. 하나라도 비면 미리보기도 막힙니다.</span>
+            {viewport === "mobile" && <div className={styles.warningRecovery}><Button block loading={isRemoteFetching} disabled={saving || isRemoteFetching} onClick={handleRemoteLookup}>승인 템플릿 조회</Button></div>}</>}
+          action={viewport === "mobile" ? undefined : <Button loading={isRemoteFetching} disabled={saving || isRemoteFetching} onClick={handleRemoteLookup}>승인 템플릿 조회</Button>}
         />
       )}
-      <Form name={`alimtalk-template-${template.type}`} form={form} layout="vertical" disabled={isPending} onValuesChange={() => { hasDraftChanges.current = true; }}>
+      <Form name={`alimtalk-template-${template.type}`} form={form} layout="vertical" disabled={saving} onValuesChange={() => { hasDraftChanges.current = true; }}>
         <Form.Item label="발송 사용" name="enabled" valuePropName="checked">
           <Switch aria-label={`${presentation.label} 발송 사용`} checkedChildren="사용" unCheckedChildren="중지" />
         </Form.Item>
@@ -146,6 +161,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           <Input placeholder="KA01TP..." />
         </Form.Item>
         <Form.Item
+          className={styles.bodyField}
           label="본문 사본"
           name="body"
           extra="카카오 승인 본문과 같아야 합니다. 다르면 임대인 미리보기만 틀리고 실제 발송은 승인 본문으로 나갑니다."
@@ -178,6 +194,8 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
             { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
           ]} />
           <Alert
+            className={styles.recoveryAlert}
+            classNames={{ actions: styles.alertActions }}
             type={remote.storedBodyMatches ? "success" : "warning"}
             showIcon
             style={{ marginTop: 12 }}
@@ -186,9 +204,16 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
                 ? "본문 사본이 승인 본문과 같습니다."
                 : "본문 사본이 승인 본문과 다릅니다 — 임대인 미리보기가 실제 발송과 어긋납니다."
             }
+            description={viewport === "mobile" && !remote.storedBodyMatches ? (
+              <div className={styles.warningRecovery}>
+                <Button block disabled={saving} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
+                  승인 본문 가져오기
+                </Button>
+              </div>
+            ) : undefined}
             action={
-              remote.storedBodyMatches ? undefined : (
-                <Button size="small" disabled={isPending} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
+              remote.storedBodyMatches || viewport === "mobile" ? undefined : (
+                <Button disabled={saving} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
                   승인 본문 가져오기
                 </Button>
               )
@@ -196,6 +221,7 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
           />
         </Card>
       )}
+      {viewport === "mobile" && <div className={styles.saveBar}><Button type="primary" block aria-label={`${presentation.label} 변경 사항 저장`} loading={saving} disabled={saving} onClick={handleSave}>저장</Button></div>}
     </Card>
   );
 }

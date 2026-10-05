@@ -5,8 +5,7 @@ import { Grid } from "antd";
 import styles from "./ContractDocumentReview.module.css";
 
 export function ContractDocumentActions({ children, ref }: { children: ReactNode; ref?: Ref<HTMLDivElement> }) {
-  const screens = Grid.useBreakpoint();
-  const isSplitView = screens.xl ?? true;
+  const isSplitView = Grid.useBreakpoint().xl ?? true;
   const [bottomInset, setBottomInset] = useState(0);
 
   useLayoutEffect(() => {

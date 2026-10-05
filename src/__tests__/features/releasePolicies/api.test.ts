@@ -24,12 +24,13 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-test("릴리즈 정책 목록을 조회한다", async () => {
-  const response = { releasePolicies: [] };
+test("릴리즈 정책의 서버 페이지·필터·정렬을 전달하고 전체 건수를 함께 받는다", async () => {
+  const response = { releasePolicies: [], page: 2, size: 20, totalElements: 26 };
   mockGet.mockResolvedValue({ data: response });
 
-  await expect(fetchReleasePolicies()).resolves.toEqual(response);
-  expect(mockGet).toHaveBeenCalledWith("/v1/admin/release-policies");
+  const params = { page: 2, size: 20, platform: "IOS" as const, sort: "appReleasePolicyId,asc" };
+  await expect(fetchReleasePolicies(params)).resolves.toEqual(response);
+  expect(mockGet).toHaveBeenCalledWith("/v1/admin/release-policies", { params });
 });
 
 test("릴리즈 정책을 ID 경로로 수정하고 수정된 정책을 돌려준다", async () => {

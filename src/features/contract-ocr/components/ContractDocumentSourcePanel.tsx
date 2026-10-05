@@ -1,8 +1,11 @@
 "use client";
 
+import { RefreshButton } from "@/components/RefreshButton";
+
 import { type ReactNode, type RefObject, useId, useLayoutEffect, useRef, useState } from "react";
-import { Button, Card, Grid } from "antd";
-import { DownOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Card } from "antd";
+import { Grid } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 import styles from "./ContractDocumentReview.module.css";
 
 export function ContractDocumentSourcePanel({ children, pageCount, isLoading, hasError, onRefresh, isRefreshing, actionBarRef }: {
@@ -14,8 +17,7 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
   isRefreshing?: boolean;
   actionBarRef?: RefObject<HTMLDivElement | null>;
 }) {
-  const screens = Grid.useBreakpoint();
-  const isSplitView = screens.xl ?? true;
+  const isSplitView = Grid.useBreakpoint().xl ?? true;
   const [open, setOpen] = useState(false);
   const [availableHeight, setAvailableHeight] = useState<number>();
   const expanded = isSplitView || open;
@@ -23,7 +25,7 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
   const toggleRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const status = isLoading ? "불러오는 중" : hasError ? "원본 조회 실패" : pageCount === undefined ? "" : `${pageCount}페이지`;
-  const refresh = onRefresh && <Button aria-label="원본 새로고침" icon={<ReloadOutlined />} loading={isRefreshing} disabled={isRefreshing} onClick={onRefresh}>원본 새로고침</Button>;
+  const refresh = onRefresh && <RefreshButton aria-label="원본 새로고침" loading={isRefreshing} disabled={isRefreshing} onClick={onRefresh}>원본 새로고침</RefreshButton>;
 
   useLayoutEffect(() => {
     if (isSplitView || !open) return;

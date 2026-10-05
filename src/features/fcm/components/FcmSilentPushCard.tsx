@@ -4,6 +4,7 @@ import { App, Button, Card, Divider, Form, Input, Popconfirm, Space, Typography 
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 
 import { env } from "@/config/env";
+import { FormFieldGrid } from "@/components/FormFieldGrid";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useSendSilentPushToTopic, useSendSilentWakeup } from "../hooks";
 
@@ -111,28 +112,27 @@ export function FcmSilentPushCard() {
           {(fields, { add, remove }, { errors }) => (
             <>
               {fields.map(({ key, name, ...restField }) => (
-                <div key={key} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                  <Form.Item
-                    {...restField}
-                    label="data key"
-                    name={[name, "key"]}
-                    rules={[{ required: true, whitespace: true, message: "key를 입력하세요." }]}
-                    style={{ flex: "1 1 120px", minWidth: 0, marginBottom: 0 }}
-                  >
-                    <Input aria-label={`data 항목 ${name + 1} key`} placeholder="key" />
-                  </Form.Item>
-                  <Form.Item
-                    {...restField}
-                    label="data value"
-                    name={[name, "value"]}
-                    rules={[{ required: true, message: "value를 입력하세요." }]}
-                    style={{ flex: "1 1 120px", minWidth: 0, marginBottom: 0 }}
-                  >
-                    <Input aria-label={`data 항목 ${name + 1} value`} placeholder="value" />
-                  </Form.Item>
-                  {fields.length > 1 && (
+                <div key={key} style={{ marginBottom: 12 }}>
+                  <FormFieldGrid actions={fields.length > 1 ? (
                     <Button aria-label={`data 항목 ${name + 1} 삭제`} icon={<MinusCircleOutlined />} disabled={isPending} onClick={() => remove(name)} />
-                  )}
+                  ) : undefined}>
+                    <Form.Item
+                      {...restField}
+                      label="data key"
+                      name={[name, "key"]}
+                      rules={[{ required: true, whitespace: true, message: "key를 입력하세요." }]}
+                    >
+                      <Input aria-label={`data 항목 ${name + 1} key`} placeholder="key" />
+                    </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      label="data value"
+                      name={[name, "value"]}
+                      rules={[{ required: true, message: "value를 입력하세요." }]}
+                    >
+                      <Input aria-label={`data 항목 ${name + 1} value`} placeholder="value" />
+                    </Form.Item>
+                  </FormFieldGrid>
                 </div>
               ))}
               <Form.Item>

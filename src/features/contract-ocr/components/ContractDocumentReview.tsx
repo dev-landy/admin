@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useCallback, useRef, useState } from "react";
+import { type RefObject, useCallback, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Flex, Form, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -17,6 +17,7 @@ import {
 } from "@/features/tenants/components/TenantInfoForm";
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
 import { useContractOverlapConfirmation } from "@/features/tenants/useContractOverlapConfirmation";
+import { RowActions } from "@/components/RowActions";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
 import styles from "./ContractDocumentReview.module.css";
@@ -83,6 +84,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const updateTenantMutation = useUpdateTenant(document.tenantId ?? 0);
   const { submit: submitWithOverlapConfirmation, isSubmitting } = useContractOverlapConfirmation(`${document.documentId}-${document.tenantId ?? "none"}`);
   const watchedValues = Form.useWatch([], form);
+  const submitReasonId = useId();
   const canSubmit = isTenantFormComplete(watchedValues) && (!isPendingReview || propertyAvailable);
   const isDirty = JSON.stringify(toTenantValues(watchedValues ?? initialValues)) !== initialSnapshot;
   const hasUnsavedTenantInput = useCallback(() => {
@@ -102,6 +104,24 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const analysisRunning = isContractOcrAnalysisRunning(analysis);
   const isBusy = isSubmitting || registerMutation.isPending || rejectMutation.isPending || requestAnalysisMutation.isPending || updateTenantMutation.isPending || savedTenantState === "checking" || analysisRechecking;
   const analysisRequestDisabled = isBusy || analysisRunning || analysisQuery.isFetching || analysisQuery.isPending || analysisQuery.isError || analysisRequestUncertain;
+  const missingTenantFields = [
+    watchedValues?.contractType !== "PARKING" && !watchedValues?.room?.trim() ? watchedValues?.contractType === "OTHERS" ? "공간 이름" : "호실" : undefined,
+    !watchedValues?.name?.trim() ? "세입자 이름" : undefined,
+    !watchedValues?.phone?.trim() ? "연락처" : undefined,
+    !watchedValues?.startDate ? "계약 시작일" : undefined,
+    watchedValues?.paymentDay == null ? "납부일" : undefined,
+    watchedValues?.billingTiming == null ? "납부 방식" : undefined,
+    watchedValues?.rentBillingCycle == null ? "청구 주기" : undefined,
+  ].filter((label): label is string => label !== undefined);
+  const submitDisabledReason = savedTenantState === "failed" ? "저장된 임차인 정보를 다시 확인한 뒤 등록할 수 있습니다."
+    : savedTenantState === "checking" ? "저장된 임차인 정보를 확인하는 중입니다."
+    : isBusy ? "진행 중인 처리가 끝난 뒤 등록할 수 있습니다."
+    : !propertyAvailable ? "등록할 건물을 선택하거나 새 건물 정보를 완성해 주세요."
+    : watchedValues?.rentBillingCycle === "YEARLY" && watchedValues.billingTiming === "POSTPAID" ? "연세는 선불로 설정해 주세요."
+    : !((watchedValues?.rentManwon ?? 0) >= 0) ? "임대료는 0 이상으로 입력해 주세요."
+    : missingTenantFields.length > 0 ? `필수 입력: ${missingTenantFields.join(" · ")}. 값을 입력하면 등록 버튼이 활성화됩니다.`
+    : undefined;
+
 
   // PATCH는 본문 없이 성공한다. 생략한 필드를 서버가 유지할 수 있으므로 저장 이후에만 확정값을 다시 읽는다.
   async function syncSavedTenant() {
@@ -252,9 +272,10 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
             }}>
             <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentBillingCycleEditable={isPendingReview} />
             {isPendingReview ? <ContractDocumentActions ref={actionBarRef}>
-              <Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
-                disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>
-              <Button danger htmlType="button" block disabled={isBusy} onClick={openRejectionModal}>반려</Button>
+              <RowActions subject="계약서 등록" primary={<Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
+                aria-describedby={submitDisabledReason ? submitReasonId : undefined} disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>} items={[]} />
+              <RowActions subject="계약서 반려" primary={<Button danger htmlType="button" disabled={isBusy} onClick={openRejectionModal}>반려</Button>} items={[]} />
+              {submitDisabledReason && <p id={submitReasonId} style={{ gridColumn: "1 / -1", margin: 0, color: "var(--admin-text-muted)", fontSize: 12 }}>{submitDisabledReason}</p>}
             </ContractDocumentActions> : <Button type="primary" htmlType="submit" block loading={updateTenantMutation.isPending}
               disabled={isBusy || savedTenantState !== "idle" || !canSubmit || !isDirty}>수정</Button>}
           </Form>

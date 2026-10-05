@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  min-width: 0;
 }
 
 .backButton {
@@ -17,7 +18,11 @@
 
 .pane {
   min-width: 0;
+  max-width: 100%;
 }
+
+.pane :global(.ant-card-body) { min-width: 0; }
+.pane :global(.ant-form-item-control-input-content) { min-width: 0; }
 
 .sourceToggleDetail {
   display: flex;
@@ -28,11 +33,11 @@
 }
 
 .sourceStatus {
-  color: #596579;
+  color: var(--admin-text-muted);
 }
 
 .sourceErrorStatus {
-  color: #cf1322;
+  color: var(--admin-danger-text);
 }
 
 .sourceRefresh {
@@ -60,15 +65,15 @@
     max-height: calc(100dvh - 160px);
     overflow-y: auto;
     overscroll-behavior-y: contain;
-    background: #fff;
-    border: 1px solid #f0f0f0;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
     border-radius: 0 0 8px 8px;
-    box-shadow: 0 8px 20px rgb(0 0 0 / 12%);
+    box-shadow: var(--admin-floating-shadow);
   }
 }
 
 .pane:focus-visible {
-  outline: 2px solid #1677ff;
+  outline: 2px solid var(--admin-focus);
   outline-offset: -2px;
 }
 
@@ -77,23 +82,25 @@
   bottom: 0;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   margin-inline: -24px;
   padding: 16px 24px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
-  box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
+  background: var(--admin-surface);
+  border-top: 1px solid var(--admin-border);
+  box-shadow: var(--admin-floating-shadow);
 }
+
+.actions :global(.admin-row-actions:first-child) { width: 100%; }
 
 .buildingRow { display: flex; align-items: center; gap: 8px; }
 .buildingLabel { flex: 0 0 40px; font-weight: 600; white-space: nowrap; }
-.requiredMark { color: #ff4d4f; font-weight: 400; }
+.requiredMark { color: var(--admin-danger-text); font-weight: 400; }
 .buildingSelect { flex: 1 1 0; min-width: 0; }
 .pendingBuilding { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.buildingDivider { border: 0; border-top: 1px solid #e5e7eb; margin: 12px 0; }
-.addBuildingMenu { border-top: 1px solid #e5e7eb; margin-top: 4px; padding-top: 4px; }
+.buildingDivider { border: 0; border-top: 1px solid var(--admin-border); margin: 12px 0; }
+.addBuildingMenu { border-top: 1px solid var(--admin-border); margin-top: 4px; padding-top: 4px; }
 
 @media (min-width: 1200px) {
   .review {
@@ -106,7 +113,7 @@
     display: grid;
     flex: 1;
     min-height: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   }
 
   .pane {
@@ -122,3 +129,5 @@
   .pendingBuilding { flex-wrap: wrap; }
   .buildingRow { flex-wrap: wrap; }
 }
+
+@media (min-width: 1600px) { .workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

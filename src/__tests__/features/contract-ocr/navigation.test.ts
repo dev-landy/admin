@@ -4,6 +4,7 @@ import { DOCUMENT } from "@/test-utils/contractDocumentFixtures";
 
 jest.mock("@/features/contract-ocr/api", () => ({ fetchContractDocuments: jest.fn() }));
 const fetchDocuments = jest.mocked(fetchContractDocuments);
+const emptyFilters = { userId: undefined, propertyId: undefined, tenantId: undefined, uploadId: undefined, documentStatus: undefined, createdFrom: undefined, createdTo: undefined, updatedFrom: undefined, updatedTo: undefined };
 beforeEach(() => jest.resetAllMocks());
 
 test("원래 목록 쿼리를 유지하고 외부 URL과 알려지지 않은 내부 경로를 거부한다", () => {
@@ -29,7 +30,7 @@ test("처리 후 현재 페이지 큐를 새로 읽어 같은 행에 당겨진 �
   const next = { ...DOCUMENT, documentId: "next" };
   fetchDocuments.mockResolvedValue({ documents: [{ ...DOCUMENT, documentId: "earlier" }, next], page: 1, size: 50, totalElements: 52 });
   const result = await findNextPendingContract(DOCUMENT.documentId, "/contract-documents?page=2&size=50", 1);
-  expect(fetchDocuments).toHaveBeenCalledWith("PENDING", 2, 50);
+  expect(fetchDocuments).toHaveBeenCalledWith("PENDING", 2, 50, emptyFilters);
   expect(result).toEqual({ document: next, returnPath: "/contract-documents?page=2&size=50", position: 1 });
 });
 
@@ -38,7 +39,7 @@ test("완료 문서가 남아 있는 응답에서는 재검수를 피하고 첫 
   fetchDocuments.mockResolvedValueOnce({ documents: [DOCUMENT], page: 0, size: 1, totalElements: 2 })
     .mockResolvedValueOnce({ documents: [next], page: 1, size: 1, totalElements: 2 });
   const result = await findNextPendingContract(DOCUMENT.documentId, "/contract-documents?size=1", 0);
-  expect(fetchDocuments).toHaveBeenNthCalledWith(2, "PENDING", 1, 1);
+  expect(fetchDocuments).toHaveBeenNthCalledWith(2, "PENDING", 1, 1, emptyFilters);
   expect(result.document?.documentId).toBe("next");
   expect(result.returnPath).toBe("/contract-documents?size=1&page=1");
 });
@@ -48,7 +49,7 @@ test("마지막 행 처리로 페이지가 줄어도 남은 문서가 있으면 
     .mockResolvedValueOnce({ documents: [{ ...DOCUMENT, documentId: "earlier" }], page: 1, size: 20, totalElements: 40 });
   expect(await findNextPendingContract(DOCUMENT.documentId, "/contract-documents?page=3&size=20", 0))
     .toEqual({ document: { ...DOCUMENT, documentId: "earlier" }, returnPath: "/contract-documents?page=2&size=20", position: 0 });
-  expect(fetchDocuments).toHaveBeenNthCalledWith(2, "PENDING", 2, 20);
+  expect(fetchDocuments).toHaveBeenNthCalledWith(2, "PENDING", 2, 20, emptyFilters);
 });
 
 test("현재 위치 뒤에 문서가 없어도 같은 페이지의 앞 미처리 문서로 이어간다", async () => {
@@ -76,4 +77,31 @@ test("남은 다음 문서가 없으면 원래 목록으로 돌아가며 조회 
   expect(await findNextPendingContract(DOCUMENT.documentId, "/contract-documents?size=50", 0)).toEqual({ returnPath: "/contract-documents?size=50", position: 0 });
   fetchDocuments.mockRejectedValueOnce(new Error("queue failed"));
   await expect(findNextPendingContract(DOCUMENT.documentId, "/contract-documents", 0)).rejects.toThrow("queue failed");
+});
+
+test("연속 검수의 페이지 축소와 재확인에도 사용자·건물·업로드·날짜 필터를 넓히지 않고 보존한다", async () => {
+  const uploadId = "11111111-1111-1111-1111-111111111111";
+  const query = new URLSearchParams({ page: "3", size: "20", userId: "12", propertyId: "8", uploadId, createdFrom: "2026-10-01", createdTo: "2026-10-05" });
+  fetchDocuments.mockResolvedValueOnce({ documents: [], page: 2, size: 20, totalElements: 40 })
+    .mockResolvedValueOnce({ documents: [DOCUMENT], page: 1, size: 20, totalElements: 40 })
+    .mockResolvedValueOnce({ documents: [{ ...DOCUMENT, documentId: "next", userId: 12, propertyId: 8, uploadId }], page: 0, size: 20, totalElements: 40 });
+  const next = await findNextPendingContract(DOCUMENT.documentId, `/contract-documents?${query}`, 19);
+  const filters = { ...emptyFilters, userId: 12, propertyId: 8, uploadId, createdFrom: "2026-10-01", createdTo: "2026-10-05" };
+  expect(fetchDocuments).toHaveBeenNthCalledWith(1, "PENDING", 3, 20, filters);
+  expect(fetchDocuments).toHaveBeenNthCalledWith(2, "PENDING", 2, 20, filters);
+  expect(fetchDocuments).toHaveBeenNthCalledWith(3, "PENDING", 1, 20, filters);
+  expect(next.document?.documentId).toBe("next");
+  query.set("page", "1");
+  expect(next.returnPath).toBe(`/contract-documents?${query}`);
+  const review = new URL(contractReviewPath(next.document!.documentId, next.returnPath, next.position), "https://admin.test");
+  expect(review.searchParams.get("returnTo")).toBe(next.returnPath);
+});
+
+test("연속 검수의 다음 문서 조회도 목록 전체의 선택 정렬을 유지한다", async () => {
+  fetchDocuments.mockResolvedValueOnce({ documents: [{ ...DOCUMENT, documentId: "next" }], page: 1, size: 20, totalElements: 21 });
+  const path = "/contract-documents?page=2&userId=12&sort=createdAt%2Cdesc";
+  const result = await findNextPendingContract(DOCUMENT.documentId, path, 0);
+  expect(fetchDocuments).toHaveBeenCalledWith("PENDING", 2, 20, { ...emptyFilters, userId: 12, sort: "createdAt,desc" });
+  expect(result.document?.documentId).toBe("next");
+  expect(result.returnPath).toBe(path);
 });

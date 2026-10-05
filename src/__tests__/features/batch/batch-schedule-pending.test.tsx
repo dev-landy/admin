@@ -1,3 +1,7 @@
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
+beforeEach(() => { mockViewport = "wide"; });
+
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,6 +12,7 @@ import type { BatchSchedule } from "@/features/batch/types";
 import "@/test-utils/antd";
 
 jest.mock("@/features/batch/api", () => ({ fetchBatchSchedules: jest.fn(), updateBatchSchedule: jest.fn() }));
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }), useSearchParams: () => new URLSearchParams() }));
 const mockFetch = jest.mocked(fetchBatchSchedules);
 const mockUpdate = jest.mocked(updateBatchSchedule);
 const schedule: BatchSchedule = { key: "DAILY_NOTIFICATION", jobName: "dailyNotificationJob", label: "일일 알림", cronExpression: "0 0 9 * * *",

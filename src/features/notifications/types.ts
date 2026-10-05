@@ -9,6 +9,13 @@ export type NotificationType =
 export type OutboxStatus = "PENDING" | "SENDING" | "SENT" | "FAILED" | "SKIPPED";
 
 export type Notification = {
+  userEmail?: string | null;
+  userPhone?: string | null;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  propertyName?: string | null;
+  roomNumber?: string | null;
+
   notificationId: number;
   userId: number;
   tenantId: number | null;
@@ -22,6 +29,16 @@ export type Notification = {
 };
 
 export type OutboxEvent = {
+  userEmail?: string | null;
+  userPhone?: string | null;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  propertyName?: string | null;
+  roomNumber?: string | null;
+  notificationTitle?: string | null;
+  tenantId?: number | null;
+  targetDate?: string | null;
+
   notificationOutboxEventId: number;
   notificationId: number;
   userId: number;
@@ -49,20 +66,33 @@ export type OutboxListResponse = {
   totalElements: number;
 };
 
-export type NotificationsListParams = {
+export type NotificationsListParams = { sort?: string;
   page?: number;
   size?: number;
   userId?: number;
   type?: NotificationType;
   isRead?: boolean;
+  notificationId?: number;
+  tenantId?: number;
+  keyword?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  targetFrom?: string;
+  targetTo?: string;
 };
 
-export type OutboxListParams = {
+export type OutboxListParams = { sort?: string;
   page?: number;
   size?: number;
   userId?: number;
   status?: OutboxStatus;
   errorCode?: string;
+  notificationId?: number;
+  fcmTokenId?: number;
+  lastAttemptedFrom?: string;
+  lastAttemptedTo?: string;
+  sentFrom?: string;
+  sentTo?: string;
 };
 
 export type SendCustomNotificationRequest = {

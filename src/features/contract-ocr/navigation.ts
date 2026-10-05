@@ -1,5 +1,6 @@
 import { fetchContractDocuments } from "./api";
-import type { ContractDocument } from "./types";
+import { optionalPositiveInteger, optionalDate } from "@/lib/navigation/listParams";
+import type { ContractDocument, ContractDocumentListFilters } from "./types";
 
 const LIST_PATH = "/contract-documents";
 function positiveInteger(value: string | null, fallback: number, max: number) {
@@ -31,6 +32,28 @@ export function contractReviewPosition(value: string | null, size: number) {
   return Number.isSafeInteger(position) && position >= 0 && position < size ? position : 0;
 }
 
+/** 연속 검수도 사용자가 좁힌 대기열 안에서 다음 문서를 찾는다. */
+export function contractListFilters(params: URLSearchParams): ContractDocumentListFilters {
+  const documentStatus = params.get("documentStatus");
+  const uploadId = params.get("uploadId");
+  return {
+    userId: optionalPositiveInteger(params.get("userId")),
+    propertyId: optionalPositiveInteger(params.get("propertyId")),
+    tenantId: optionalPositiveInteger(params.get("tenantId")),
+    uploadId: uploadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uploadId) ? uploadId : undefined,
+    documentStatus: documentStatus === "REGISTERED" || documentStatus === "REJECTED" ? documentStatus : undefined,
+    createdFrom: optionalDate(params.get("createdFrom")),
+    createdTo: optionalDate(params.get("createdTo")),
+    updatedFrom: optionalDate(params.get("updatedFrom")),
+    updatedTo: optionalDate(params.get("updatedTo")),
+  };
+}
+
+function contractListSort(params: URLSearchParams): Pick<ContractDocumentListFilters, "sort"> {
+  const sort = params.get("sort");
+  return sort && /^(contractDocumentId|createdAt|updatedAt),(asc|desc)$/.test(sort) ? { sort } : {};
+}
+
 export async function findNextPendingContract(documentId: string, returnPath: string, position: number): Promise<{
   document?: ContractDocument; returnPath: string; position: number;
 }> {
@@ -38,12 +61,13 @@ export async function findNextPendingContract(documentId: string, returnPath: st
   const url = new URL(path, "https://admin.invalid");
   const page = positiveInteger(url.searchParams.get("page"), 1, 1_000_000);
   const size = positiveInteger(url.searchParams.get("size"), 20, 100);
-  let result = await fetchContractDocuments("PENDING", page, size);
+  const filters = { ...contractListFilters(url.searchParams), ...contractListSort(url.searchParams) };
+  let result = await fetchContractDocuments("PENDING", page, size, filters);
   const maxPage = Math.max(1, Math.ceil(result.totalElements / size));
   let currentPage = page;
   if (page > maxPage) {
     // Removing the last row can remove a whole page. Continue from the valid queue page.
-    result = await fetchContractDocuments("PENDING", maxPage, size);
+    result = await fetchContractDocuments("PENDING", maxPage, size, filters);
     currentPage = maxPage;
     url.searchParams.set("page", String(maxPage));
   }
@@ -57,7 +81,7 @@ export async function findNextPendingContract(documentId: string, returnPath: st
   if (result.totalElements > 0) {
     // Another admin can remove rows between queries. Recheck the beginning instead of
     // treating the end of one page as completion of the whole queue.
-    result = await fetchContractDocuments("PENDING", 1, size);
+    result = await fetchContractDocuments("PENDING", 1, size, filters);
     url.searchParams.set("page", "1");
     const first = choose(0);
     if (first) return first;

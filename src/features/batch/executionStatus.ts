@@ -12,14 +12,14 @@ export const BATCH_EXECUTION_STATUS_COLOR: Record<BatchExecutionStatus, string> 
 };
 
 export const BATCH_EXECUTION_STATUS_OPTIONS: { label: string; value: BatchExecutionStatus }[] = [
-  { label: "COMPLETED", value: "COMPLETED" },
-  { label: "STARTING", value: "STARTING" },
-  { label: "STARTED", value: "STARTED" },
-  { label: "STOPPING", value: "STOPPING" },
-  { label: "STOPPED", value: "STOPPED" },
-  { label: "FAILED", value: "FAILED" },
-  { label: "ABANDONED", value: "ABANDONED" },
-  { label: "UNKNOWN", value: "UNKNOWN" },
+  { label: "완료 · COMPLETED", value: "COMPLETED" },
+  { label: "시작 준비 · STARTING", value: "STARTING" },
+  { label: "실행 중 · STARTED", value: "STARTED" },
+  { label: "중단 중 · STOPPING", value: "STOPPING" },
+  { label: "중단됨 · STOPPED", value: "STOPPED" },
+  { label: "실패 · FAILED", value: "FAILED" },
+  { label: "재시작 불가 · ABANDONED", value: "ABANDONED" },
+  { label: "상태 불명 · UNKNOWN", value: "UNKNOWN" },
 ];
 
 export function batchExecutionStatusColor(status: BatchExecutionStatus): string {
@@ -37,3 +37,7 @@ export const BATCH_EXIT_CODE_OPTIONS: { label: string; value: BatchExitCode }[] 
   { label: "NOOP (대상 없음)", value: "NOOP" },
   { label: "UNKNOWN (알 수 없음)", value: "UNKNOWN" },
 ];
+
+export function batchExecutionStatusLabel(status: BatchExecutionStatus): string {
+  return BATCH_EXECUTION_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}

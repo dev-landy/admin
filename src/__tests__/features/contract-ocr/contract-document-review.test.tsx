@@ -2,6 +2,8 @@ import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, Grid } from "antd";
+import { useAdminViewport } from "@/components/useAdminViewport";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: jest.fn() }));
 import { AxiosError, AxiosHeaders } from "axios";
 import { ContractDocumentReview } from "@/features/contract-ocr/components/ContractDocumentReview";
 import { contractDocumentKeys } from "@/features/contract-ocr/hooks";
@@ -83,6 +85,7 @@ function conflict(detail: string) {
 }
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(useAdminViewport).mockReturnValue("compact");
   jest.spyOn(window, "confirm").mockReturnValue(false);
   mockDocument.mockResolvedValue(DOCUMENT);
   mockDraft.mockResolvedValue(null);
@@ -539,7 +542,7 @@ test("건물명·주소는 Unicode code point 기준 255자까지 허용하고 �
   expect(mockRegister).not.toHaveBeenCalled();
 });
 
-test.each([false, true])("floating 액션바는 xl=%s에서도 필수 입력에 따라 등록을 잠그고 입력을 복구한 뒤에만 제출한다", async (isDesktop) => {
+test.each([false, true])("floating 액션바는 wide=%s에서도 필수 입력에 따라 등록을 잠그고 입력을 복구한 뒤에만 제출한다", async (isDesktop) => {
   const breakpoint = jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: isDesktop });
   try {
     mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
@@ -981,4 +984,46 @@ test("등록된 계약서의 임차인 수정도 동일 요청의 기간 중복�
   await waitFor(() => expect(mockUpdateTenant).toHaveBeenCalledTimes(2));
   expect(mockUpdateTenant.mock.calls[1]).toEqual([TENANT.tenantId, { ...request, allowContractOverlap: true }]);
   expect(await screen.findByText("임차인 정보가 수정되었습니다.")).toBeInTheDocument();
+});
+
+
+test("등록 불가 사유는 실제 필수 정보 조건을 설명하고 원본 조회 실패만으로 등록을 막지 않는다", async () => {
+  mockFiles.mockRejectedValue(new Error("missing original"));
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: VALUES });
+  renderReview();
+  const registration = await screen.findByRole("button", { name: "계약 등록" });
+  await waitFor(() => expect(registration).toHaveAccessibleDescription(/필수 입력.*세입자 이름.*연락처.*계약 시작일/));
+  expect(registration).toBeDisabled();
+  await applyDraft();
+  await waitFor(() => expect(registration).toBeEnabled());
+  expect(registration).not.toHaveAttribute("aria-describedby");
+  expect(mockRegister).not.toHaveBeenCalled();
+});
+
+
+test("실제 필수 값을 직접 입력하면 누락 안내가 사라지고 등록할 수 있다", async () => {
+  renderReview();
+  const registration = await screen.findByRole("button", { name: "계약 등록" });
+  await waitFor(() => expect(registration).toHaveAccessibleDescription(/필수 입력.*호실.*세입자 이름.*연락처.*계약 시작일/));
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("");
+  expect(screen.getByLabelText("호실")).toHaveValue("");
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("호실"), { target: { value: "123" } });
+    fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "직접 입력한 임차인" } });
+    fireEvent.change(screen.getByLabelText("연락처"), { target: { value: "010-1234-5678" } });
+    const start = screen.getByLabelText("계약 시작일");
+    fireEvent.focus(start); fireEvent.change(start, { target: { value: "2026-10-05" } }); fireEvent.blur(start);
+    fireEvent.change(screen.getByLabelText("납부일"), { target: { value: "25" } });
+  });
+  await waitFor(() => expect(registration).toBeEnabled());
+  expect(registration).not.toHaveAttribute("aria-describedby");
+  await act(async () => { fireEvent.change(screen.getByLabelText("연락처"), { target: { value: "" } }); });
+  await waitFor(() => expect(registration).toHaveAccessibleDescription("필수 입력: 연락처. 값을 입력하면 등록 버튼이 활성화됩니다."));
+  expect(registration).toBeDisabled();
+  await act(async () => { fireEvent.change(screen.getByLabelText("연락처"), { target: { value: "010-1234-5678" } }); });
+  await waitFor(() => expect(registration).toBeEnabled());
+  fireEvent.click(registration);
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, expect.objectContaining({
+    name: "직접 입력한 임차인", roomNumber: "123", phone: "010-1234-5678", startDate: "2026-10-05", paymentDay: 25,
+  })));
 });

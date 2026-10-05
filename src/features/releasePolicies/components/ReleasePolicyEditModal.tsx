@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, App, Descriptions, Form, Input, InputNumber, Modal, Space, Tag } from "antd";
+import { Alert, App, Descriptions, Form, Input, InputNumber, Modal, Tag } from "antd";
 import type { FormRule } from "antd";
 
 import { useUnsavedChanges } from "@/components/NavigationGuard";
+import { FormFieldGrid } from "@/components/FormFieldGrid";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { CHANNEL_COLOR } from "../channel";
 import { useUpdateReleasePolicy } from "../hooks";
@@ -17,7 +18,7 @@ function isNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-// 라벨에 제약을 적어두고 같은 제약을 규칙으로도 막는다. 서버가 거절할 값을 저장 전에 보여준다.
+// 빌드 번호 제약을 입력 아래 표시하고 같은 제약을 규칙으로도 막는다.
 function buildNumberRules(requiredMessage: string): FormRule[] {
   return [
     { required: true, message: requiredMessage },
@@ -191,38 +192,41 @@ function ReleasePolicyEditor({ policy, onClose }: Props) {
               <Input placeholder="1.4.2" />
             </Form.Item>
 
-            <Space size="middle" align="start" wrap style={{ width: "100%" }}>
-              <Form.Item
-                label={`최신 빌드 번호 (${MIN_BUILD_NUMBER} 이상)`}
-                name="latestBuildNumber"
-                rules={buildNumberRules("최신 빌드 번호를 입력하세요.")}
-              >
-                <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item
-                label={`최소 지원 빌드 번호 (${MIN_BUILD_NUMBER} 이상, 최신 빌드 번호 이하)`}
-                name="minSupportedBuildNumber"
-                extra="이 번호보다 낮은 빌드는 강제 업데이트 대상이 됩니다."
-                // 최신 빌드 번호가 바뀌면 이 필드 규칙을 다시 확인해야 한다.
-                dependencies={["latestBuildNumber"]}
-                rules={[
-                  ...buildNumberRules("최소 지원 빌드 번호를 입력하세요."),
-                  ({ getFieldValue }) => ({
-                    validator: (_rule, value) => {
-                      const latest: unknown = getFieldValue("latestBuildNumber");
-                      if (!isNumber(value) || !isNumber(latest) || value <= latest) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(
-                        new Error("최소 지원 빌드 번호는 최신 빌드 번호보다 클 수 없습니다."),
-                      );
-                    },
-                  }),
-                ]}
-              >
-                <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
-              </Form.Item>
-            </Space>
+            <div style={{ marginBottom: 24 }}>
+              <FormFieldGrid>
+                  <Form.Item
+                    label="최신 빌드 번호"
+                    name="latestBuildNumber"
+                    extra={`${MIN_BUILD_NUMBER} 이상의 정수로 입력합니다.`}
+                    rules={buildNumberRules("최신 빌드 번호를 입력하세요.")}
+                  >
+                    <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
+                  </Form.Item>
+                  <Form.Item
+                    label="최소 지원 빌드 번호"
+                    name="minSupportedBuildNumber"
+                    extra={`${MIN_BUILD_NUMBER} 이상, 최신 빌드 번호 이하입니다. 이 번호보다 낮은 빌드는 강제 업데이트 대상이 됩니다.`}
+                    // 최신 빌드 번호가 바뀌면 이 필드 규칙을 다시 확인해야 한다.
+                    dependencies={["latestBuildNumber"]}
+                    rules={[
+                      ...buildNumberRules("최소 지원 빌드 번호를 입력하세요."),
+                      ({ getFieldValue }) => ({
+                        validator: (_rule, value) => {
+                          const latest: unknown = getFieldValue("latestBuildNumber");
+                          if (!isNumber(value) || !isNumber(latest) || value <= latest) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(
+                            new Error("최소 지원 빌드 번호는 최신 빌드 번호보다 클 수 없습니다."),
+                          );
+                        },
+                      }),
+                    ]}
+                  >
+                    <InputNumber min={MIN_BUILD_NUMBER} precision={0} style={{ width: "100%" }} />
+                  </Form.Item>
+              </FormFieldGrid>
+            </div>
 
             <Form.Item
               label="스토어 URL"

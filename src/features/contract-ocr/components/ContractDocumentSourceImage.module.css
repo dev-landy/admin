@@ -1,0 +1,5 @@
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.toolbar :global(.ant-btn) { min-height: 32px; }
+.imageViewport { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; margin-bottom: 12px; }
+.imageViewport:focus-visible { outline: 2px solid var(--admin-focus); outline-offset: 2px; }
+@media (max-width: 767px) { .toolbar :global(.ant-btn) { min-height: 44px; } }

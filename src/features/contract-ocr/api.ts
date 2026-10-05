@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type {
-  ContractDocument, ContractDocumentDecisionResponse, ContractDocumentDraftResponse,
+  ContractDocumentListFilters, ContractDocument, ContractDocumentDecisionResponse, ContractDocumentDraftResponse,
   ContractDocumentFilesResponse, ContractDocumentListResponse, ContractDocumentListStatus,
   ContractOcrAnalysis, ContractStorageRetryResponse, RegisterContractDocumentRequest, RejectContractDocumentRequest,
 } from "./types";
@@ -8,9 +8,9 @@ import type {
 const DOCUMENTS_PATH = "/v1/admin/contract-documents";
 
 // 화면의 1-based 페이지를 API의 0-based 페이지로 변환한다.
-export async function fetchContractDocuments(status: ContractDocumentListStatus, page: number, size: number) {
+export async function fetchContractDocuments(status: ContractDocumentListStatus, page: number, size: number, filters: ContractDocumentListFilters = {}) {
   const { data } = await apiClient.get<ContractDocumentListResponse>(DOCUMENTS_PATH, {
-    params: { status, page: page - 1, size },
+    params: { status, page: page - 1, size, ...filters },
   });
   return data;
 }

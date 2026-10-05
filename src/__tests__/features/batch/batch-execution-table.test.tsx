@@ -1,7 +1,11 @@
+let mockViewport: "mobile" | "compact" | "wide" = "wide";
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
+beforeEach(() => { mockViewport = "wide"; });
+
 import "@/test-utils/antd";
 import type { ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 
 import { BatchExecutionTable } from "@/features/batch/components/BatchExecutionTable";
 import type { BatchExecutionDetail, BatchExecutionSummary } from "@/features/batch/types";
@@ -48,7 +52,7 @@ const onTargetDateRangeChange = jest.fn();
 
 function renderTable(execution: BatchExecutionSummary = failedExecution, filters: TableFilters = {}) {
   render(
-    <App>
+    <ConfigProvider theme={{ token: { motion: false } }}><App>
       <BatchExecutionTable
         data={[execution]}
         loading={false}
@@ -61,7 +65,7 @@ function renderTable(execution: BatchExecutionSummary = failedExecution, filters
         onTargetDateRangeChange={onTargetDateRangeChange}
         jobNames={["dailyNotificationJob"]}
       />
-    </App>,
+    </App></ConfigProvider>,
   );
 }
 
@@ -96,18 +100,18 @@ beforeEach(() => {
 test("실행 이력 행에 상태·소요 시간과 상세 조회를 표시한다", () => {
   renderTable({ ...failedExecution, status: "COMPLETED", durationMillis: 1_500 });
 
-  expect(screen.getByText("COMPLETED")).toBeInTheDocument();
-  expect(screen.getByText("1.5초")).toBeInTheDocument();
+  expect(screen.getByText("완료 · COMPLETED")).toBeInTheDocument();
+  expect(screen.getByText("소요 1.5초")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "상세" })).toBeEnabled();
 });
 
 test("지연된 실행에는 지연 태그를 붙이고 소요 시간을 - 로 표시한다", () => {
   renderTable(runningStale());
 
-  expect(screen.getByText("STARTED")).toBeInTheDocument();
+  expect(screen.getByText("실행 중 · STARTED")).toBeInTheDocument();
   expect(screen.getByText("지연")).toBeInTheDocument();
   // 실행 ID · Job · 대상 날짜 · 상태 · 종료 코드 · 시작 · 종료 · 소요 시간 · 액션 순서
-  expect(screen.getAllByRole("cell")[7]).toHaveTextContent("-");
+  expect(screen.getByText("소요 -")).toBeInTheDocument();
 });
 
 test("상세 버튼을 누르면 스텝 목록과 종료 메시지를 보여준다", async () => {
@@ -228,9 +232,9 @@ test("목록은 초 단위까지, 상세는 밀리초 3자리까지 시각을 �
   renderTable(execution);
 
   // 실행 ID · Job · 대상 날짜 · 상태 · 종료 코드 · 시작 · 종료 · 소요 시간 · 액션 순서
-  const cells = screen.getAllByRole("cell");
-  expect(cells[5].textContent).toBe("2026-09-01T09:00:01");
-  expect(cells[6].textContent).toBe("2026-09-01T09:01:31");
+  expect(screen.getByText("2026-09-01 09:00:01")).toBeInTheDocument();
+  expect(screen.getByText("2026-09-01 09:01:31")).toBeInTheDocument();
+  expect(screen.queryByText("2026-09-01 09:00:01.123456")).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "상세" }));
 
@@ -294,4 +298,30 @@ test("지연 실행 상세에도 지연 경고를 유지한다", async () => {
 
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("지연")).toBeInTheDocument();
+});
+
+
+test("신규 실행 ID와 실제 실행일 조건만으로 비어도 필터를 넓히도록 안내한다", () => {
+  render(<App><BatchExecutionTable data={[]} loading={false} page={1} pageSize={20} total={0}
+    onPageChange={jest.fn()} filters={{ executionId: 999999, startedFrom: "2026-10-05" }}
+    onFilterChange={onFilterChange} onTargetDateRangeChange={onTargetDateRangeChange} jobNames={[]} /></App>);
+  expect(screen.getByText("조건에 맞는 배치 실행 이력이 없습니다. 필터를 초기화해 전체 이력을 확인하세요.")).toBeInTheDocument();
+  expect(screen.queryByText("기록된 배치 실행 이력이 없습니다.")).not.toBeInTheDocument();
+});
+
+test("모바일 실행 상세는 스텝 카드로 기술 시각과 tasklet의 처리량 의미를 보존한다", async () => {
+  mockViewport = "mobile";
+  detail = { ...failedExecution, steps: [{ stepExecutionId: 33, stepName: "dispatchStep", kind: "TASKLET", status: "FAILED", exitCode: "FAILED", exitMessage: "스텝 오류 상세", readCount: 0, writeCount: 0, commitCount: 12, rollbackCount: 2, startTime: "2026-09-01T09:00:01.123", endTime: "2026-09-01T09:01:31.456" }] };
+  renderTable();
+  const card = within(screen.getByRole("article", { name: "배치 실행 #12" }));
+  expect(card.getByText("업무 대상일")).toBeInTheDocument();
+  fireEvent.click(card.getByRole("button", { name: "상세" }));
+  const dialog = await screen.findByRole("dialog");
+  const step = within(within(dialog).getByRole("article", { name: "배치 스텝 #33" }));
+  expect(dialog.querySelector(".ant-table-wrapper")).not.toBeInTheDocument();
+  expect(step.getByText("- · -")).toBeInTheDocument();
+  expect(step.getByText("12 · 2")).toBeInTheDocument();
+  await waitFor(() => expect(step.getAllByText("2026-09-01T09:00:01.123")[0]).toBeVisible());
+  fireEvent.click(step.getByText("추가 정보"));
+  await waitFor(() => expect(step.getByText("스텝 오류 상세")).toBeVisible());
 });

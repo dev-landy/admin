@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Form, Input, InputNumber, Modal, Radio, Space, Typography } from "antd";
+import { App, Form, Input, InputNumber, Modal, Radio, Typography } from "antd";
 import type { FormRule } from "antd";
 
 import { useUnsavedChanges } from "@/components/NavigationGuard";
+import { FormFieldGrid } from "@/components/FormFieldGrid";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { buildCron, describeCron, parseCron } from "../cron";
 import type { CronMode } from "../cron";
@@ -242,6 +243,7 @@ function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
   return (
     <Modal
       title="배치 수정"
+      width={640}
       open={schedule !== null}
       okText="저장"
       cancelText="취소"
@@ -269,7 +271,7 @@ function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
         </Form.Item>
 
         {values.mode === "daily" && (
-          <Space size="middle" align="start" wrap>
+          <div style={{ marginBottom: 24 }}><FormFieldGrid>
             <Form.Item
               label={`시 (0~${MAX_HOUR})`}
               name="hour"
@@ -284,11 +286,11 @@ function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
             >
               <InputNumber min={0} max={MAX_MINUTE} />
             </Form.Item>
-          </Space>
+          </FormFieldGrid></div>
         )}
 
         {values.mode === "interval" && (
-          <Space size="middle" align="start" wrap>
+          <div style={{ marginBottom: 24 }}><FormFieldGrid columns={3}>
             <Form.Item
               label={`시 (0~${MAX_HOUR})`}
               name="hour"
@@ -310,12 +312,12 @@ function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
             >
               <InputNumber min={1} max={MAX_MINUTE} />
             </Form.Item>
-          </Space>
+          </FormFieldGrid></div>
         )}
 
         {values.mode === "hourlyRange" && (
           <>
-            <Space size="middle" align="start" wrap>
+            <div style={{ marginBottom: 24 }}><FormFieldGrid columns={3}>
               <Form.Item
                 label={`시작 시 (0~${MAX_HOUR})`}
                 name="startHour"
@@ -350,7 +352,7 @@ function BatchScheduleEditor({ schedule, onClose, disabled = false }: Props) {
               >
                 <InputNumber min={0} max={MAX_MINUTE} />
               </Form.Item>
-            </Space>
+            </FormFieldGrid></div>
             <div style={{ marginBottom: 24 }}>
               <Text type="secondary">시작 시는 종료 시보다 늦을 수 없습니다.</Text>
             </div>

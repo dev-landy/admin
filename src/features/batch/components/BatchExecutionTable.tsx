@@ -1,24 +1,41 @@
 "use client";
 
+import type { ListSortControl } from "@/lib/navigation/useListSort";
+
 import { useState } from "react";
-import { Button, DatePicker, Select, Tag } from "antd";
+import { Button, DatePicker, Descriptions, Select, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 import dayjs from "dayjs";
 
+import { RecordCard } from "@/components/RecordCard";
+import { EntityCell } from "@/components/EntityCell";
+import { RowActions } from "@/components/RowActions";
 import { PagedTable } from "@/components/PagedTable";
 import { formatSeconds } from "@/lib/format/date";
 import { formatDurationMillis } from "../duration";
 import {
   BATCH_EXECUTION_STATUS_OPTIONS,
   BATCH_EXIT_CODE_OPTIONS,
-  batchExecutionStatusColor,
+  batchExecutionStatusColor, batchExecutionStatusLabel,
 } from "../executionStatus";
 import type { BatchExecutionStatus, BatchExecutionSummary, BatchExitCode } from "../types";
 import { BatchExecutionDetailModal } from "./BatchExecutionDetailModal";
 
+const BATCH_EXECUTION_COLUMN_SIZING = {
+  jobName: { min: 300, preferred: 520, grow: 2 },
+  targetDate: { min: 170 },
+  status: { min: 260 },
+  exitCode: { min: 240, preferred: 300, grow: 1 },
+  times: { min: 240, preferred: 280, grow: 0.5 },
+  actions: { min: 144 },
+  job: { min: 340, preferred: 620, grow: 2 },
+  state: { min: 260, preferred: 400, grow: 1 },
+} as const;
+
 const DATE_FORMAT = "YYYY-MM-DD";
 
 type Props = {
+  sortControl?: ListSortControl;
   data: BatchExecutionSummary[];
   loading: boolean;
   page: number;
@@ -31,6 +48,9 @@ type Props = {
     exitCode?: BatchExitCode;
     targetDateFrom?: string;
     targetDateTo?: string;
+    executionId?: number;
+    startedFrom?: string;
+    startedTo?: string;
   };
   onFilterChange: (key: string, value: string | undefined) => void;
   // 대상 날짜 범위는 targetDateFrom·targetDateTo 두 파라미터를 한 번에 바꿔야 해서
@@ -39,7 +59,7 @@ type Props = {
   jobNames: string[];
 };
 
-export function BatchExecutionTable({
+export function BatchExecutionTable({ sortControl,
   data,
   loading,
   page,
@@ -58,12 +78,21 @@ export function BatchExecutionTable({
     (value): value is string => value !== undefined,
   );
 
+  const renderActions = (record: BatchExecutionSummary) => <RowActions subject={`배치 실행 #${record.executionId}`}
+    primary={<Button size="small" onClick={() => setDetailExecutionId(record.executionId)}>상세</Button>} items={[]} />;
+  const renderDetails = (record: BatchExecutionSummary) => <Descriptions column={1} size="small" layout="vertical" items={[
+    { key: "ids", label: "실행 · 인스턴스", children: `#${record.executionId} · #${record.jobInstanceId}` },
+    { key: "version", label: "작업 버전", children: record.jobVersion ?? "-" },
+    { key: "exit", label: "종료 코드", children: record.exitCode ?? "-" },
+    { key: "created", label: "생성 시각", children: formatSeconds(record.createTime) },
+    { key: "duration", label: "소요 시간", children: formatDurationMillis(record.durationMillis) },
+    { key: "message", label: "종료 메시지", children: <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{record.exitMessage ?? "-"}</div> },
+  ]} />;
   const columns: TableColumnsType<BatchExecutionSummary> = [
-    { title: "실행 ID", dataIndex: "executionId", width: 100, align: "center", filteredValue: null },
     {
       title: "Job",
       dataIndex: "jobName",
-      width: 220,
+      width: 300,
       filteredValue: filters.jobName ? [filters.jobName] : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -78,12 +107,14 @@ export function BatchExecutionTable({
           />
         </div>
       ),
+      render: (_, record) => <EntityCell primary={record.jobName} secondary={`실행 #${record.executionId}`}
+        meta={`인스턴스 #${record.jobInstanceId}${record.jobVersion ? ` · ${record.jobVersion}` : ""}`} />,
     },
     {
       title: "대상 날짜",
       dataIndex: "targetDate",
-      width: 120,
-      align: "center",
+      width: 170,
+      align: "left",
       filteredValue: targetDateFilterValue.length > 0 ? targetDateFilterValue : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -108,12 +139,13 @@ export function BatchExecutionTable({
           />
         </div>
       ),
-      render: (value: string | null) => value ?? "-",
+      render: (value: string | null, record) => <EntityCell primary={value ?? "대상일 미지정"} secondary={`소요 ${formatDurationMillis(record.durationMillis)}`} />,
     },
     {
       title: "상태",
       dataIndex: "status",
-      width: 150,
+      width: 260,
+      align: "center",
       filteredValue: filters.status ? [filters.status] : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -130,7 +162,7 @@ export function BatchExecutionTable({
       ),
       render: (value: BatchExecutionStatus, execution) => (
         <>
-          <Tag color={batchExecutionStatusColor(value)}>{value}</Tag>
+          <Tag color={batchExecutionStatusColor(value)}>{batchExecutionStatusLabel(value)}</Tag>
           {execution.stale && <Tag color="warning">지연</Tag>}
         </>
       ),
@@ -138,7 +170,7 @@ export function BatchExecutionTable({
     {
       title: "종료 코드",
       dataIndex: "exitCode",
-      width: 140,
+      width: 240,
       filteredValue: filters.exitCode ? [filters.exitCode] : null,
       filterDropdown: () => (
         <div style={{ padding: 8 }}>
@@ -157,51 +189,42 @@ export function BatchExecutionTable({
       render: (value: string | null) => value ?? "-",
     },
     {
-      title: "시작",
-      dataIndex: "startTime",
-      width: 180,
-      filteredValue: null,
-      render: (value: string | null) => formatSeconds(value),
+      title: "실행 시각", key: "times", width: 240,
+      render: (_, record) => <EntityCell
+        primary={<><span>시작 </span><span>{formatSeconds(record.startTime)}</span></>}
+        secondary={<><span>종료 </span><span>{formatSeconds(record.endTime)}</span></>} />,
     },
     {
-      title: "종료",
-      dataIndex: "endTime",
-      width: 180,
-      filteredValue: null,
-      render: (value: string | null) => formatSeconds(value),
-    },
-    {
-      title: "소요 시간",
-      dataIndex: "durationMillis",
-      width: 120,
-      align: "right",
-      filteredValue: null,
-      render: (value: number | null) => formatDurationMillis(value),
-    },
-    {
-      title: "버전",
-      dataIndex: "jobVersion",
-      width: 90,
-      render: (value: string | null) => value ?? "-",
-    },
-    {
-      title: "액션",
+      title: "작업",
       key: "actions",
-      width: 90,
-      align: "center",
+      width: 144,
+      fixed: "right",
       filteredValue: null,
-      render: (_value, execution) => (
-        <Button size="small" onClick={() => setDetailExecutionId(execution.executionId)}>
-          상세
-        </Button>
-      ),
+      render: (_value, execution) => renderActions(execution),
     },
+  ];
+
+  const compactColumns: TableColumnsType<BatchExecutionSummary> = [
+    { title: "작업 · 업무일", key: "job", width: 340, render: (_, record) => <EntityCell primary={record.jobName}
+      secondary={`대상일 ${record.targetDate ?? "미지정"}`} meta={`실행 #${record.executionId}`} /> },
+    { title: "결과 · 실제 실행", key: "state", width: 260, render: (_, record) => <EntityCell primary={<><Tag color={batchExecutionStatusColor(record.status)}>{batchExecutionStatusLabel(record.status)}</Tag>{record.stale && <Tag color="warning">지연</Tag>}</>}
+      secondary={`시작 ${formatSeconds(record.startTime)}`} meta={`종료 ${formatSeconds(record.endTime)}`} /> },
+    { title: "작업", key: "actions", width: 144, render: (_, record) => renderActions(record) },
   ];
 
   return (
     <>
-      <PagedTable
-        columns={columns}
+      <PagedTable sortControl={sortControl}
+        columns={columns} compactColumns={compactColumns} columnSizing={BATCH_EXECUTION_COLUMN_SIZING} renderCompactDetails={renderDetails}
+        renderCard={(record) => <RecordCard title={record.jobName} subtitle={`실행 #${record.executionId}`}
+          meta={<><Tag color={batchExecutionStatusColor(record.status)}>{batchExecutionStatusLabel(record.status)}</Tag>{record.stale && <Tag color="warning">지연</Tag>}</>}
+          ariaLabel={`배치 실행 #${record.executionId}`} fields={[
+            { label: "업무 대상일", value: record.targetDate ?? "미지정" },
+            { label: "실제 시작 시각", value: formatSeconds(record.startTime) },
+            { label: "실제 종료 시각", value: formatSeconds(record.endTime) },
+            { label: "소요 시간", value: formatDurationMillis(record.durationMillis) },
+            { label: "종료 코드", value: record.exitCode ?? "-" },
+          ]} actions={renderActions(record)} details={renderDetails(record)} />}
         dataSource={data}
         loading={loading}
         page={page}

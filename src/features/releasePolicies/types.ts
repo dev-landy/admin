@@ -17,7 +17,8 @@ export type ReleasePolicy = {
   updatedAt: string;
 };
 
-export type ReleasePoliciesResponse = { releasePolicies: ReleasePolicy[] };
+export type ReleasePoliciesListParams = { page?: number; size?: number; platform?: AppPlatform; channel?: ReleaseChannel; sort?: string };
+export type ReleasePoliciesResponse = { releasePolicies: ReleasePolicy[]; page: number; size: number; totalElements: number };
 
 // platform·channel은 정책의 식별자라 수정 대상이 아니다. 나머지 값은 전부 다시 보낸다.
 export type UpdateReleasePolicyRequest = {
