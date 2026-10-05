@@ -44,7 +44,7 @@ npm run test:coverage  # 커버리지 리포트
 next.config.ts          # 브라우저의 /api 요청을 Landy API 서버로 전달하는 rewrite
 src/
   app/
-    layout.tsx          # 루트 레이아웃 (Geist 폰트 + EnvTopStrip + Providers 주입)
+    layout.tsx          # 루트 레이아웃 (Pretendard 가변 서브셋 웹폰트 + EnvTopStrip + Providers 주입)
     providers.tsx       # Ant Design·QueryClient·AuthProvider 및 개발용 Query Devtools 주입
     page.tsx            # 홈 — /users로 redirect
     icon.tsx            # 환경 색상 파비콘 (NEXT_PUBLIC_APP_ENV 기반, ImageResponse)
