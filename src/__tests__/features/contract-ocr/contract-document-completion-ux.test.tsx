@@ -19,11 +19,11 @@ function deferred<T>() {
 }
 type NextContract = Awaited<ReturnType<typeof findNextPendingContract>>;
 const next: NextContract = {
-  document: { ...DOCUMENT, documentId: "next-document" }, returnPath: "/contract-ocr?page=2", position: 1,
+  document: { ...DOCUMENT, documentId: "next-document" }, returnPath: "/contract-documents?page=2", position: 1,
 };
 function completion(onNavigate = jest.fn()) {
   return <ContractDocumentCompletion status="REGISTERED" documentId={DOCUMENT.documentId}
-    returnPath="/contract-ocr?page=2" position={1} onNavigate={onNavigate} onBack={jest.fn()} />;
+    returnPath="/contract-documents?page=2" position={1} onNavigate={onNavigate} onBack={jest.fn()} />;
 }
 beforeEach(() => jest.clearAllMocks());
 
@@ -38,7 +38,7 @@ test("다음 계약서 조회는 한 번만 실행하고 현재 검수 화면의
   expect(mockFindNext).toHaveBeenCalledTimes(1);
   await act(async () => { request.resolve(next); });
   expect(navigate).toHaveBeenCalledTimes(1);
-  expect(navigate.mock.calls[0][0]).toContain("/contract-ocr/next-document?");
+  expect(navigate.mock.calls[0][0]).toContain("/contract-documents/next-document?");
 });
 
 test("검수 화면을 떠난 이전 조회가 새 검수 화면을 이동시키거나 잠금을 해제하지 않는다", async () => {

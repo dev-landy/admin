@@ -1,6 +1,6 @@
 import "@/test-utils/antd";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import ContractOcrPage from "@/app/(admin)/contract-ocr/page";
+import ContractOcrPage from "@/app/(admin)/contract-documents/page";
 import { useContractDocuments } from "@/features/contract-ocr/hooks";
 import { DOCUMENT } from "@/test-utils/contractDocumentFixtures";
 
@@ -24,7 +24,7 @@ test("검수 링크에 원래 목록 페이지와 행 수를 전달한다", () =
   expect(useDocuments).toHaveBeenCalledWith("PENDING", 2, 50);
   fireEvent.click(screen.getByRole("button", { name: "검수" }));
   const url = new URL(mockPush.mock.calls[0][0], "https://admin.test");
-  expect(url.searchParams.get("returnTo")).toBe("/contract-ocr?page=2&size=50");
+  expect(url.searchParams.get("returnTo")).toBe("/contract-documents?page=2&size=50");
   expect(url.searchParams.get("position")).toBe("0");
 });
 
@@ -33,14 +33,14 @@ test("완료 상세의 링크도 탭·페이지·행 수를 그대로 전달한�
   render(<ContractOcrPage />);
   fireEvent.click(screen.getByRole("button", { name: "열람" }));
   const url = new URL(mockPush.mock.calls[0][0], "https://admin.test");
-  expect(url.searchParams.get("returnTo")).toBe("/contract-ocr?status=completed&page=2&size=50");
+  expect(url.searchParams.get("returnTo")).toBe("/contract-documents?status=completed&page=2&size=50");
 });
 
 test("처리로 원래 페이지가 사라지면 다른 목록 쿼리를 유지하며 유효 페이지로 보정한다", async () => {
   mockQuery = "status=completed&page=3&size=50&uploadId=upload-1";
   useDocuments.mockReturnValue({ data: { documents: [], page: 2, size: 50, totalElements: 51 }, isLoading: false, error: null, refetch: jest.fn(), isRefetching: false } as unknown as ReturnType<typeof useContractDocuments>);
   render(<ContractOcrPage />);
-  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/contract-ocr?status=completed&page=2&size=50&uploadId=upload-1"));
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/contract-documents?status=completed&page=2&size=50&uploadId=upload-1"));
 });
 
 test("목록 조회 실패에서는 총 건수를 0으로 간주해 페이지를 초기화하지 않는다", () => {

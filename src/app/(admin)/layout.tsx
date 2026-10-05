@@ -36,7 +36,7 @@ const MENU_LINKS = [
   { key: "/users", icon: <UserOutlined />, label: "유저 관리" },
   { key: "/properties", icon: <HomeOutlined />, label: "건물 관리" },
   { key: "/tenants", icon: <HomeOutlined />, label: "임차인 관리" },
-  { key: "/contract-ocr", icon: <FileTextOutlined />, label: "계약서 관리" },
+  { key: "/contract-documents", icon: <FileTextOutlined />, label: "계약서 관리" },
   { key: "/payments", icon: <CreditCardOutlined />, label: "납부 목록" },
   { key: "/payments/duplicates", icon: <WarningOutlined />, label: "납부 중복" },
   { key: "/notifications", icon: <BellOutlined />, label: "인앱 알림" },
@@ -92,7 +92,7 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   useEffect(() => {
     const label = pathname.startsWith("/users/") ? "사용자 상세"
       : pathname.startsWith("/tenants/") ? "임차인 상세"
-      : pathname.startsWith("/contract-ocr/") ? "계약서 검수"
+      : pathname.startsWith("/contract-documents/") ? "계약서 검수"
       : MENU_LINKS.find(({ key }) => key === selectedPath)?.label ?? "관리자";
     document.title = `${label} | [${appEnvMeta.label}] Landy Admin`;
   }, [pathname, selectedPath]);

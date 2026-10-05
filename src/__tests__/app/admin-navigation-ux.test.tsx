@@ -13,7 +13,7 @@ jest.mock("antd", () => {
 import AdminLayout from "@/app/(admin)/layout";
 
 test.each([
-  ["/users/1", "유저 관리"], ["/tenants/9", "임차인 관리"], ["/contract-ocr/document-1", "계약서 관리"],
+  ["/users/1", "유저 관리"], ["/tenants/9", "임차인 관리"], ["/contract-documents/document-1", "계약서 관리"],
   ["/payments/duplicates", "납부 중복"], ["/notifications/outbox", "알림 Outbox"], ["/batch/schedules", "배치 설정"],
 ])("route %s keeps the most specific navigation item selected", async (path, label) => {
   mockPathname = path;

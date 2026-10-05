@@ -15,7 +15,7 @@ function Editor() {
 }
 let confirm: jest.SpyInstance;
 beforeEach(() => {
-  window.history.replaceState({ __NA: true, preserved: "Next state" }, "", "/contract-ocr?page=2&size=50");
+  window.history.replaceState({ __NA: true, preserved: "Next state" }, "", "/contract-documents?page=2&size=50");
   confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
 });
 afterEach(() => confirm.mockRestore());
@@ -41,7 +41,7 @@ test("변경이 없는 이동은 바로 허용하고 변경 후 취소하면 입
 test("브라우저 뒤로가기 취소는 Next listener에 전달하지 않고 같은 history entry와 입력을 복원한다", async () => {
   renderEditor();
   const listState = window.history.state;
-  window.history.pushState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { review: true } }, "", "/contract-ocr/document-1");
+  window.history.pushState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { review: true } }, "", "/contract-documents/document-1");
   const reviewState = window.history.state;
   fireEvent.change(screen.getByLabelText("검수 입력"), { target: { value: "유지할 내용" } });
   const nextListener = jest.fn();
@@ -49,14 +49,14 @@ test("브라우저 뒤로가기 취소는 Next listener에 전달하지 않고 �
   try {
     act(() => window.history.back());
     await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(window.location.pathname).toBe("/contract-ocr/document-1"));
+    await waitFor(() => expect(window.location.pathname).toBe("/contract-documents/document-1"));
     expect(window.history.state).toEqual(reviewState);
     expect(nextListener).not.toHaveBeenCalled();
     expect(screen.getByLabelText("검수 입력")).toHaveValue("유지할 내용");
     confirm.mockReturnValue(true);
     act(() => window.history.back());
     await waitFor(() => expect(nextListener).toHaveBeenCalledTimes(1));
-    expect(window.location.href).toContain("/contract-ocr?page=2&size=50");
+    expect(window.location.href).toContain("/contract-documents?page=2&size=50");
     expect(window.history.state).toEqual(listState);
   } finally { window.removeEventListener("popstate", nextListener); }
 });
@@ -80,23 +80,23 @@ test("새로고침은 변경이 있을 때만 native 이탈 확인을 요청하�
 
 test("브라우저 앞으로가기 취소도 현재 목록 entry로 복원한다", async () => {
   renderEditor();
-  window.history.pushState({ __NA: true }, "", "/contract-ocr/document-1");
+  window.history.pushState({ __NA: true }, "", "/contract-documents/document-1");
   act(() => window.history.back());
-  await waitFor(() => expect(window.location.pathname).toBe("/contract-ocr"));
+  await waitFor(() => expect(window.location.pathname).toBe("/contract-documents"));
   fireEvent.change(screen.getByLabelText("검수 입력"), { target: { value: "현재 입력" } });
   act(() => window.history.forward());
   await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(window.location.pathname).toBe("/contract-ocr"));
+  await waitFor(() => expect(window.location.pathname).toBe("/contract-documents"));
   expect(screen.getByLabelText("검수 입력")).toHaveValue("현재 입력");
 });
 
 test("직접 진입해 이전 entry에 앱 index가 없어도 뒤로가기 취소는 현재 상세를 복원한다", async () => {
-  window.history.pushState({ __NA: true, preserved: "direct route" }, "", "/contract-ocr/direct-document");
+  window.history.pushState({ __NA: true, preserved: "direct route" }, "", "/contract-documents/direct-document");
   renderEditor();
   fireEvent.change(screen.getByLabelText("검수 입력"), { target: { value: "직접 진입 입력" } });
   act(() => window.history.back());
   await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(window.location.pathname).toBe("/contract-ocr/direct-document"));
+  await waitFor(() => expect(window.location.pathname).toBe("/contract-documents/direct-document"));
   expect(window.history.state.preserved).toBe("direct route");
   expect(screen.getByLabelText("검수 입력")).toHaveValue("직접 진입 입력");
 });

@@ -36,7 +36,7 @@ function statusTag(record: ContractDocument) {
 function ContractOcrPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const listPath = contractListReturnPath(`/contract-ocr?${searchParams.toString()}`);
+  const listPath = contractListReturnPath(`/contract-documents?${searchParams.toString()}`);
   const listParams = new URLSearchParams(listPath.split("?")[1]);
   const listStatus: ContractDocumentListStatus =
     listParams.get("status") === "completed" ? "COMPLETED" : "PENDING";
@@ -53,7 +53,7 @@ function ContractOcrPageContent() {
     if (page <= lastPage) return;
     const params = new URLSearchParams(listPath.split("?")[1]);
     params.set("page", String(lastPage));
-    router.replace(`/contract-ocr?${params.toString()}`);
+    router.replace(`/contract-documents?${params.toString()}`);
   }, [data, error, page, pageSize, listPath, router]);
 
   function navigate(changes: Record<string, string | undefined>) {

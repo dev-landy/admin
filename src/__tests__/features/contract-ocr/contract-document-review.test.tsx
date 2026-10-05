@@ -210,7 +210,7 @@ test("등록 성공은 완료 패널로 전환하고 다음 큐 조회 실패를
   mockQueue.mockRejectedValueOnce(new Error("큐 조회 실패")).mockResolvedValueOnce({ documents: [], page: 1, size: 50, totalElements: 0 })
     .mockResolvedValueOnce({ documents: [], page: 0, size: 50, totalElements: 0 });
   const navigate = jest.fn();
-  renderReview(undefined, { returnPath: "/contract-ocr?page=2&size=50", position: 3, onNavigate: navigate });
+  renderReview(undefined, { returnPath: "/contract-documents?page=2&size=50", position: 3, onNavigate: navigate });
   await applyDraft();
   await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));
@@ -226,7 +226,7 @@ test("등록 성공은 완료 패널로 전환하고 다음 큐 조회 실패를
   expect(mockRegister).toHaveBeenCalledTimes(1);
   expect(navigate).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "다음 계약서 다시 조회" }));
-  await waitFor(() => expect(navigate).toHaveBeenCalledWith("/contract-ocr?page=1&size=50"));
+  await waitFor(() => expect(navigate).toHaveBeenCalledWith("/contract-documents?page=1&size=50"));
   expect(mockRegister).toHaveBeenCalledTimes(1);
   expect(window.confirm).not.toHaveBeenCalled();
 });
@@ -235,7 +235,7 @@ test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음
   const next = { ...DOCUMENT, documentId: "document-next" };
   mockQueue.mockResolvedValue({ documents: [next], page: 0, size: 50, totalElements: 1 });
   const navigate = jest.fn();
-  renderReview(undefined, { returnPath: "/contract-ocr?size=50", position: 0, onNavigate: navigate });
+  renderReview(undefined, { returnPath: "/contract-documents?size=50", position: 0, onNavigate: navigate });
   fireEvent.change(await screen.findByLabelText("세입자 이름"), { target: { value: "폐기할 초안" } });
   fireEvent.click(screen.getByRole("button", { name: "반려" }));
   const dialog = await screen.findByRole("dialog");
@@ -249,8 +249,8 @@ test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음
   fireEvent.click(screen.getByRole("button", { name: "다음 계약서 검수" }));
   await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
   const url = new URL(navigate.mock.calls[0][0], "https://admin.test");
-  expect(url.pathname).toBe("/contract-ocr/document-next");
-  expect(url.searchParams.get("returnTo")).toBe("/contract-ocr?size=50");
+  expect(url.pathname).toBe("/contract-documents/document-next");
+  expect(url.searchParams.get("returnTo")).toBe("/contract-documents?size=50");
   expect(window.confirm).not.toHaveBeenCalled();
   expect(mockRegister).not.toHaveBeenCalled();
   expect(mockReject).toHaveBeenCalledTimes(1);

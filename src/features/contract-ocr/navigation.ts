@@ -1,7 +1,7 @@
 import { fetchContractDocuments } from "./api";
 import type { ContractDocument } from "./types";
 
-const LIST_PATH = "/contract-ocr";
+const LIST_PATH = "/contract-documents";
 function positiveInteger(value: string | null, fallback: number, max: number) {
   const number = Number(value);
   return Number.isSafeInteger(number) && number > 0 && number <= max ? number : fallback;

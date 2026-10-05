@@ -50,10 +50,11 @@ src/
     icon.tsx            # 환경 색상 파비콘 (NEXT_PUBLIC_APP_ENV 기반, ImageResponse)
     globals.css         # 최소 글로벌 리셋 (antd가 자체 reset 제공)
     login/              # Kakao 로그인 페이지
+    contract-ocr/       # 과거 Slack 주소를 현재 계약서 화면으로 리다이렉트
     auth/kakao/         # OAuth start/exchange 라우트 핸들러 + callback 페이지
     (admin)/
       layout.tsx        # 클라이언트 AuthGuard + 사이드바·헤더
-      users/ properties/ tenants/ contract-ocr/
+      users/ properties/ tenants/ contract-documents/
       payments/ notifications/ fcm/ alimtalk/ release-policies/
                         # 상세·운영 하위 라우트는 각 도메인 디렉터리 아래에 둔다
   components/           # 공용 환경 표시·테이블·날짜/ID 필터 컴포넌트
