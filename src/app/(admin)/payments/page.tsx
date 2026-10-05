@@ -1,12 +1,22 @@
 "use client";
 
+import { useListSort } from "@/lib/navigation/useListSort";
+
+import { FilterMore } from "@/components/FilterMore";
+import { FilterSection } from "@/components/FilterSection";
+import { FilterActions } from "@/components/FilterActions";
+
 import { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button, Card, Form, Space, Spin, DatePicker, InputNumber, Select } from "antd";
+import { Button, Form, Space, Spin, DatePicker, InputNumber, Select } from "antd";
 import { PageHeader } from "@/components/PageHeader";
 import { ClientLinkButton } from "@/components/ClientLinkButton";
 import { commitDateInput } from "@/components/date-input";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
+import { UserLookupSelect, TenantLookupSelect } from "@/components/EntityLookupSelect";
+import { FilterSummary } from "@/components/FilterSummary";
+import { PropertyLookupSelect } from "@/features/properties/components/PropertyLookupSelect";
+import { detailReturnPath, relatedListPath } from "@/lib/navigation/listReturn";
 import { optionalDate, optionalPositiveInteger, positiveInteger } from "@/lib/navigation/listParams";
 import { usePayments } from "@/features/payments/hooks";
 import { PaymentTable } from "@/features/payments/components/PaymentTable";
@@ -27,13 +37,21 @@ function PaymentsPageContent() {
   const to = toDate ? dayjs(toDate).startOf("month").format("YYYY-MM-DD") : undefined;
   const userId = optionalPositiveInteger(searchParams.get("userId"));
   const tenantId = optionalPositiveInteger(searchParams.get("tenantId"));
-  const { data, isLoading, error, isFetching, refetch } = usePayments({ page, size, source, from, to, userId, tenantId });
-  useEffect(() => { filterForm.setFieldsValue({ source, from: from ? dayjs(from) : undefined, to: to ? dayjs(to) : undefined, userId, tenantId }); }, [filterForm, source, from, to, userId, tenantId]);
+  const paymentId = optionalPositiveInteger(searchParams.get("paymentId"));
+  const propertyId = optionalPositiveInteger(searchParams.get("propertyId"));
+  const paidFrom = optionalDate(searchParams.get("paidFrom"));
+  const paidTo = optionalDate(searchParams.get("paidTo"));
+  const draftUserId = Form.useWatch("userId", filterForm) as number | undefined;
+  const draftPropertyId = Form.useWatch("propertyId", filterForm) as number | undefined;
+  const returnPath = searchParams.has("returnTo") ? detailReturnPath(searchParams.get("returnTo"), "/tenants") : undefined;
+  const currentPath = `/payments?${searchParams}`;
+  const sort = useListSort({ fields: [{ value: "paymentId", label: "납부 ID" }, { value: "billingMonth", label: "청구월" }, { value: "paidAt", label: "실제 납부일" }, { value: "updatedAt", label: "수정 시각" }], defaultField: "paymentId", defaultDirection: "desc", navigation: { query: searchParams.toString(), update: navigate } });
+  const { data, isLoading, error, isFetching, refetch } = usePayments({ page, size, ...sort.requestParams, source, from, to, userId, tenantId, paymentId, propertyId, paidFrom, paidTo });
+  useEffect(() => { filterForm.setFieldsValue({ source, from: from ? dayjs(from) : undefined, to: to ? dayjs(to) : undefined, userId, tenantId, paymentId, propertyId, paidFrom: paidFrom ? dayjs(paidFrom) : undefined, paidTo: paidTo ? dayjs(paidTo) : undefined }); }, [filterForm, source, from, to, userId, tenantId, paymentId, propertyId, paidFrom, paidTo]);
 
 
   function navigate(changes: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("sort");
     for (const [key, value] of Object.entries(changes)) {
       if (value === undefined) params.delete(key);
       else params.set(key, value);
@@ -53,34 +71,49 @@ function PaymentsPageContent() {
 
   function applyFilters(values: Record<string, string | number | boolean | Dayjs | undefined>) {
     const changes: Record<string, string | undefined> = { page: "1" };
-    for (const key of ["source", "from", "to", "userId", "tenantId"]) {
+    for (const key of ["source", "from", "to", "userId", "tenantId", "paymentId", "propertyId", "paidFrom", "paidTo"]) {
       const value = values[key];
-      changes[key] = value && typeof value === "object" && "format" in value ? value.startOf("month").format("YYYY-MM-DD") : value === undefined || value === null || value === "" ? undefined : String(value).trim() || undefined;
+      changes[key] = value && typeof value === "object" && "format" in value ? (key === "from" || key === "to" ? value.startOf("month") : value).format("YYYY-MM-DD") : value === undefined || value === null || value === "" ? undefined : String(value).trim() || undefined;
     }
     navigate(changes);
   }
+  function removeFilter(label: string) { const key = ({"납부 ID": "paymentId", "임대인": "userId", "임차인": "tenantId", "건물": "propertyId", "청구월 시작": "from", "청구월 종료": "to", "납부일 시작": "paidFrom", "납부일 종료": "paidTo", "납부 출처": "source"} as Record<string, string>)[label]; filterForm.setFieldValue(key, undefined); navigate({ page: "1", [key]: undefined }); }
+  function resetFilters() { filterForm.setFieldsValue(Object.fromEntries(["source", "from", "to", "userId", "tenantId", "paymentId", "propertyId", "paidFrom", "paidTo"].map((key) => [key, undefined]))); applyFilters({}); }
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-      <PageHeader title="납부 목록" description="청구월·출처·임차인 조건으로 납부 내역을 확인합니다. 기간은 납부일이 아닌 청구월을 기준으로 적용합니다." extra={<ClientLinkButton href="/payments/duplicates">중복 납부 확인</ClientLinkButton>} />
-      <Card>
-        <Form form={filterForm} name="payments-filters" layout="vertical" className="admin-filter-bar" onFinish={applyFilters}>
-        <Form.Item name="source" label="납부 출처" className="admin-filter-field"><Select allowClear placeholder="전체" options={PAYMENT_SOURCE_OPTIONS} /></Form.Item>
-        <Form.Item name="userId" label="유저 ID" className="admin-id-input"><InputNumber min={1} precision={0} placeholder="전체" style={{ width: "100%" }} /></Form.Item>
-        <Form.Item name="tenantId" label="임차인 ID" className="admin-id-input"><InputNumber min={1} precision={0} placeholder="전체" style={{ width: "100%" }} /></Form.Item>
+      <PageHeader title="납부 목록" description="청구월과 실제 납부일을 각각 지정해 내역을 찾습니다. 두 기간의 시작과 종료를 모두 포함합니다." extra={<Space wrap>{returnPath && <ClientLinkButton href={returnPath}>이전 화면</ClientLinkButton>}<ClientLinkButton href={relatedListPath("/payments/duplicates", { tenantId }, currentPath)}>중복 납부 확인</ClientLinkButton></Space>} />
+      <section aria-label="검색 조건과 조회 결과">
+        <FilterSection><Form form={filterForm} name="payments-filters" layout="vertical" className="admin-filter-bar" onFinish={applyFilters} onValuesChange={(changed) => {
+          if ("userId" in changed) filterForm.setFieldsValue({ propertyId: undefined, tenantId: undefined });
+          else if ("propertyId" in changed) filterForm.setFieldValue("tenantId", undefined);
+        }}>
+        <Form.Item name="tenantId" label="임차인" className="admin-filter-field"><TenantLookupSelect userId={draftUserId} propertyId={draftPropertyId} /></Form.Item>
         <Form.Item name="from" label="청구월 시작" className="admin-filter-field"><DatePicker picker="month" format="YYYY-MM" style={{ width: "100%" }} onBlur={(event) => commitDateInput(event.target, ["YYYY-MM"], filterForm.getFieldValue("from"), (date) => filterForm.setFieldValue("from", date))} /></Form.Item>
         <Form.Item name="to" label="청구월 종료" className="admin-filter-field" dependencies={["from"]} rules={[({ getFieldValue }) => ({ validator(_rule, value?: Dayjs) { const start = getFieldValue("from") as Dayjs | undefined; return !start || !value || !value.isBefore(start, "month") ? Promise.resolve() : Promise.reject(new Error("시작월보다 이전일 수 없습니다.")); } })]}><DatePicker picker="month" format="YYYY-MM" style={{ width: "100%" }} onBlur={(event) => commitDateInput(event.target, ["YYYY-MM"], filterForm.getFieldValue("to"), (date) => filterForm.setFieldValue("to", date))} /></Form.Item>
-          <Form.Item label=" "><Space wrap><Button type="primary" htmlType="submit">조회</Button><Button onClick={() => { filterForm.setFieldsValue({ source: undefined, from: undefined, to: undefined, userId: undefined, tenantId: undefined }); applyFilters({}); }}>필터 초기화</Button></Space></Form.Item>
-        </Form>
+        <FilterActions><Space wrap><Button type="primary" htmlType="submit">조회</Button><Button onClick={resetFilters}>필터 초기화</Button></Space></FilterActions>
+        <FilterMore>
+        <Form.Item name="userId" label="임대인" className="admin-filter-field"><UserLookupSelect /></Form.Item>
+        <Form.Item name="propertyId" label="건물" className="admin-filter-field"><PropertyLookupSelect userId={draftUserId} /></Form.Item>
+        <Form.Item name="source" label="납부 출처" className="admin-filter-field"><Select allowClear placeholder="전체" options={PAYMENT_SOURCE_OPTIONS} /></Form.Item>
+        <Form.Item name="paymentId" label="납부 ID" className="admin-id-input"><InputNumber min={1} precision={0} placeholder="정확한 ID" style={{ width: "100%" }} /></Form.Item>
+        <Form.Item name="paidFrom" label="납부일 시작" className="admin-filter-field"><DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} onBlur={(event) => commitDateInput(event.target, ["YYYY-MM-DD"], filterForm.getFieldValue("paidFrom"), (date) => filterForm.setFieldValue("paidFrom", date))} /></Form.Item>
+        <Form.Item name="paidTo" label="납부일 종료" className="admin-filter-field" dependencies={["paidFrom"]} rules={[({ getFieldValue }) => ({ validator(_rule, value?: Dayjs) { const start = getFieldValue("paidFrom") as Dayjs | undefined; return !start || !value || !value.isBefore(start, "day") ? Promise.resolve() : Promise.reject(new Error("시작일보다 이전일 수 없습니다.")); } })]}><DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} onBlur={(event) => commitDateInput(event.target, ["YYYY-MM-DD"], filterForm.getFieldValue("paidTo"), (date) => filterForm.setFieldValue("paidTo", date))} /></Form.Item>
+        </FilterMore>
+        </Form></FilterSection>
+        <FilterSummary filters={[
+          ...([['납부 ID', paymentId], ['임대인', userId], ['임차인', tenantId], ['건물', propertyId], ['청구월 시작', from?.slice(0, 7)], ['청구월 종료', to?.slice(0, 7)], ['납부일 시작', paidFrom], ['납부일 종료', paidTo]] as const).flatMap(([label, value]) => value ? [{ label, value: typeof value === "number" ? `#${value}` : value }] : []),
+          ...(source ? [{ label: "납부 출처", value: PAYMENT_SOURCE_OPTIONS.find((item) => item.value === source)?.label }] : []),
+        ].map((filter) => ({ ...filter, onRemove: () => removeFilter(filter.label) }))} onReset={resetFilters} />
         <QueryErrorAlert error={error} title="납부 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
-        {(!error || data) && <PaymentTable
+        {(!error || data) && <PaymentTable sortControl={sort.control}
           data={data?.payments ?? []} loading={isLoading} page={page} pageSize={size}
           total={data?.totalElements ?? 0} filters={{ source, userId, tenantId }}
           onPageChange={(nextPage, nextSize) => navigate({ page: String(nextSize !== size ? 1 : nextPage), size: String(nextSize) })}
           onFilterChange={(key, value) => navigate({ page: "1", [key]: value === undefined ? undefined : String(value) })}
-
+          returnPath={currentPath}
         />}
-      </Card>
+      </section>
     </Space>
   );
 }

@@ -1,0 +1,12 @@
+.platforms, .badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.platforms { gap: 6px; }
+.badges { gap: 4px; min-width: 0; }
+.label { color: var(--admin-text-muted); font-size: 12px; white-space: nowrap; }
+.badge { font-size: 12px; font-weight: 500; line-height: 20px; }

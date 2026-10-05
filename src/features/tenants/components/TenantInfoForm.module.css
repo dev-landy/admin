@@ -13,3 +13,25 @@
   flex-shrink: 0;
   padding-inline: 8px;
 }
+
+.fields {
+  container-type: inline-size;
+}
+
+.durationShortcuts { padding-top: 4px; }
+.durationShortcuts :global(.ant-btn) { min-height: 32px; height: auto; }
+
+@media (max-width: 767px) {
+  .durationShortcuts :global(.ant-btn) { min-height: 44px; }
+  .fields > :global(.ant-col-sm-12) {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}
+
+@container (max-width: 575px) {
+  .fields > :global(.ant-col-sm-12) {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}

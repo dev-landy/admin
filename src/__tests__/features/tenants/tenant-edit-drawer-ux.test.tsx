@@ -44,9 +44,17 @@ test("저장 요청 중에는 취소와 닫기를 잠그고 실패하면 초안�
   let reject!: (error: Error) => void;
   mockUpdate.mockImplementationOnce(() => new Promise((_, rejectRequest) => { reject = rejectRequest; }));
   render(<Drawer />);
-  fireEvent.change(await screen.findByLabelText("세입자 이름"), { target: { value: "저장할 이름" } });
-  await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
-  fireEvent.click(screen.getByRole("button", { name: "수정" }));
+  const nameInput = await screen.findByLabelText("세입자 이름");
+  const submitButton = screen.getByRole("button", { name: "수정" });
+  fireEvent.change(nameInput, { target: { value: "저장할 이름" } });
+  // useWatch batches via MessageChannel; avoid repeatedly scanning the whole drawer
+  // while waiting for that task, and also prove the draft was not reinitialized.
+  await waitFor(() => {
+    expect(nameInput).toHaveValue("저장할 이름");
+    expect(submitButton).toBeInTheDocument();
+    expect(submitButton).toBeEnabled();
+  });
+  fireEvent.click(submitButton);
   await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
   expect(screen.getByRole("button", { name: "취소" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();

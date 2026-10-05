@@ -9,7 +9,7 @@ import { fetchTenant } from "../api";
 import { tenantKeys } from "../hooks";
 import { TenantEditDrawer } from "./TenantEditDrawer";
 
-// 목록 행은 전화번호가 마스킹된 요약이라, 수정 진입 시 상세를 조회해 드로어를 연다.
+// 수정에 필요한 모든 필드와 최신 계약 값을 상세에서 확보한 뒤 드로어를 연다.
 // 수정할 때만 마운트해서 사용하는 컴포넌트다.
 export function TenantEditDrawerById({
   tenantId,

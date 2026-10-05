@@ -1,5 +1,7 @@
 "use client";
 
+import { EntityCell } from "@/components/EntityCell";
+import styles from "./TenantEditDrawer.module.css";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { App, Button, Drawer, Form } from "antd";
 
@@ -81,6 +83,7 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
 
   return (
     <Drawer title="임차인 정보 수정" open={open} onClose={handleClose} size="min(480px, 100vw)" closable={!busy} keyboard={!busy} mask={{ closable: !busy }}>
+      <div className={styles.context}><EntityCell primary={tenant.name} secondary={`호실 ${tenant.roomNumber} · ${tenant.phone}`} meta={`수정 대상 · 임차인 #${tenant.tenantId}`} /></div>
       {queryError}
       <div ref={formRoot}><Form
         form={form}
@@ -95,7 +98,7 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
           billingTimingEditable={false}
           rentBillingCycleEditable={false}
         />
-        <div style={{ display: "flex", gap: 8 }}><Button onClick={handleClose} disabled={busy}>취소</Button><Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || isSubmitting || isPending} block>
+        <div className={styles.actions}><Button onClick={handleClose} disabled={busy}>취소</Button><Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || isSubmitting || isPending} block>
           수정
         </Button></div>
       </Form></div>

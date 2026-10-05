@@ -1,19 +1,26 @@
 "use client";
 
+import type { ListSortControl } from "@/lib/navigation/useListSort";
+
 import { useRouter } from "next/navigation";
-import { listDetailPath } from "@/lib/navigation/listReturn";
-import { App, Button, Popconfirm, Select, Space, Tag } from "antd";
+import { App, Button } from "antd";
 import type { TableColumnsType } from "antd";
 
+import { RecordCard } from "@/components/RecordCard";
+import { EntityCell } from "@/components/EntityCell";
+import { RowActions } from "@/components/RowActions";
 import { PagedTable } from "@/components/PagedTable";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { listDetailPath, relatedListPath } from "@/lib/navigation/listReturn";
 import { formatKoreanDate } from "@/lib/format/date";
 import { useDeleteUser } from "../hooks";
 import type { UserSummary, UserRole, OAuthProvider, UserStatus } from "../types";
-import { USER_STATUS_OPTIONS, USER_STATUS_PRESENTATION } from "../userStatus";
-import { OAUTH_PROVIDER_LABELS, OAUTH_PROVIDER_OPTIONS } from "../oauthProvider";
+import { OAUTH_PROVIDER_LABELS } from "../oauthProvider";
+import { UserDevicePlatforms } from "./UserDevicePlatforms";
+import { UserAccountStatus } from "./UserAccountStatus";
 
 type Props = {
+  sortControl?: ListSortControl;
   returnPath?: string;
   data: UserSummary[];
   loading: boolean;
@@ -25,139 +32,82 @@ type Props = {
   onFilterChange: (key: string, value: string | undefined) => void;
 };
 
-export function UserTable({
-  returnPath = "/users",
-  data,
-  loading,
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  filters,
-  onFilterChange,
-}: Props) {
+export function UserTable({ sortControl, returnPath = "/users", data, loading, page, pageSize, total, onPageChange }: Props) {
   const router = useRouter();
   const { notification } = App.useApp();
-  const { mutate: deleteUser, isPending: isDeleting, variables: deletingId } = useDeleteUser();
+  const { mutateAsync: deleteUser, isPending: isDeleting, variables: deletingId } = useDeleteUser();
+
+  function renderActions(user: UserSummary) {
+    if (user.deletedAt != null) return <Button size="small" onClick={() => router.push(listDetailPath("/users", user.userId, returnPath))}>상세</Button>;
+    return <RowActions subject={`유저 #${user.userId}`} loading={isDeleting && deletingId === user.userId} disabled={isDeleting}
+        primary={<Button size="small" onClick={() => router.push(listDetailPath("/users", user.userId, returnPath))}>상세</Button>}
+        items={[
+          { key: "payments", label: "납부 내역", href: relatedListPath("/payments", { userId: user.userId }, returnPath) },
+          { key: "notifications", label: "알림 내역", href: relatedListPath("/notifications", { userId: user.userId }, returnPath) },
+          { type: "divider" },
+          {
+            key: "delete", label: "사용자 삭제", danger: true,
+            confirm: { title: "유저를 삭제하시겠습니까?", description: `유저 #${user.userId} · ${user.email} 계정을 삭제합니다. 삭제 후에는 되돌릴 수 없습니다.`, okText: "삭제" },
+            onClick: () => deleteUser(user.userId, {
+              onSuccess: () => notification.success({ title: `유저 #${user.userId}를 삭제했습니다.` }),
+              onError: (error) => { const problem = parseProblemDetail(error); notification.error({ title: problem?.title ?? "삭제 실패", description: problem?.detail }); },
+            }),
+          },
+        ]}
+      />; }
 
   const columns: TableColumnsType<UserSummary> = [
-    { title: "유저 ID", dataIndex: "userId", width: 90 },
-    { title: "이메일", dataIndex: "email", width: 220 },
-    { title: "전화번호", dataIndex: "phone", width: 140, render: (v: string | null) => v ?? "-" },
     {
-      title: "제공자",
-      dataIndex: "provider",
-      filteredValue: filters.provider ? [filters.provider] : null,
-      width: 100,
-      filterDropdown: () => (
-        <div style={{ padding: 8 }}>
-          <Select
-            allowClear
-            aria-label="가입 경로 필터"
-            placeholder="전체"
-            value={filters.provider}
-            style={{ width: 120 }}
-            onChange={(v) => onFilterChange("provider", v)}
-            options={OAUTH_PROVIDER_OPTIONS}
-          />
-        </div>
-      ),
-      render: (v: OAuthProvider) => <Tag>{OAUTH_PROVIDER_LABELS[v] ?? v}</Tag>,
+      title: "사용자", key: "identity", width: 290,
+      render: (_, user) => <EntityCell primary={user.email} secondary={user.phone || "전화번호 없음"} meta={`유저 #${user.userId}`}>
+        <UserDevicePlatforms platforms={user.fcmPlatforms} showLabel />
+      </EntityCell>,
     },
     {
-      title: "역할",
-      dataIndex: "role",
-      filteredValue: filters.role ? [filters.role] : null,
-      width: 100,
-      filterDropdown: () => (
-        <div style={{ padding: 8 }}>
-          <Select
-            allowClear
-            placeholder="전체"
-            value={filters.role}
-            style={{ width: 120 }}
-            onChange={(v) => onFilterChange("role", v)}
-            options={[
-              { label: "사용자", value: "USER" },
-              { label: "관리자", value: "ADMIN" },
-            ]}
-          />
-        </div>
-      ),
-      render: (v: UserRole) => (
-        <Tag color={v === "ADMIN" ? "gold" : "default"}>{v === "ADMIN" ? "관리자" : "사용자"}</Tag>
-      ),
+      title: "상태·권한", key: "account", width: 220,
+      render: (_, user) => <EntityCell
+        primary={<UserAccountStatus user={user} />}
+        secondary={<span>{OAUTH_PROVIDER_LABELS[user.provider] ?? user.provider} · {user.role === "ADMIN" ? "관리자" : "사용자"}</span>}
+        meta={<div className="admin-cell-stack"><span>가입일 {formatKoreanDate(user.createdAt)}</span>
+          {user.deletedAt != null && <span>탈퇴일 {formatKoreanDate(user.deletedAt)}</span>}
+        </div>}
+      />,
     },
+    { title: "가입일", dataIndex: "createdAt", width: 150, render: formatKoreanDate },
     {
-      title: "상태",
-      dataIndex: "status",
-      filteredValue: filters.status ? [filters.status] : null,
-      width: 140,
-      filterDropdown: () => (
-        <div style={{ padding: 8 }}>
-          <Select
-            allowClear
-            placeholder="전체"
-            value={filters.status}
-            style={{ width: 140 }}
-            onChange={(v) => onFilterChange("status", v)}
-            options={USER_STATUS_OPTIONS}
-          />
-        </div>
-      ),
-      render: (v: UserStatus) => {
-        const presentation = USER_STATUS_PRESENTATION[v];
-        return <Tag color={presentation.color}>{presentation.label}</Tag>;
-      },
-    },
-    { title: "가입일", dataIndex: "createdAt", width: 140, render: (v: string) => formatKoreanDate(v) },
-    {
-      title: "동작",
-      key: "action",
-      width: 160,
-      render: (_: unknown, record: UserSummary) => (
-        <Space wrap>
-          <Button size="small" onClick={() => router.push(listDetailPath("/users", record.userId, returnPath))}>
-            상세
-          </Button>
-          <Popconfirm
-            title="유저를 삭제하시겠습니까?"
-            description={`유저 #${record.userId} · ${record.email} 계정을 삭제합니다. 삭제 후에는 되돌릴 수 없습니다.`}
-            okText="삭제" cancelText="취소" okButtonProps={{ danger: true }} disabled={isDeleting}
-            onConfirm={() =>
-              deleteUser(record.userId, {
-                onSuccess: () => notification.success({ title: `유저 #${record.userId}를 삭제했습니다.` }),
-                onError: (err) => {
-                  const p = parseProblemDetail(err);
-                  notification.error({
-                    title: p?.title ?? "삭제 실패",
-                    description: p?.detail,
-                  });
-                },
-              })
-            }
-          >
-            <Button size="small" danger loading={isDeleting && deletingId === record.userId} disabled={isDeleting}>
-              삭제
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      title: "작업", key: "action", width: 124, fixed: "right",
+      render: (_, user) => renderActions(user),
     },
   ];
 
-  return (
-    <PagedTable
-      columns={columns}
-      dataSource={data}
-      loading={loading}
-      page={page}
-      pageSize={pageSize}
-      total={total}
-      onPageChange={onPageChange}
-      rowKey={(r) => String(r.userId)}
-      ariaLabel="사용자 목록"
-      emptyText="조건에 맞는 사용자가 없습니다. 필터를 초기화하거나 다른 조건으로 조회해 주세요."
-    />
-  );
+  const compactColumns: TableColumnsType<UserSummary> = [columns[0], columns[1], columns[3]];
+  const wideColumns: TableColumnsType<UserSummary> = [
+    { ...columns[0], render: (_, user) => <EntityCell primary={user.email} meta={`유저 #${user.userId}`} /> },
+    { title: "전화번호", dataIndex: "phone", width: 160, render: (value: string | null) => value || "미등록" },
+    { title: "기기 OS", key: "fcmPlatforms", width: 156, render: (_, user) => <UserDevicePlatforms platforms={user.fcmPlatforms} /> },
+    { title: "가입 경로", dataIndex: "provider", width: 110, render: (value: OAuthProvider) => OAUTH_PROVIDER_LABELS[value] ?? value },
+    { title: "상태", dataIndex: "status", width: 160, render: (_value, user) => <EntityCell
+      primary={<UserAccountStatus user={user} />} meta={user.deletedAt != null ? `탈퇴일 ${formatKoreanDate(user.deletedAt)}` : undefined} /> },
+    { title: "역할", dataIndex: "role", width: 100, render: (value: UserRole) => value === "ADMIN" ? "관리자" : "사용자" },
+    columns[2], columns[3],
+  ];
+
+  return <PagedTable sortControl={sortControl} columns={wideColumns} compactColumns={compactColumns}
+    columnSizing={{
+      identity: { min: 300, preferred: 580, grow: 2 },
+      account: { min: 240, preferred: 360, grow: 1 },
+    }}
+    renderCard={(user) => <RecordCard ariaLabel={`유저 #${user.userId} ${user.email}`} title={user.email}
+      subtitle={user.phone || "전화번호 미등록"} meta={`유저 #${user.userId}`}
+      extra={<UserAccountStatus user={user} />}
+      fields={[
+        { label: "기기 OS", value: <UserDevicePlatforms platforms={user.fcmPlatforms} /> },
+        { label: "가입·권한", value: `${OAUTH_PROVIDER_LABELS[user.provider] ?? user.provider} · ${user.role === "ADMIN" ? "관리자" : "사용자"}` },
+        { label: "가입일", value: formatKoreanDate(user.createdAt) },
+        ...(user.deletedAt != null ? [{ label: "탈퇴일", value: formatKoreanDate(user.deletedAt) }] : []),
+      ]}
+      actions={renderActions(user)} />}
+    dataSource={data} loading={loading} rowKey={(user) => String(user.userId)}
+    page={page} pageSize={pageSize} total={total} onPageChange={onPageChange}
+    ariaLabel="사용자 목록" emptyText="조건에 맞는 사용자가 없습니다. 필터를 초기화하거나 다른 검색어로 조회해 주세요." />;
 }

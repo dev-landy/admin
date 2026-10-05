@@ -1,0 +1,18 @@
+.context {
+  padding: 0 0 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+}
+
+@media (max-width: 767px) {
+  .actions button {
+    min-height: 44px;
+  }
+}

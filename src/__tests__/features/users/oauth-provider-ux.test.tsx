@@ -19,7 +19,7 @@ jest.mock("@/features/users/hooks", () => ({
     mockUseUsers(params);
     return { data: { users: mockUsers, totalElements: mockUsers.length }, isLoading: false, isFetching: false, error: null, refetch: jest.fn() };
   },
-  useDeleteUser: () => ({ mutate: jest.fn(), isPending: false }),
+  useDeleteUser: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useUpdateUserRole: () => ({ mutate: jest.fn(), isPending: false }),
   useUpdateUserNotifySettings: () => ({ mutate: jest.fn(), isPending: false }),
   useUpdateUserAlimtalkEnabled: () => ({ mutate: jest.fn(), isPending: false }),

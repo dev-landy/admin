@@ -26,7 +26,7 @@ Object.defineProperty(window, "matchMedia", {
 const mockUpdateTenant = jest.fn();
 
 jest.mock("@/features/tenants/hooks", () => ({
-  useDeleteTenant: () => ({ mutate: jest.fn(), isPending: false }),
+  useDeleteTenant: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useUpdateTenant: () => ({ mutate: mockUpdateTenant, isPending: false }),
 }));
 
@@ -41,6 +41,11 @@ jest.mock("next/navigation", () => ({
 const tenant: TenantDetail = {
   tenantId: 30,
   userId: 12,
+  propertyId: 8,
+  propertyName: "청솔 빌라",
+  propertyAddress: "서울시 현재로 10",
+  userEmail: "landlord@example.com",
+  userPhone: "010-9876-5432",
   name: "홍길동",
   roomNumber: "101",
   phone: "010-1234-5678",
@@ -65,6 +70,11 @@ beforeEach(() => {
 test("임대인 푸시와 별도인 납부일 알림톡을 표시하고 켜면 해당 값만 수정한다", async () => {
   render(<TenantDetailCard tenant={tenant} />);
 
+  expect(screen.getByText("청솔 빌라")).toBeVisible();
+  expect(screen.getByText("서울시 현재로 10")).toBeVisible();
+  expect(screen.getByRole("link", { name: "landlord@example.com" })).toHaveAttribute("href", expect.stringContaining("/users/12"));
+  expect(screen.getByText("임대인 전화번호 010-9876-5432")).toBeVisible();
+  expect(screen.getByText("임차인 전화번호 010-1234-5678")).toBeVisible();
   expect(screen.getByText("납부일 알림톡")).toBeInTheDocument();
   expect(screen.getByRole("switch")).not.toBeChecked();
   fireEvent.click(screen.getByRole("switch"));

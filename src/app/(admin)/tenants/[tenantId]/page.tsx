@@ -5,7 +5,7 @@ import { Button, Space, Spin, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
-import { listReturnPath } from "@/lib/navigation/listReturn";
+import { detailReturnPath } from "@/lib/navigation/listReturn";
 
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 
@@ -19,13 +19,13 @@ function TenantDetailPageContent({ params }: Props) {
   const tenantId = Number(tenantIdStr);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnPath = listReturnPath(searchParams.get("returnTo"), "/tenants");
+  const returnPath = detailReturnPath(searchParams.get("returnTo"), "/tenants");
   const { data: tenant, isLoading, error, isFetching, refetch } = useTenant(tenantId);
 
   function renderState(content: ReactNode) {
     return <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <PageHeader title="임차인 상세" description={`임차인 #${tenantId}`} />
-      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>목록으로</Button>
+      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>이전 화면으로</Button>
       {content}
     </Space>;
   }
@@ -45,9 +45,9 @@ function TenantDetailPageContent({ params }: Props) {
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <PageHeader title="임차인 상세" description={`임차인 #${tenantId}`} />
-      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>목록으로</Button>
+      <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(returnPath)}>이전 화면으로</Button>
       <QueryErrorAlert error={error} title="임차인 정보를 불러오지 못했습니다." onRetry={refetch} isRetrying={isFetching} hasData />
-      <TenantDetailCard tenant={tenant} returnPath={returnPath} />
+      <TenantDetailCard tenant={tenant} returnPath={returnPath} currentPath={`/tenants/${tenantId}?${searchParams}`} />
     </Space>
   );
 }

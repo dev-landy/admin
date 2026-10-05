@@ -556,20 +556,12 @@ export function TenantInfoFormFields({
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 8,
-            marginBottom: 8,
-          }}
-        >
-          <label htmlFor={endDateInputId} style={{ lineHeight: "22px" }}>
-            계약 종료일
-          </label>
-          <Space size={4} wrap>
+        <Form.Item
+          label="계약 종료일"
+          htmlFor={endDateInputId}
+          name="endDate"
+          dependencies={["startDate"]}
+          extra={<div className={styles.durationShortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
             {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
               const nextEndDate = startDate?.isValid() ? getContractEndDate(startDate, months) : null;
               const selected = Boolean(nextEndDate && endDate?.isSame(nextEndDate, "day"));
@@ -577,7 +569,6 @@ export function TenantInfoFormFields({
                 <Button
                   key={months}
                   size="small"
-                  style={{ minHeight: 32, height: "auto" }}
                   shape="round"
                   htmlType="button"
                   color={selected ? "primary" : "default"}
@@ -596,11 +587,7 @@ export function TenantInfoFormFields({
                 </Button>
               );
             })}
-          </Space>
-        </div>
-        <Form.Item
-          name="endDate"
-          dependencies={["startDate"]}
+          </Space></div>}
           rules={[
             ({ getFieldValue }) => ({
               validator(_, value: Dayjs | null | undefined) {

@@ -6,6 +6,7 @@ import { App, Checkbox, Form, Input, Modal } from "antd";
 import type { ModalProps } from "antd";
 
 import { parseProblemDetail } from "@/lib/api/problem";
+import { PropertyIdentity } from "./PropertyIdentity";
 import { useUpdateProperty } from "../hooks";
 import type { PropertySummary, UpdatePropertyRequest, UserPropertySummary } from "../types";
 
@@ -108,6 +109,7 @@ function PropertyEditSession({ property, onClose, afterClose, focusable, initial
       onOk={() => form.submit()}
       destroyOnHidden
     >
+      {property && <div className="admin-context-panel" style={{ marginBottom: 20 }}><PropertyIdentity property={property} /></div>}
       <Form form={form} initialValues={initialValues} layout="vertical" onFinish={handleSubmit} scrollToFirstError={{ focus: true }} preserve={false} disabled={isPending}>
         <Form.Item label="건물명" name="name" rules={[{ required: true, whitespace: true, message: "건물명을 입력하세요." }, { validator: maxCodePoints }]}>
           <Input />

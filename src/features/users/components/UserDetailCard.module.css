@@ -1,0 +1,94 @@
+.workspace,
+.headerRegions,
+.overviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+
+.headerRegions {
+  align-items: start;
+}
+
+.settingsDisclosure {
+  min-width: 0;
+  scroll-margin-top: 100px;
+}
+
+.settingsDisclosure > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.settingsDisclosure > summary span {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.settingsDisclosure > summary:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 3px;
+}
+
+.settings :global(.admin-detail-grid) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.settings {
+  container-type: inline-size;
+  container-name: admin-user-settings;
+}
+
+@media (min-width: 768px) {
+  .headerRegions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overviewGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
+
+  .settings :global(.admin-setting-row) {
+    align-items: start;
+  }
+
+  .settingsDisclosure > summary {
+    display: none;
+  }
+}
+
+/* Keep the explanation and its control together when the settings card is narrow. */
+@container admin-user-settings (min-width: 680px) {
+  @media (min-width: 768px) {
+    .settings :global(.admin-detail-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 24px;
+      row-gap: 0;
+    }
+
+    .settings :global(.admin-setting-row:nth-last-child(-n + 2)) {
+      border-bottom: 0;
+    }
+  }
+}
+
+.profileMetadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.profileMetadata > div { min-width: 0; }
+.profileMetadata dt { color: var(--admin-text-secondary); font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
+.profileMetadata dd { margin: 0; color: var(--admin-text); overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+
+@media (min-width: 1600px) {
+  .headerRegions { grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); }
+  .overviewGrid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
