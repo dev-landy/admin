@@ -20,6 +20,7 @@ import {
   PoweroffOutlined,
   MenuOutlined,
   DoubleLeftOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 
 import { AuthGuard } from "@/features/auth/guard";
@@ -44,6 +45,7 @@ const MENU_LINKS = [
   { key: "/contract-documents", icon: <FileTextOutlined />, label: "계약서 관리" },
   { key: "/payments", icon: <ReceiptIcon />, label: "납부 목록" },
   { key: "/payments/duplicates", icon: <WarningOutlined />, label: "납부 중복" },
+  { key: "/maintenance", icon: <ToolOutlined />, label: "수리 견적" },
   { key: "/notifications", icon: <BellOutlined />, label: "인앱 알림" },
   { key: "/notifications/outbox", icon: <InboxOutlined />, label: "알림 Outbox" },
   { key: "/fcm", icon: <ExperimentOutlined />, label: "FCM 테스트" },
@@ -89,9 +91,9 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     onMouseEnter: () => prefetchPath(item.key),
   }));
   const menuItems = [
-    { type: "group" as const, key: "rentals", label: "서비스 관리", children: menuLinks.slice(0, 6) },
-    { type: "group" as const, key: "messaging", label: "알림 관리", children: menuLinks.slice(6, 10) },
-    { type: "group" as const, key: "system", label: "시스템 관리", children: menuLinks.slice(10) },
+    { type: "group" as const, key: "rentals", label: "서비스 관리", children: menuLinks.slice(0, 7) },
+    { type: "group" as const, key: "messaging", label: "알림 관리", children: menuLinks.slice(7, 11) },
+    { type: "group" as const, key: "system", label: "시스템 관리", children: menuLinks.slice(11) },
   ];
   const prefetchFocusedPath = (event: FocusEvent<HTMLElement>) => {
     const item = event.target instanceof Element ? event.target.closest("li[data-route]") : null;

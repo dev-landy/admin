@@ -1,0 +1,45 @@
+export type Category = 'CLEANING' | 'PLUMBING' | 'ELECTRICAL' | 'WALLPAPER_FLOORING' | 'APPLIANCE' | 'OTHER';
+export type ProcessingStatus = 'WAITING' | 'DELAYED' | 'REJECTED';
+export type RequestStatus = 'DRAFT' | 'SUBMITTED' | 'COLLECTING' | 'CLOSED';
+export type QuoteStatus = 'PENDING_DISPATCH' | 'WAITING' | 'RECEIVED' | 'DECLINED' | 'EXPIRED' | 'CLOSED';
+export type Timing = 'ASAP' | 'THIS_WEEK' | 'NEXT_WEEK' | 'FLEXIBLE';
+export type ProcessingInfo = { processingStatus?: ProcessingStatus | null; processingReason?: string | null; processingUpdatedAt?: string | null };
+export type Counts = { targetCount: number; receivedCount: number; pricedQuoteCount: number; declinedCount: number; pendingCount: number; pendingDispatchCount: number; waitingCount: number; delayedCount: number; rejectedCount: number };
+export type RequestInfo = ProcessingInfo & {
+  requestId: number; propertyId?: number | null; title?: string | null; category?: Category | null; description?: string | null;
+  addressSnapshot?: string | null; areaName?: string | null; locationDetail?: string | null; latitude?: number | null; longitude?: number | null;
+  preferredTiming?: Timing | null; vendorIds: number[]; status: RequestStatus; submittedAt?: string | null; collectionStartedAt?: string | null;
+  closesAt?: string | null; closedAt?: string | null; closeReason?: 'MANUAL' | 'DEADLINE' | 'REJECTED' | null; createdAt: string;
+};
+export type ResponseInput = {
+  status: 'RECEIVED' | 'DECLINED'; quoteType: 'RANGE' | 'SITE_VISIT_REQUIRED' | null; respondedAt: string;
+  minAmount: number | null; maxAmount: number | null;
+  travelFeeIncluded: boolean | null; travelFeeMin: number | null; travelFeeMax: number | null;
+  materialsFeeIncluded: boolean | null; materialsFeeMin: number | null; materialsFeeMax: number | null;
+  availableDates: string[]; conditions: string | null; declineReason: string | null; operatorNote: string | null;
+};
+export type Quote = ProcessingInfo & {
+  quoteId: number; requestId: number; vendorId: number; vendorName: string; status: QuoteStatus;
+  quoteType?: ResponseInput['quoteType']; minAmount?: number | null; maxAmount?: number | null;
+  travelFeeIncluded?: boolean | null; travelFeeMin?: number | null; travelFeeMax?: number | null;
+  materialsFeeIncluded?: boolean | null; materialsFeeMin?: number | null; materialsFeeMax?: number | null;
+  totalMinAmount?: number | null; totalMaxAmount?: number | null;
+  availableDates: string[]; conditions?: string | null; declineReason?: string | null;
+  sentAt?: string | null; respondedAt?: string | null; recordedAt?: string | null; revision: number; correctedAt?: string | null;
+};
+export type DeliveryInput = { sentAt: string; deliveryChannel: 'PHONE' | 'SMS' | 'MESSENGER' | 'OTHER' };
+export type ProcessingInput = { status: ProcessingStatus; reason?: string | null; closesAt?: string | null };
+export type CorrectionInput = { expectedRevision: number; reason: string; response: ResponseInput };
+export type AdminQuote = { quote: Quote; vendorPhone?: string | null; sentByUserId?: number | null; deliveryChannel?: string | null; recordedByUserId?: number | null; entrySource?: string | null; operatorNote?: string | null };
+export type Photo = { photoId: number; contentType: string; sizeBytes: number; createdAt: string };
+export type AdminDetail = { request: RequestInfo; userId: number; landlordLabel: string; counts: Counts; photos: Photo[]; quotes: AdminQuote[];
+  deliveryContent: { title: string; category: Category; description: string; areaName: string; preferredTiming: Timing } };
+export type AdminSummary = ProcessingInfo & { requestId: number; userId: number; landlordLabel: string; title?: string | null; category?: Category | null; areaName?: string | null; status: RequestStatus; submittedAt?: string | null; closesAt?: string | null; createdAt: string; counts: Counts };
+export type ListParams = { page: number; size: number; status?: Exclude<RequestStatus, 'DRAFT'>; quoteStatus?: QuoteStatus; processingStatus?: ProcessingStatus; vendorProcessingStatus?: ProcessingStatus; category?: Category; submittedFrom?: string; submittedTo?: string };
+export type ListResponse = { requests: AdminSummary[]; page: number; size: number; totalElements: number };
+export type Correction = { correctionId: number; quoteId: number; revision: number; reason: string; before: ResponseInput; after: ResponseInput; correctedByUserId: number; correctedAt: string };
+export type CorrectionList = { items: Correction[]; page: number; size: number; hasNext: boolean };
+export type FeeMode = 'INCLUDED' | 'SEPARATE' | 'UNKNOWN';
+export type ResponseFormValues = { kind: 'RANGE' | 'SITE_VISIT_REQUIRED' | 'DECLINED'; respondedAt: string; minAmount?: number | null; maxAmount?: number | null;
+  travelFeeMode?: FeeMode; travelFeeMin?: number | null; travelFeeMax?: number | null; materialsFeeMode?: FeeMode; materialsFeeMin?: number | null; materialsFeeMax?: number | null;
+  availableDates?: string; conditions?: string; declineReason?: string; operatorNote?: string; correctionReason?: string };

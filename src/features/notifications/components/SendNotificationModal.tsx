@@ -8,7 +8,7 @@ import type { SendCustomNotificationResponse } from "../types";
 
 const { Text } = Typography;
 
-type Props = { open: boolean; onClose: () => void };
+type Props = { open: boolean; onClose: () => void; recipient?: { userId: number; label: string }; defaults?: { title: string; body: string } };
 
 type FormValues = { userId: number; title: string; body: string };
 
@@ -70,7 +70,7 @@ function toFeedback(result: SendCustomNotificationResponse): SendFeedback {
   };
 }
 
-export function SendNotificationModal({ open, onClose }: Props) {
+export function SendNotificationModal({ open, onClose, recipient, defaults }: Props) {
   const { notification } = App.useApp();
   const { mutate: send, isPending } = useSendCustomNotification();
   const [form] = Form.useForm<FormValues>();
@@ -78,7 +78,7 @@ export function SendNotificationModal({ open, onClose }: Props) {
   function handleOk() {
     if (isPending) return;
     form.validateFields().then((values) => {
-      send(values, {
+      send({ ...values, userId: recipient?.userId ?? values.userId }, {
         onSuccess: (res: SendCustomNotificationResponse) => {
           const { level, ...args } = toFeedback(res);
           notification[level](args);
@@ -115,13 +115,14 @@ export function SendNotificationModal({ open, onClose }: Props) {
       keyboard={!isPending}
     >
       <Typography.Paragraph type="secondary">입력한 유저에게 인앱 알림을 저장하고 활성 기기로 푸시를 발송합니다.</Typography.Paragraph>
-      <Form name="send-custom-notification" form={form} layout="vertical" disabled={isPending} style={{ marginTop: 16 }}>
+      {recipient && <Typography.Paragraph>수신자: {recipient.label} · 유저 #{recipient.userId}</Typography.Paragraph>}
+      <Form name="send-custom-notification" form={form} layout="vertical" initialValues={{ userId: recipient?.userId, ...defaults }} disabled={isPending} style={{ marginTop: 16 }}>
         <Form.Item
           label="유저 ID"
           name="userId"
           rules={[{ required: true, message: "유저 ID를 입력하세요." }, { type: "integer", min: 1, message: "1 이상의 정수 ID를 입력하세요." }]}
         >
-          <InputNumber min={1} precision={0} style={{ width: "100%" }} placeholder="12" />
+          <InputNumber min={1} precision={0} readOnly={!!recipient} disabled={!!recipient || isPending} style={{ width: "100%" }} placeholder="12" />
         </Form.Item>
         <Form.Item
           label="제목"

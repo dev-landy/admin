@@ -120,3 +120,10 @@ test("드로어에서 로그아웃을 누르면 로그아웃되고 드로어가 
     expect(document.querySelector(".ant-drawer-open")).not.toBeInTheDocument();
   });
 });
+
+test('수리 견적 관리 메뉴로 이동한다', async () => {
+  mockViewport = 'wide';
+  await renderLayout();
+  fireEvent.click(screen.getByRole('menuitem', {name: /수리 견적/}));
+  expect(mockPush).toHaveBeenCalledWith('/maintenance');
+});
