@@ -5,6 +5,7 @@ import { useDashboard } from "@/features/dashboard/hooks";
 jest.mock("@/features/dashboard/hooks", () => ({ useDashboard: jest.fn() }));
 const retry = jest.fn();
 beforeEach(() => {
+  retry.mockClear();
   jest.mocked(useDashboard).mockReturnValue({
     posthog: { data: { status: "error", code: "wrong_key_type", message: "Personal API Key로 교체하세요." }, error: null, isLoading: false, isFetching: false, refetch: retry },
     retention: { data: undefined, error: null, isLoading: false, isFetching: false, refetch: retry },
@@ -43,4 +44,27 @@ test("applying a historical retention period switches the dashboard query", () =
   expect(useDashboard).toHaveBeenLastCalledWith(true, { start: "2026-08-01", end: "2026-08-31" });
   fireEvent.click(screen.getByRole("button", { name: "최근 4주" }));
   expect(useDashboard).toHaveBeenLastCalledWith(true, undefined);
+});
+
+test("retention retry applies edited dates instead of refetching the previous period", () => {
+  render(<HomePage />);
+  fireEvent.change(screen.getByLabelText("리텐션 시작일"), { target: { value: "2026-07-06" } });
+  fireEvent.change(screen.getByLabelText("리텐션 종료일"), { target: { value: "2026-10-11" } });
+  expect(screen.getByText(/변경한 기간이 아직 적용되지 않았습니다/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "리텐션 다시 조회" }));
+  expect(useDashboard).toHaveBeenLastCalledWith(true, { start: "2026-07-06", end: "2026-10-11" });
+  expect(retry).not.toHaveBeenCalled();
+  expect(screen.queryByText(/변경한 기간이 아직 적용되지 않았습니다/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "기간 적용" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+test("retention retry validates the edited period before requesting data", () => {
+  render(<HomePage />);
+  fireEvent.change(screen.getByLabelText("리텐션 시작일"), { target: { value: "2026-09-01" } });
+  fireEvent.change(screen.getByLabelText("리텐션 종료일"), { target: { value: "2026-08-01" } });
+  fireEvent.click(screen.getByRole("button", { name: "리텐션 다시 조회" }));
+  expect(screen.getByText("오늘까지의 날짜로 시작일과 종료일을 선택하세요. 최대 1년까지 조회할 수 있습니다.")).toBeInTheDocument();
+  expect(useDashboard).toHaveBeenLastCalledWith(true, undefined);
+  expect(retry).not.toHaveBeenCalled();
 });

@@ -1,7 +1,7 @@
 "use client";
 import { RetentionPeriod } from "./RetentionPeriod";
 import type { RetentionRange } from "../retention-range";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Alert, Button, Card, Col, Empty, Progress, Row, Segmented, Space, Statistic, Switch, Table, Tag, Typography } from "antd";
 import { PageHeader } from "@/components/PageHeader";
 import { parseProblemDetail } from "@/lib/api/problem";
@@ -18,6 +18,7 @@ function Status<T>({ title, result, error, loading }: { title: string; result?: 
 }
 export function LiveDashboard({ queries, onSample, range, onRangeChange }: { range?: RetentionRange; onRangeChange: (range?: RetentionRange) => void; queries: ReturnType<typeof useDashboard>; onSample: () => void }) {
   const [series, setSeries] = useState<ActivitySeries>("전체");
+  const retentionFormId = useId();
   const { posthog, retention, activation, ads } = queries;
   const product = !posthog.error && posthog.data?.status === "success" ? posthog.data.data : undefined;
   const funnel = !activation.error && activation.data?.status === "success" ? activation.data.data : undefined;
@@ -47,8 +48,8 @@ export function LiveDashboard({ queries, onSample, range, onRangeChange }: { ran
       {funnel && <><Paragraph>{funnel.start} – {funnel.end} 로그인 사용자 · 기간 내 첫 로그인 후 7일 관찰 완료 기준</Paragraph>{[["로그인 성공", funnel.eligible], ["계약·세입자 등록", funnel.registered], ["등록 후 수납 현황 확인", funnel.viewed]].map(([label, count]) => <div key={label} className={styles.step}><Text>{label} · {count}명</Text><Progress percent={funnel.eligible ? Math.round(Number(count) / funnel.eligible * 1000) / 10 : 0} showInfo={funnel.eligible > 0} /></div>)}<Text type="secondary">관찰 중 {funnel.pending}명 제외{funnel.eligible === 0 ? " · 7일 관찰이 끝난 로그인 사용자가 아직 없습니다." : ""}</Text></>}
       <Paragraph type="secondary">기간 내 첫 로그인 → 계약 등록 → 수납 화면 조회 순서로, 로그인 후 7일 이내 행동을 집계합니다. 기존 사용자도 포함하며 신규 가입·생애 첫 계약 등록 지표가 아닙니다.</Paragraph>
     </Card></Col></Row>
-    <Card title="다음 주에도 사용하고 있나요?" extra={<Space><Tag>주간 리텐션</Tag><Button loading={retention.isFetching} onClick={() => { void retention.refetch(); }}>리텐션 다시 조회</Button></Space>}>
-      <RetentionPeriod range={range} onChange={onRangeChange} />
+    <Card title="다음 주에도 사용하고 있나요?" extra={<Space><Tag>주간 리텐션</Tag><Button loading={retention.isFetching} htmlType="submit" form={retentionFormId}>리텐션 다시 조회</Button></Space>}>
+      <RetentionPeriod range={range} onChange={onRangeChange} formId={retentionFormId} loading={retention.isFetching} onRefresh={() => { void retention.refetch(); }} />
       <Status title="리텐션" result={retention.data} error={retention.error} loading={retention.isFetching} />
       {retained?.retentionRange && <Paragraph>조회 기간: {retained.retentionRange.start} – {retained.retentionRange.end}</Paragraph>}
       <Paragraph type="secondary">수집된 이력에서 첫 핵심 활동 주을 기준으로 이후 각 주의 재사용을 추적합니다.</Paragraph>
