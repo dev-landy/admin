@@ -1,0 +1,24 @@
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { PropsWithChildren } from 'react';
+import { useDashboard } from '@/features/dashboard/hooks';
+import { apiClient } from '@/lib/api/client';
+import type { RetentionRange } from '@/features/dashboard/retention-range';
+jest.mock('@/lib/api/client', () => ({ apiClient: { get: jest.fn() } }));
+test('changing retention dates preserves activity and advertising requests and results', async () => {
+  jest.mocked(apiClient.get).mockResolvedValue({ data: { status: 'success', data: { marker: 'existing' }, fetchedAt: '2026-10-13' } });
+  const client = new QueryClient();
+  const wrapper = ({ children }: PropsWithChildren) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const { result, rerender, unmount } = renderHook(({ range }: { range?: RetentionRange }) => useDashboard(true, range), { wrapper, initialProps: {} });
+  await waitFor(() => expect(result.current.retention.isSuccess).toBe(true));
+  const activity = result.current.posthog.data;
+  const ads = result.current.ads.data;
+  jest.mocked(apiClient.get).mockClear();
+  rerender({ range: { start: '2026-08-01', end: '2026-08-31' } });
+  await waitFor(() => expect(result.current.retention.isSuccess).toBe(true));
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(apiClient.get).toHaveBeenCalledWith('/api/dashboard?source=retention&retentionStart=2026-08-01&retentionEnd=2026-08-31', expect.anything());
+  expect(result.current.posthog.data).toBe(activity);
+  expect(result.current.ads.data).toBe(ads);
+  unmount(); client.clear();
+});

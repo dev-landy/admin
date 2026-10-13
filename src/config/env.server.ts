@@ -22,6 +22,22 @@ function required(name: string): string {
 }
 
 export const serverEnv = {
+  get posthog() {
+    return {
+      host: process.env.POSTHOG_HOST?.trim() || "https://us.posthog.com",
+      projectId: required("POSTHOG_PROJECT_ID"),
+      apiKey: required("POSTHOG_PERSONAL_API_KEY"),
+    };
+  },
+  get googleAds() {
+    return {
+      clientId: required("GOOGLE_ADS_CLIENT_ID"),
+      clientSecret: required("GOOGLE_ADS_CLIENT_SECRET"),
+      refreshToken: required("GOOGLE_ADS_REFRESH_TOKEN"),
+      customerId: required("GOOGLE_ADS_CUSTOMER_ID").replace(/-/g, ""),
+      loginCustomerId: process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID?.trim().replace(/-/g, ""),
+    };
+  },
   /** Kakao REST API key — `client_id` for authorize + token exchange. */
   get kakaoRestApiKey(): string {
     return required("KAKAO_REST_API_KEY");

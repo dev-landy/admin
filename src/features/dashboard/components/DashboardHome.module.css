@@ -1,0 +1,18 @@
+.home { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.sourceStatus { display: flex; flex-direction: column; gap: 12px; }
+.period { padding: 0 2px; }
+.metric { height: 100%; }
+.metric :global(.ant-statistic) { margin-bottom: 12px; }
+.panel { height: 100%; }
+.bar { display: flex; align-items: center; gap: 16px; margin: 14px 0; }
+.bar > :first-child { flex: 0 0 42px; }
+.bar > :last-child { flex: 0 0 54px; text-align: right; font-variant-numeric: tabular-nums; }
+.bar :global(.ant-progress) { flex: 1; min-width: 0; }
+.step { margin: 18px 0; }
+.stepLabel { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.heat { display: block; padding: 8px 12px; border-radius: 4px; text-align: center; color: var(--admin-text); font-variant-numeric: tabular-nums; }
+.footnote { margin-top: 16px; margin-bottom: 0 !important; }
+.adStats { display: flex; flex-wrap: wrap; gap: 24px 48px; margin-bottom: 24px; }
+.definitions { color: var(--admin-text-secondary); padding: 0 4px; }
+.definitions summary { cursor: pointer; padding: 8px 0; }
+@media (max-width: 575px) { .home { gap: 16px; } .home :global(.ant-card-head) { padding-inline: 16px; } .home :global(.ant-card-body) { padding: 16px; } .home :global(.ant-card-head-title) { white-space: normal; } }

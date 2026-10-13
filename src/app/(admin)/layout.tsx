@@ -39,6 +39,7 @@ const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
 
 const MENU_LINKS = [
+  { key: "/", icon: <HomeOutlined />, label: "홈" },
   { key: "/users", icon: <UserOutlined />, label: "유저 관리" },
   { key: "/properties", icon: <HomeOutlined />, label: "건물 관리" },
   { key: "/tenants", icon: <TeamOutlined />, label: "임차인 관리" },
@@ -91,9 +92,10 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     onMouseEnter: () => prefetchPath(item.key),
   }));
   const menuItems = [
-    { type: "group" as const, key: "rentals", label: "서비스 관리", children: menuLinks.slice(0, 7) },
-    { type: "group" as const, key: "messaging", label: "알림 관리", children: menuLinks.slice(7, 11) },
-    { type: "group" as const, key: "system", label: "시스템 관리", children: menuLinks.slice(11) },
+    menuLinks[0],
+    { type: "group" as const, key: "rentals", label: "서비스 관리", children: menuLinks.slice(1, 8) },
+    { type: "group" as const, key: "messaging", label: "알림 관리", children: menuLinks.slice(8, 12) },
+    { type: "group" as const, key: "system", label: "시스템 관리", children: menuLinks.slice(12) },
   ];
   const prefetchFocusedPath = (event: FocusEvent<HTMLElement>) => {
     const item = event.target instanceof Element ? event.target.closest("li[data-route]") : null;
