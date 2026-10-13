@@ -1,9 +1,11 @@
 /** @jest-environment node */
 import { loadPosthog } from "@/features/dashboard/server/posthog";
 import { loadGoogleAds } from "@/features/dashboard/server/googleAds";
+import { posthogResults } from "@/features/dashboard/server/result-cache";
 const mockFetch = jest.fn();
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 beforeEach(() => {
+  posthogResults.clear();
   jest.clearAllMocks(); global.fetch = mockFetch;
   process.env.POSTHOG_HOST = "https://us.posthog.com";
   process.env.POSTHOG_PROJECT_ID = "123"; process.env.POSTHOG_PERSONAL_API_KEY = "phx_secret";
@@ -25,7 +27,7 @@ test("PostHog retries a gateway timeout once and preserves successful aggregates
   let attempts = 0;
   mockFetch.mockImplementation(async (_url, init) => {
     const sql = JSON.parse(init.body).query.query as string;
-    if (sql.includes("UNION ALL")) {
+    if (sql.includes("AS period")) {
       if (++attempts === 1) return new Response("Gateway timeout", { status: 504 });
       return json({ results: [[0,0,0,0],[1,0,0,0],[2,0,0,0],[3,75,0,75]] });
     }
@@ -66,7 +68,7 @@ test("Ads preserves currency, decimal conversions, zero-denominator CPA and forw
 test("PostHog zero history produces null retention, not a fake zero percent", async () => {
   mockFetch.mockImplementation(async (_url, init) => {
     const sql = JSON.parse(init.body).query.query as string;
-    if (sql.includes("UNION ALL")) return json({ results: [[0,0,0,0],[1,0,0,0],[2,0,0,0],[3,0,0,0]] });
+    if (sql.includes("AS period")) return json({ results: [[0,0,0,0],[1,0,0,0],[2,0,0,0],[3,0,0,0]] });
     if (sql.includes("groupUniqArray")) return json({ results: [] });
     return json({ results: [[0,0]] });
   });
@@ -78,7 +80,7 @@ test("cohorts distinguish observed zero retention from incomplete and future wee
   try {
     mockFetch.mockImplementation(async (_url, init) => {
       const sql = JSON.parse(init.body).query.query as string;
-      if (sql.includes("UNION ALL")) return json({ results: [[0,10,8,5],[1,20,15,8],[2,30,20,15],[3,40,30,20]] });
+      if (sql.includes("AS period")) return json({ results: [[0,10,8,5],[1,20,15,8],[2,30,20,15],[3,40,30,20]] });
       if (sql.includes("groupUniqArray")) return json({ results: [["2026-09-28",10,0,0,0],["2026-10-05",20,0,0,0]] });
       return json({ results: [[20,10]] });
     });
@@ -92,7 +94,7 @@ test("cohorts distinguish observed zero retention from incomplete and future wee
   try {
     mockFetch.mockImplementation(async (_url, init) => {
       const sql = JSON.parse(init.body).query.query as string;
-      if (sql.includes("UNION ALL")) return json({ results: [[0,0,0,0],[1,0,0,0],[2,0,0,0],[3,0,0,0]] });
+      if (sql.includes("AS period")) return json({ results: [[0,0,0,0],[1,0,0,0],[2,0,0,0],[3,0,0,0]] });
       if (sql.includes("groupUniqArray")) return json({ results: [] });
       const monday = now.includes("14:59") ? "2026-10-05" : "2026-10-12";
       expect(sql).toContain(`timestamp < toDateTime('${monday} 00:00:00', 'Asia/Seoul')`);
@@ -106,7 +108,7 @@ test("cohorts distinguish observed zero retention from incomplete and future wee
 test('retention-only requests do not execute MAU queries', async () => {
   mockFetch.mockImplementation(async (_url, init) => {
     const sql = JSON.parse(init.body).query.query as string;
-    if (sql.includes('UNION ALL')) throw new Error('MAU must not be requested');
+    if (sql.includes('AS period')) throw new Error('MAU must not be requested');
     return json({ results: sql.includes('groupUniqArray') ? [] : [[10,5]] });
   });
   expect(await loadPosthog(undefined, 'retention')).toMatchObject({ status: 'success', data: { retention: { rate: 50 } } });
@@ -114,9 +116,30 @@ test('retention-only requests do not execute MAU queries', async () => {
 });
 test('activity-only requests do not execute retention queries', async () => {
   mockFetch.mockImplementation(async (_url, init) => {
-    if (!JSON.parse(init.body).query.query.includes('UNION ALL')) throw new Error('Retention must not be requested');
+    if (!JSON.parse(init.body).query.query.includes('AS period')) throw new Error('Retention must not be requested');
     return json({ results: [[0,1,1,1],[1,2,2,2],[2,3,3,3],[3,4,4,4]] });
   });
   expect(await loadPosthog(undefined, 'activity')).toMatchObject({ status: 'success', data: { mau: 4 } });
   expect(mockFetch).toHaveBeenCalledTimes(1);
+});
+
+test('sparse activity periods are zero-filled after a single event scan', async () => {
+ mockFetch.mockResolvedValue(json({results:[[3,12,8,7]]}));
+ expect(await loadPosthog(undefined,'activity')).toMatchObject({status:'success', data:{mau:12,previousMau:0,activity:[{all:0},{all:0},{all:0},{all:12}]}});
+ const sql = JSON.parse(mockFetch.mock.calls[0][1].body).query.query;
+ expect(sql).not.toContain('UNION ALL');
+ expect(sql.match(/FROM events/g)).toHaveLength(1);
+});
+test('duplicate activity buckets are rejected instead of silently losing counts', async () => {
+ mockFetch.mockResolvedValue(json({results:[[3,12,8,7],[3,12,8,7]]}));
+ expect(await loadPosthog(undefined,'activity')).toMatchObject({status:'error',code:'invalid_response'});
+});
+test('cached activity is isolated by project and preserves its fetch time', async () => {
+ mockFetch.mockImplementation(async () => json({results:[[3,12,8,7]]}));
+ const first = await loadPosthog(undefined,'activity');
+ expect(await loadPosthog(undefined,'activity')).toEqual(first);
+ expect(mockFetch).toHaveBeenCalledTimes(1);
+ process.env.POSTHOG_PROJECT_ID = '456';
+ await loadPosthog(undefined,'activity');
+ expect(mockFetch).toHaveBeenCalledTimes(2);
 });

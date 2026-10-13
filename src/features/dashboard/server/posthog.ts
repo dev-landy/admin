@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { posthogResults } from "./result-cache";
 import { loadActivationData } from "./activation";
 import { resolveRetentionRange, type RetentionRange } from "../retention-range";
 import { serverEnv } from "@/config/env.server";
@@ -17,6 +19,16 @@ export function loadPosthog(range: RetentionRange | undefined, section: "activit
 export function loadPosthog(range: RetentionRange | undefined, section: "retention"): Promise<SourceResult<RetentionData>>;
 export function loadPosthog(range: undefined, section: "activation"): Promise<SourceResult<ActivationData>>;
 export async function loadPosthog(range?: RetentionRange, section: "all" | "activity" | "retention" | "activation" = "all"): Promise<SourceResult<PosthogData | ActivityData | RetentionData | ActivationData>> {
+  try {
+    const config = serverEnv.posthog;
+    const today = dateInZone(new Date(), "Asia/Seoul");
+    const selected = section === "retention" || section === "all" ? resolveRetentionRange(range, today) : undefined;
+    // Scope cached data to credentials/project/query version and KST report day.
+    const key = createHash("sha256").update(JSON.stringify([config, section, selected, today])).digest("hex");
+    return await posthogResults.get(key, () => loadUncached(range, section));
+  } catch (error) { return sourceError(error); }
+}
+async function loadUncached(range: RetentionRange | undefined, section: "all" | "activity" | "retention" | "activation"): Promise<SourceResult<PosthogData | ActivityData | RetentionData | ActivationData>> {
   try {
     const config = serverEnv.posthog;
     if (config.apiKey.startsWith("phc_")) throw new AnalyticsError("wrong_key_type", "POSTHOG_PERSONAL_API_KEY에 이벤트 전송용 키(phc_)가 들어 있습니다. PostHog 개인 설정에서 Query Read 권한의 Personal API Key(phx_)를 만들고 교체하세요.");
@@ -53,16 +65,22 @@ export async function loadPosthog(range?: RetentionRange, section: "all" | "acti
     const comparisonEnd = selected.until < currentWeek ? selected.until : currentWeek;
     const previous = shiftDate(comparisonEnd, -7); const before = shiftDate(comparisonEnd, -14);
     const ends = [-90, -60, -30, 0].map(days => shiftDate(today, days));
-    const trends = ends.map((date, index) => `SELECT ${index}, uniqExactIf(person_id, ${active}), uniqExactIf(person_id, ${info}), uniqExactIf(person_id, ${rent}) FROM events WHERE ${audience} AND timestamp >= ${ts(shiftDate(date, -30))} AND timestamp < ${ts(date)}`).join(" UNION ALL ");
+    const trends = `SELECT multiIf(timestamp < ${ts(ends[0])}, 0, timestamp < ${ts(ends[1])}, 1, timestamp < ${ts(ends[2])}, 2, 3) AS period, uniqExact(person_id), uniqExactIf(person_id, ${info}), uniqExactIf(person_id, ${rent}) FROM events WHERE timestamp >= ${ts(shiftDate(today, -120))} AND timestamp < ${ts(today)} AND ${active} AND ${audience} GROUP BY period ORDER BY period`;
     const retention = `SELECT countIf(prior > 0), countIf(prior > 0 AND recent > 0) FROM (SELECT person_id, countIf(timestamp < ${ts(previous)}) AS prior, countIf(timestamp >= ${ts(previous)}) AS recent FROM events WHERE ${audience} AND ${active} AND timestamp >= ${ts(before)} AND timestamp < ${ts(comparisonEnd)} GROUP BY person_id)`;
     // Compute first observed activity over all available history, then restrict
     // cohorts. Starting the first-event scan at the report window mislabels old users.
-    const cohortSql = `SELECT formatDateTime(first_week, '%Y-%m-%d'), count(), countIf(has(weeks, addWeeks(first_week, 1))), countIf(has(weeks, addWeeks(first_week, 2))), countIf(has(weeks, addWeeks(first_week, 3))) FROM (SELECT toStartOfWeek(toTimeZone(min(timestamp), 'Asia/Seoul'), 1) AS first_week, groupUniqArray(toStartOfWeek(toTimeZone(timestamp, 'Asia/Seoul'), 1)) AS weeks FROM events WHERE ${audience} AND ${active} AND timestamp < ${ts(currentWeek)} GROUP BY person_id) WHERE first_week >= toDate('${selected.start}') AND first_week < toDate('${selected.until}') GROUP BY first_week ORDER BY first_week LIMIT 100`;
+    // Older cohorts only need history through their third follow-up week.
+    const followupEnd = shiftDate(selected.until, 21);
+    const cohortEnd = followupEnd < currentWeek ? followupEnd : currentWeek;
+    const cohortSql = `SELECT formatDateTime(first_week, '%Y-%m-%d'), count(), countIf(has(weeks, addWeeks(first_week, 1))), countIf(has(weeks, addWeeks(first_week, 2))), countIf(has(weeks, addWeeks(first_week, 3))) FROM (SELECT toStartOfWeek(toTimeZone(min(timestamp), 'Asia/Seoul'), 1) AS first_week, groupUniqArrayIf(toStartOfWeek(toTimeZone(timestamp, 'Asia/Seoul'), 1), timestamp >= ${ts(selected.start)}) AS weeks FROM events WHERE ${audience} AND ${active} AND timestamp < ${ts(cohortEnd)} GROUP BY person_id) WHERE first_week >= toDate('${selected.start}') AND first_week < toDate('${selected.until}') GROUP BY first_week ORDER BY first_week LIMIT 100`;
     const [trendRows, retained, cohortRows] = await Promise.all([section === "retention" ? [] : query(trends), section === "activity" ? [] : query(retention), section === "activity" ? [] : query(cohortSql)]);
-    if ((section !== "retention" && trendRows.length !== 4) || (section !== "activity" && retained.length !== 1)) throw new AnalyticsError("invalid_response", "PostHog 집계 응답이 누락되었습니다.");
+    if ((section !== "retention" && trendRows.length > 4) || (section !== "activity" && retained.length !== 1)) throw new AnalyticsError("invalid_response", "PostHog 집계 응답이 누락되었습니다.");
+    if (trendRows.some(row => row.length !== 4 || !Number.isInteger(Number(row[0])) || Number(row[0]) < 0 || Number(row[0]) > 3) || new Set(trendRows.map(row => Number(row[0]))).size !== trendRows.length) {
+      throw new AnalyticsError("invalid_response", "활동 추세 응답 형식이 올바르지 않습니다.");
+    }
     const activity = section === "retention" ? [] : ends.map((date, index) => {
       const row = trendRows.find(row => Number(row[0]) === index);
-      if (!row) throw new AnalyticsError("invalid_response", "활동 추세 응답이 누락되었습니다.");
+      if (!row) return { date: shiftDate(date, -1), all: 0, info: 0, rent: 0 };
       return { date: shiftDate(date, -1), all: numeric(row[1]), info: numeric(row[2]), rent: numeric(row[3]) };
     });
     if (section === "activity") return { status: "success", fetchedAt: new Date().toISOString(), data: { start, end, activity, mau: activity[3].all, previousMau: activity[2].all } };
