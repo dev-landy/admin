@@ -3,44 +3,42 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 
 import { AlimtalkTestSendModal } from "@/features/alimtalk/components/AlimtalkTestSendModal";
-import type { AlimtalkType, RemoteAlimtalkTemplate } from "@/features/alimtalk/types";
+import { approvedAlimtalkTemplate } from "@/test-utils/alimtalk";
+import type { AlimtalkTemplate } from "@/features/alimtalk/types";
 
-const DUE_TEMPLATE: RemoteAlimtalkTemplate = {
+const DUE_TEMPLATE: AlimtalkTemplate = {
+  ...approvedAlimtalkTemplate,
   type: "DUE",
   templateId: "KA01TP_DUE",
-  name: "납부일 안내",
   status: "APPROVED",
   content: "#{세대정보} 임대료 #{납부액}원의 납부일입니다.",
   variableNames: ["#{세대정보}", "#{납부액}"],
-  storedBodyMatches: true,
 };
 
-const OVERDUE_TEMPLATE: RemoteAlimtalkTemplate = {
+const OVERDUE_TEMPLATE: AlimtalkTemplate = {
   ...DUE_TEMPLATE,
   type: "OVERDUE",
   templateId: "KA01TP_OVERDUE",
-  name: "미납 안내",
   content: "#{세대정보} 임대료 #{납부액}원이 미납입니다. (#{경과일}일 경과)",
   variableNames: ["#{세대정보}", "#{납부액}", "#{경과일}"],
 };
 
-const remoteCalls: AlimtalkType[] = [];
+let mockTemplates: AlimtalkTemplate[] = [];
+const mockRefetch = jest.fn();
+let mockError: Error | null = null;
 const mockSendTest = jest.fn();
 
 jest.mock("@/features/alimtalk/hooks", () => ({
-  useRemoteAlimtalkTemplate: (type: AlimtalkType) => {
-    remoteCalls.push(type);
-    return {
-      data: type === "DUE" ? DUE_TEMPLATE : OVERDUE_TEMPLATE,
-      isFetching: false,
-      error: null,
-    };
-  },
+  useAlimtalkTemplates: () => ({
+    data: { templates: mockTemplates }, isFetching: false, error: mockError, refetch: mockRefetch,
+  }),
   useSendTestAlimtalk: () => ({ mutate: mockSendTest, isPending: false }),
 }));
 
 beforeEach(() => {
-  remoteCalls.length = 0;
+  mockTemplates = [DUE_TEMPLATE, OVERDUE_TEMPLATE];
+  mockError = null;
+  mockRefetch.mockReset();
   mockSendTest.mockReset();
 });
 
@@ -89,8 +87,55 @@ test("종류를 바꾸면 그 종류의 승인 템플릿으로 변수칸을 다�
   fireEvent.change(screen.getByLabelText("#{세대정보}"), { target: { value: "남는 값" } });
   fireEvent.click(screen.getByText("미납 안내"));
 
-  await waitFor(() => expect(remoteCalls).toContain("OVERDUE"));
+  await screen.findByLabelText("#{경과일}");
   expect(screen.getByLabelText("#{경과일}")).toBeInTheDocument();
   // 종류마다 변수가 다르므로 이전 종류의 입력값이 새 칸에 남으면 안 된다.
   expect(screen.getByLabelText("#{세대정보}")).toHaveValue("");
+});
+
+test.each([
+  ["missing", []],
+  ["mismatch", [{ ...DUE_TEMPLATE, syncRequired: true }]],
+  ["unapproved", [{ ...DUE_TEMPLATE, status: "INSPECTING" }]],
+  ["unsupported", [{ ...DUE_TEMPLATE, form: null }]],
+] as const)("%s 승인 정보로는 과금 발송하지 않고 갱신을 안내한다", (_case, templates) => {
+  mockTemplates = [...templates];
+  renderSendModal();
+  expect(screen.getByRole("button", { name: "발송" })).toBeDisabled();
+  expect(screen.getByText("저장된 승인 정보가 필요합니다")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "발송" }));
+  expect(mockSendTest).not.toHaveBeenCalled();
+});
+
+test("테스트 변수와 제목·부제목·동작은 저장된 동일 승인 정보에서 표시한다", () => {
+  const snapshot = { ...DUE_TEMPLATE, title: "제목 #{제목}", subtitle: "부제목", extra: "추가 #{추가}",
+    variableNames: ["#{제목}", "#{추가}", "#{버튼}"], buttons: [{ buttonName: "확인 #{버튼}", buttonType: "WL", linkMo: "https://example.com" }],
+  };
+  mockTemplates = [snapshot];
+  renderSendModal();
+  expect(screen.getByText("제목 #{제목}")).toBeInTheDocument();
+  expect(screen.getByText("부제목")).toBeInTheDocument();
+  expect(screen.getByText(/확인 #\{버튼\}/)).toBeInTheDocument();
+  expect(screen.getByLabelText("#{버튼}")).toBeInTheDocument();
+  expect(screen.queryByLabelText("#{세대정보}")).not.toBeInTheDocument();
+});
+
+test("저장 승인 정보 조회 실패는 표시하고 재조회할 수 있다", () => {
+  mockError = new Error("network");
+  renderSendModal();
+  expect(screen.getByRole("button", { name: "발송" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "다시 조회" }));
+  expect(mockRefetch).toHaveBeenCalledTimes(1);
+});
+
+test("같은 클릭 구간의 중복 제출은 유료 요청 하나만 만든다", async () => {
+  renderSendModal();
+  fireEvent.change(screen.getByLabelText("수신 번호"), { target: { value: "010-1234-5678" } });
+  fireEvent.change(screen.getByLabelText("#{세대정보}"), { target: { value: "101호" } });
+  fireEvent.change(screen.getByLabelText("#{납부액}"), { target: { value: "500,000" } });
+  const send = screen.getByRole("button", { name: "발송" });
+  fireEvent.click(send);
+  fireEvent.click(send);
+  await waitFor(() => expect(mockSendTest).toHaveBeenCalledTimes(1));
+  expect(send).toBeDisabled();
 });

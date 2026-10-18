@@ -42,7 +42,7 @@ function TemplatesTab() {
         type="info"
         showIcon
         title="저장하면 재시작 없이 다음 발송부터 적용됩니다"
-        description="같은 값이 실제 발송과 임대인이 보는 미리보기에 함께 반영됩니다."
+        description="ID를 저장하면 승인 정보를 함께 가져옵니다. 실제 발송과 임대인 미리보기는 같은 저장 승인 정보를 사용합니다."
       />
       <Space wrap>
         <RefreshButton loading={isFetching} onClick={() => refetch()}>

@@ -1,67 +1,51 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Alert, Button, Card, Descriptions, Form, Input, Space, Switch, Tag, Typography } from "antd";
+import { App, Alert, Button, Card, Descriptions, Form, Input, Switch, Tag } from "antd";
 
 import { useAdminViewport } from "@/components/useAdminViewport";
-import styles from "./AlimtalkTemplateCard.module.css";
 import { RowActions } from "@/components/RowActions";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUnsavedChanges } from "@/components/NavigationGuard";
-import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { formatSeconds } from "@/lib/format/date";
-import { useRemoteAlimtalkTemplate, useUpdateAlimtalkTemplate } from "../hooks";
+import { useSyncAlimtalkTemplate, useUpdateAlimtalkTemplate } from "../hooks";
 import { ALIMTALK_TYPE_PRESENTATION } from "../presentation";
 import type { AlimtalkTemplate } from "../types";
+import { ApprovedAlimtalkDetails } from "./ApprovedAlimtalkDetails";
+import styles from "./AlimtalkTemplateCard.module.css";
 
-const { Paragraph, Text } = Typography;
-
-type FormValues = {
-  pfId: string;
-  templateId: string;
-  body: string;
-  enabled: boolean;
-};
+type FormValues = { pfId: string; templateId: string; enabled: boolean };
 
 function toFormValues(template: AlimtalkTemplate): FormValues {
-  return {
-    pfId: template.pfId ?? "",
-    templateId: template.templateId ?? "",
-    body: template.body ?? "",
-    enabled: template.enabled,
-  };
+  return { pfId: template.pfId ?? "", templateId: template.templateId ?? "", enabled: template.enabled };
 }
 
-/**
- * 한 종류의 채널·템플릿·본문을 그 자리에서 고친다. 저장하면 재시작 없이 다음 발송부터 적용되고,
- * 같은 값이 실제 발송과 임대인 미리보기에 함께 반영된다.
- *
- * <p>본문은 카카오 승인 본문의 사본일 뿐이라 발송 문구를 바꾸지 못한다. 어긋나면 미리보기만 틀리므로,
- * 승인 템플릿 조회로 원본과 대조할 수 있게 둔다.
- */
+/** ID와 발송 여부만 편집하고, 발송·미리보기에 쓰는 승인 정보는 서버가 가져온다. */
 export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate }) {
   const { notification } = App.useApp();
   const viewport = useAdminViewport();
-  const saveInProgress = useRef(false);
-  const [validating, setValidating] = useState(false);
+  const operationInProgress = useRef(false);
+  const [operation, setOperation] = useState<"save" | "sync" | null>(null);
+  const [savedOverride, setSavedOverride] = useState<{ source: AlimtalkTemplate; value: AlimtalkTemplate } | null>(null);
+  const savedTemplate = savedOverride?.source === template ? savedOverride.value : template;
+  const [syncError, setSyncError] = useState<unknown>(null);
   const [form] = Form.useForm<FormValues>();
   const hasDraftChanges = useRef(false);
   const savedValues = useRef(toFormValues(template));
-  const [remoteOpen, setRemoteOpen] = useState(false);
+  const draftPfId = Form.useWatch("pfId", form);
+  const draftTemplateId = Form.useWatch("templateId", form);
   const { mutate: update, isPending } = useUpdateAlimtalkTemplate();
-  const {
-    data: remote,
-    isFetching: isRemoteFetching,
-    error: remoteError,
-    refetch: refetchRemote,
-  } = useRemoteAlimtalkTemplate(template.type, remoteOpen);
-  const saving = isPending || validating;
+  const { mutate: sync, isPending: isSyncPending } = useSyncAlimtalkTemplate();
+  const busy = operation !== null || isPending || isSyncPending;
   const presentation = ALIMTALK_TYPE_PRESENTATION[template.type];
+  const idsChanged = (draftPfId !== undefined && draftPfId !== (savedTemplate.pfId ?? ""))
+    || (draftTemplateId !== undefined && draftTemplateId !== (savedTemplate.templateId ?? ""));
+  const syncDisabled = busy || idsChanged || !savedTemplate.pfId || !savedTemplate.templateId;
 
-  // 백그라운드 재조회는 편집 중인 초안을 덮어쓰지 않는다. 깨끗한 폼만 최신 값으로 맞춘다.
+  // 백그라운드 재조회는 승인 표시를 갱신하되 편집 중인 ID·사용 여부를 덮어쓰지 않는다.
   useEffect(() => {
-    if (hasDraftChanges.current) return;
     savedValues.current = toFormValues(template);
+    if (hasDraftChanges.current) return;
     form.setFieldsValue(savedValues.current);
   }, [form, template]);
 
@@ -69,159 +53,95 @@ export function AlimtalkTemplateCard({ template }: { template: AlimtalkTemplate 
     const draft = { ...savedValues.current, ...form.getFieldsValue(true) };
     return Object.entries(savedValues.current).some(([key, value]) => draft[key as keyof FormValues] !== value);
   }, [form]);
-  // Read the form store at navigation time, including an input immediately followed by a click.
-  // Keep this registration after saving so another edit in the same card is protected too.
   useUnsavedChanges(false, hasUnsavedInput);
 
-  function handleRemoteLookup() {
-    if (isRemoteFetching || saveInProgress.current || isPending) return;
-    if (remoteOpen) void refetchRemote();
-    else setRemoteOpen(true);
+  function finish() { operationInProgress.current = false; setOperation(null); }
+
+  function handleSync() {
+    // ID 저장 자체가 승인 정보를 가져오므로 입력 중인 ID의 중복 갱신을 막는다.
+    const draft = form.getFieldsValue(true);
+    if (busy || operationInProgress.current || draft.pfId !== (savedTemplate.pfId ?? "")
+      || draft.templateId !== (savedTemplate.templateId ?? "") || !savedTemplate.pfId || !savedTemplate.templateId) return;
+    operationInProgress.current = true;
+    setOperation("sync");
+    setSyncError(null);
+    sync(template.type, {
+      onSuccess: (saved) => {
+        savedValues.current = toFormValues(saved);
+        if (!hasDraftChanges.current) form.setFieldsValue(savedValues.current);
+        setSavedOverride({ source: template, value: saved });
+        finish();
+        notification.success({ title: `${presentation.label} 승인 정보를 갱신했습니다.` });
+      },
+      onError: (error) => { setSyncError(error); finish(); },
+    });
   }
 
   function handleSave() {
-    if (isPending || saveInProgress.current) return;
-    saveInProgress.current = true;
-    setValidating(true);
-    const finish = () => { saveInProgress.current = false; setValidating(false); };
+    if (busy || operationInProgress.current) return;
+    operationInProgress.current = true;
+    setOperation("save");
     form.validateFields().then((values) => {
-      update(
-        { type: template.type, body: values },
-        {
-          onSuccess: (saved) => {
-            finish();
-            hasDraftChanges.current = false;
-            savedValues.current = toFormValues(saved);
-            form.setFieldsValue(savedValues.current);
-            notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` });
-          },
-          onError: (error) => {
-            finish();
-            const problem = parseProblemDetail(error);
-            notification.error({ title: problem?.title ?? "저장 실패", description: problem?.detail });
-          },
+      update({ type: template.type, body: { pfId: values.pfId, templateId: values.templateId, enabled: values.enabled } }, {
+        onSuccess: (saved) => {
+          hasDraftChanges.current = false;
+          savedValues.current = toFormValues(saved);
+          form.setFieldsValue(savedValues.current);
+          setSavedOverride({ source: template, value: saved });
+          setSyncError(null);
+          finish();
+          notification.success({ title: `${presentation.label} 템플릿을 저장했습니다.` });
         },
-      );
-    })
-      // 폼이 오류를 그 자리에 표시하므로 여기서 더 할 일이 없다. 잡지 않으면 미처리 거부로 새어 나간다.
-      .catch(finish);
+        onError: (error) => {
+          finish();
+          const problem = parseProblemDetail(error);
+          notification.error({ title: problem?.title ?? "저장 실패", description: problem?.detail });
+        },
+      });
+    }).catch(finish);
   }
 
+  const syncButton = <Button loading={operation === "sync"} disabled={syncDisabled} onClick={handleSync}>승인 정보 갱신</Button>;
   return (
-    <Card
-      className={`admin-operation-card ${styles.templateCard}`}
+    <Card className={`admin-operation-card ${styles.templateCard}`}
       classNames={{ header: styles.header, title: styles.title, extra: styles.extra }}
-      title={
-        <div className={styles.headerIdentity}>
-          <h3 className={styles.heading}>{presentation.label}</h3>
-          <div className={styles.metadata}>
-            <span className={styles.typeCode}>{template.type}</span>
-            <Tag color={template.sendable ? "green" : "warning"}>{template.sendable ? "발송 가능" : "발송 불가"}</Tag>
-          </div>
+      title={<div className={styles.headerIdentity}>
+        <h3 className={styles.heading}>{presentation.label}</h3>
+        <div className={styles.metadata}><span className={styles.typeCode}>{template.type}</span>
+          <Tag color={savedTemplate.sendable ? "green" : "warning"}>{savedTemplate.sendable ? "발송 가능" : "발송 불가"}</Tag>
         </div>
-      }
-      extra={
-        <div className={`admin-cell-stack ${styles.headerActions}`}>
-          <RowActions subject={presentation.label}
-            primary={viewport === "mobile" ? null : <Button type="primary" loading={saving} disabled={saving} onClick={handleSave}>저장</Button>}
-            disabled={saving || isRemoteFetching}
-            items={[{ key: "remote", label: "승인 템플릿 조회", disabled: isRemoteFetching, onClick: handleRemoteLookup }]} />
-        </div>
-      }
+      </div>}
+      extra={<div className={`admin-cell-stack ${styles.headerActions}`}>
+        <RowActions subject={presentation.label}
+          primary={viewport === "mobile" ? null : <Button type="primary" loading={operation === "save"} disabled={busy} onClick={handleSave}>저장</Button>}
+          disabled={busy}
+          items={[{ key: "sync", label: "승인 정보 갱신", disabled: syncDisabled, onClick: handleSync }]} />
+      </div>}
     >
-      {!template.sendable && (
-        <Alert
-          className={styles.recoveryAlert}
-          classNames={{ actions: styles.alertActions }}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          title="이 종류는 지금 발송되지 않습니다"
-          description={<><span>켜짐 여부와 채널 ID·템플릿 ID·본문이 모두 채워져야 발송됩니다. 하나라도 비면 미리보기도 막힙니다.</span>
-            {viewport === "mobile" && <div className={styles.warningRecovery}><Button block loading={isRemoteFetching} disabled={saving || isRemoteFetching} onClick={handleRemoteLookup}>승인 템플릿 조회</Button></div>}</>}
-          action={viewport === "mobile" ? undefined : <Button loading={isRemoteFetching} disabled={saving || isRemoteFetching} onClick={handleRemoteLookup}>승인 템플릿 조회</Button>}
-        />
-      )}
-      <Form name={`alimtalk-template-${template.type}`} form={form} layout="vertical" disabled={saving} onValuesChange={() => { hasDraftChanges.current = true; }}>
+      {!savedTemplate.sendable && <Alert className={styles.recoveryAlert} classNames={{ actions: styles.alertActions }}
+        type="warning" showIcon style={{ marginBottom: 16 }} title="이 종류는 지금 발송되지 않습니다"
+        description={<><span>발송 사용을 켜고, 저장된 ID와 일치하는 승인 정보를 준비해야 합니다. ID를 저장하면 승인 정보를 함께 가져옵니다.</span>
+          {viewport === "mobile" && <div className={styles.warningRecovery}>{syncButton}</div>}</>}
+        action={viewport === "mobile" ? undefined : syncButton} />}
+      {idsChanged && <Alert type="info" showIcon style={{ marginBottom: 16 }} title="ID 변경 사항을 먼저 저장하세요"
+        description="저장할 때 새 ID의 승인 정보를 함께 가져옵니다. 입력 중인 ID로는 승인 정보를 갱신하지 않습니다." />}
+      {syncError != null && <Alert type="error" showIcon style={{ marginBottom: 16 }} title="승인 정보를 갱신하지 못했습니다."
+        description={parseProblemDetail(syncError)?.detail ?? "마지막으로 저장한 승인 정보를 표시하고 있습니다. 다시 갱신해 주세요."}
+        action={<Button disabled={syncDisabled} onClick={handleSync}>다시 갱신</Button>} />}
+      <Form name={`alimtalk-template-${template.type}`} form={form} layout="vertical" disabled={busy}
+        onValuesChange={() => { hasDraftChanges.current = hasUnsavedInput(); }}>
         <Form.Item label="발송 사용" name="enabled" valuePropName="checked">
           <Switch aria-label={`${presentation.label} 발송 사용`} checkedChildren="사용" unCheckedChildren="중지" />
         </Form.Item>
-        <Form.Item
-          label="채널 ID (pfId)"
-          name="pfId"
-          rules={[{ max: 64, message: "64자를 넘을 수 없습니다." }]}
-        >
-          <Input placeholder="KA01PF..." />
-        </Form.Item>
-        <Form.Item
-          label="템플릿 ID"
-          name="templateId"
-          rules={[{ max: 64, message: "64자를 넘을 수 없습니다." }]}
-        >
-          <Input placeholder="KA01TP..." />
-        </Form.Item>
-        <Form.Item
-          className={styles.bodyField}
-          label="본문 사본"
-          name="body"
-          extra="카카오 승인 본문과 같아야 합니다. 다르면 임대인 미리보기만 틀리고 실제 발송은 승인 본문으로 나갑니다."
-          rules={[{ max: 2000, message: "2000자를 넘을 수 없습니다." }]}
-        >
-          <Input.TextArea rows={6} maxLength={2000} showCount placeholder="#{세대정보} 임대료 #{납부액}원의 납부일입니다." />
-        </Form.Item>
+        <Form.Item label="채널 ID (pfId)" name="pfId" rules={[{ max: 64, message: "64자를 넘을 수 없습니다." }]}><Input placeholder="KA01PF..." /></Form.Item>
+        <Form.Item label="템플릿 ID" name="templateId" rules={[{ max: 64, message: "64자를 넘을 수 없습니다." }]}><Input placeholder="KA01TP..." /></Form.Item>
       </Form>
-      <Descriptions column={1} size="small" items={[
-        { key: "updatedAt", label: "수정일", children: formatSeconds(template.updatedAt) },
-      ]} />
-      {remoteOpen && <QueryErrorAlert error={remoteError} title="승인 템플릿을 불러오지 못했습니다."
-        onRetry={refetchRemote} isRetrying={isRemoteFetching} hasData={remote !== undefined} />}
-      {remoteOpen && remote && (
-        <Card size="small" type="inner" title="공급자 승인 템플릿" style={{ marginTop: 16 }}>
-          <Descriptions column={1} size="small" bordered items={[
-            { key: "name", label: "이름", children: remote.name },
-            { key: "status", label: "상태", children: remote.status },
-            { key: "variables", label: "변수", children: remote.variableNames.length === 0 ? (
-                "-"
-              ) : (
-                <Space wrap>
-                  {remote.variableNames.map((name) => (
-                    <Text code key={name}>
-                      {name}
-                    </Text>
-                  ))}
-                </Space>
-              ) },
-            { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
-          ]} />
-          <Alert
-            className={styles.recoveryAlert}
-            classNames={{ actions: styles.alertActions }}
-            type={remote.storedBodyMatches ? "success" : "warning"}
-            showIcon
-            style={{ marginTop: 12 }}
-            title={
-              remote.storedBodyMatches
-                ? "본문 사본이 승인 본문과 같습니다."
-                : "본문 사본이 승인 본문과 다릅니다 — 임대인 미리보기가 실제 발송과 어긋납니다."
-            }
-            description={viewport === "mobile" && !remote.storedBodyMatches ? (
-              <div className={styles.warningRecovery}>
-                <Button block disabled={saving} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
-                  승인 본문 가져오기
-                </Button>
-              </div>
-            ) : undefined}
-            action={
-              remote.storedBodyMatches || viewport === "mobile" ? undefined : (
-                <Button disabled={saving} onClick={() => { hasDraftChanges.current = true; form.setFieldsValue({ body: remote.content }); }}>
-                  승인 본문 가져오기
-                </Button>
-              )
-            }
-          />
-        </Card>
-      )}
-      {viewport === "mobile" && <div className={styles.saveBar}><Button type="primary" block aria-label={`${presentation.label} 변경 사항 저장`} loading={saving} disabled={saving} onClick={handleSave}>저장</Button></div>}
+      <Card size="small" type="inner" title="저장된 승인 템플릿" style={{ marginTop: 16, marginBottom: 16 }}>
+        {savedTemplate.syncRequired && <Alert type="warning" showIcon title="승인 정보 갱신이 필요합니다" style={{ marginBottom: 12 }} />}
+        <ApprovedAlimtalkDetails template={savedTemplate} />
+      </Card>
+      <Descriptions column={1} size="small" items={[{ key: "updatedAt", label: "수정일", children: formatSeconds(savedTemplate.updatedAt) }]} />
+      {viewport === "mobile" && <div className={styles.saveBar}><Button type="primary" block aria-label={`${presentation.label} 변경 사항 저장`} loading={operation === "save"} disabled={busy} onClick={handleSave}>저장</Button></div>}
     </Card>
   );
 }

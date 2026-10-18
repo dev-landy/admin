@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { App, Alert, Descriptions, Form, Input, Modal, Segmented, Space, Spin, Tag, Typography } from "antd";
 
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
-import { useRemoteAlimtalkTemplate, useSendTestAlimtalk } from "../hooks";
+import { useAlimtalkTemplates, useSendTestAlimtalk } from "../hooks";
+import { ApprovedAlimtalkDetails } from "./ApprovedAlimtalkDetails";
 import { ALIMTALK_STATUS_PRESENTATION, ALIMTALK_TYPE_OPTIONS } from "../presentation";
 import type { AlimtalkType, SendTestAlimtalkResponse } from "../types";
 
@@ -18,30 +19,36 @@ type Props = { open: boolean; onClose: () => void };
 /**
  * 운영자가 직접 입력한 번호와 변수값으로 실제 발송을 시도한다.
  *
- * <p>변수 입력칸은 요청 시점에 공급자에서 가져온 승인 템플릿으로 만든다. 보관 사본으로 만들면 승인 내용이 바뀐 뒤에도
- * 옛 변수 칸이 그대로 떠서 "테스트는 채웠는데 발송은 거절되는" 상태가 된다.
+ * <p>변수 입력칸과 표시 내용은 실제 발송과 같은 저장 승인 정보로 만든다.
  *
  * <p>실제로 과금되는 발송이며 세입자 발송 이력에는 남지 않는다.
  */
 export function AlimtalkTestSendModal({ open, onClose }: Props) {
   const { notification } = App.useApp();
   const [type, setType] = useState<AlimtalkType>("DUE");
+  const sendInProgress = useRef(false);
+  const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<SendTestAlimtalkResponse | null>(null);
   const [form] = Form.useForm<{ phone: string; variables: Record<string, string> }>();
-  const { data: remote, isFetching, error, refetch } = useRemoteAlimtalkTemplate(type, open);
+  const { data, isFetching, error, refetch } = useAlimtalkTemplates(open);
+  const template = data?.templates.find((item) => item.type === type);
+  const approved = template != null && !!template.pfId?.trim() && !!template.templateId?.trim() && !template.syncRequired && template.status === "APPROVED"
+    && template.content != null && template.content.trim().length > 0
+    && (template.form === "NONE" || (template.form === "TEXT" && !!template.title?.trim() && !!template.subtitle?.trim()));
   const { mutate: sendTest, isPending } = useSendTestAlimtalk();
 
-  const remoteProblem = parseProblemDetail(error);
+  const sending = isPending || validating;
+  const queryProblem = parseProblemDetail(error);
 
   function handleClose() {
-    if (isPending) return;
+    if (sending || sendInProgress.current) return;
     form.resetFields();
     setResult(null);
     onClose();
   }
 
   function handleTypeChange(next: AlimtalkType) {
-    if (isPending) return;
+    if (sending || sendInProgress.current) return;
     // 변수 이름은 종류마다 다르다. 남겨 두면 옛 종류의 값이 새 칸에 섞인다.
     form.resetFields(["variables"]);
     setResult(null);
@@ -49,12 +56,16 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
   }
 
   function handleOk() {
-    if (isPending || isFetching || error || !remote) return;
+    if (sending || sendInProgress.current || isFetching || error || !approved || !template) return;
+    sendInProgress.current = true;
+    setValidating(true);
+    const finish = () => { sendInProgress.current = false; setValidating(false); };
     form.validateFields().then((values) => {
       sendTest(
-        { type, phone: values.phone, variables: values.variables ?? {} },
+        { type, phone: values.phone, variables: Object.fromEntries(template.variableNames.map((name) => [name, values.variables?.[name] ?? ""])) },
         {
           onSuccess: (response) => {
+            finish();
             setResult(response);
             const feedback = response.status === "FAILED" || response.status === "UNKNOWN" ? notification.warning : notification.success;
             feedback({
@@ -63,6 +74,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
             });
           },
           onError: (sendError) => {
+            finish();
             const problem = parseProblemDetail(sendError);
             notification.error({ title: problem?.title ?? "테스트 발송 실패", description: problem?.detail });
           },
@@ -70,7 +82,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
       );
     })
       // 폼이 오류를 그 자리에 표시하므로 여기서 더 할 일이 없다. 잡지 않으면 미처리 거부로 새어 나간다.
-      .catch(() => undefined);
+      .catch(finish);
   }
 
   return (
@@ -81,13 +93,15 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
       onCancel={handleClose}
       okText="발송"
       cancelText="닫기"
-      okButtonProps={{ disabled: !remote || isFetching || !!error || isPending }}
-      cancelButtonProps={{ disabled: isPending }}
-      closable={!isPending}
-      mask={{ closable: !isPending }}
-      keyboard={!isPending}
-      confirmLoading={isPending}
-      width={560}
+      okButtonProps={{ disabled: !approved || isFetching || !!error || sending }}
+      cancelButtonProps={{ disabled: sending }}
+      closable={!sending}
+      mask={{ closable: !sending }}
+      keyboard={!sending}
+      confirmLoading={sending}
+      width={640}
+      style={{ top: 24 }}
+      styles={{ body: { maxHeight: "calc(100dvh - 200px)", overflowY: "auto", paddingInlineEnd: 4 } }}
       destroyOnHidden
     >
       <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
@@ -99,22 +113,22 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
         />
         <Segmented
           block
-          disabled={isPending}
+          disabled={sending}
           value={type}
           onChange={(value) => handleTypeChange(value as AlimtalkType)}
           options={ALIMTALK_TYPE_OPTIONS}
         />
         {isFetching && <Spin />}
         {error && (
-          <QueryErrorAlert error={error} title={remoteProblem?.title ?? "승인 템플릿을 불러오지 못했습니다."} onRetry={refetch} isRetrying={isFetching} hasData={remote !== undefined} />
+          <QueryErrorAlert error={error} title={queryProblem?.title ?? "승인 템플릿을 불러오지 못했습니다."} onRetry={refetch} isRetrying={isFetching} hasData={data !== undefined} />
         )}
-        {remote && (
+        {!isFetching && !error && !approved && <Alert type="warning" showIcon
+          title="저장된 승인 정보가 필요합니다"
+          description="템플릿 설정에서 ID를 저장하거나 승인 정보를 갱신한 뒤 테스트 발송을 다시 열어 주세요." />}
+        {template?.content != null && <ApprovedAlimtalkDetails template={template} />}
+        {approved && template && (
           <>
-            <Descriptions column={1} size="small" bordered items={[
-              { key: "name", label: "템플릿", children: remote.name },
-              { key: "content", label: "승인 본문", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{remote.content}</Paragraph> },
-            ]} />
-            <Form name="alimtalk-test-send" form={form} layout="vertical" disabled={isPending}>
+            <Form name="alimtalk-test-send" form={form} layout="vertical" disabled={sending}>
               <Form.Item
                 label="수신 번호"
                 name="phone"
@@ -125,7 +139,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
               >
                 <Input type="tel" autoComplete="tel" placeholder="010-1234-5678" />
               </Form.Item>
-              {remote.variableNames.map((name) => (
+              {template.variableNames.map((name) => (
                 <Form.Item
                   key={name}
                   label={<Text code>{name}</Text>}
@@ -145,6 +159,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
               </Tag> },
             { key: "messageId", label: "메시지 ID", children: result.messageId ? <Text code copyable>{result.messageId}</Text> : "-" },
             { key: "providerCode", label: "결과 코드", children: result.providerCode ?? "-" },
+            ...(result.renderedTitle ? [{ key: "title", label: "채워진 제목", children: result.renderedTitle }] : []),
             { key: "content", label: "채워진 내용", children: <Paragraph style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}>{result.renderedContent}</Paragraph> },
           ]} />
         )}

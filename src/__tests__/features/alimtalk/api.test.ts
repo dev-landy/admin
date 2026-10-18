@@ -1,7 +1,7 @@
 import {
   fetchAlimtalkTemplates,
   fetchAlimtalks,
-  fetchRemoteAlimtalkTemplate,
+  syncAlimtalkTemplate,
   resolveAlimtalk,
   sendTestAlimtalk,
   updateAlimtalkTemplate,
@@ -53,12 +53,12 @@ test("보낸 항목만 담아 템플릿을 부분 수정한다", async () => {
   expect(mockPatch).toHaveBeenCalledWith("/v1/admin/alimtalks/templates/DUE", { enabled: true });
 });
 
-test("승인 템플릿은 종류별 원격 경로에서 가져온다", async () => {
-  mockGet.mockResolvedValue({ data: { type: "OVERDUE", variableNames: [] } });
+test("승인 정보 갱신은 요청 본문 없이 저장된 종류의 sync 경로로 보낸다", async () => {
+  mockPost.mockResolvedValue({ data: { type: "OVERDUE", content: "승인 본문" } });
 
-  await fetchRemoteAlimtalkTemplate("OVERDUE");
+  await expect(syncAlimtalkTemplate("OVERDUE")).resolves.toEqual({ type: "OVERDUE", content: "승인 본문" });
 
-  expect(mockGet).toHaveBeenCalledWith("/v1/admin/alimtalks/templates/OVERDUE/remote");
+  expect(mockPost).toHaveBeenCalledWith("/v1/admin/alimtalks/templates/OVERDUE/sync");
 });
 
 test("테스트 발송은 번호와 변수값을 그대로 보낸다", async () => {
@@ -80,4 +80,13 @@ test("미결 종결은 발송 ID와 확인한 결과를 resolution 경로로 보
 
   await expect(resolveAlimtalk(51, body)).resolves.toEqual(response);
   expect(mockPatch).toHaveBeenCalledWith("/v1/admin/alimtalks/51/resolution", body);
+});
+
+test("이전 본문과 승인 metadata가 런타임에 섞여도 PATCH에는 설정 필드만 보낸다", async () => {
+  mockPatch.mockResolvedValue({ data: { type: "DUE" } });
+  const legacy = { pfId: "channel", templateId: "template", enabled: true, body: "수동 문구", title: "수동 제목" };
+  await updateAlimtalkTemplate("DUE", legacy);
+  expect(mockPatch).toHaveBeenCalledWith("/v1/admin/alimtalks/templates/DUE", {
+    pfId: "channel", templateId: "template", enabled: true,
+  });
 });

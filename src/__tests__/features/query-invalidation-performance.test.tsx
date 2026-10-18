@@ -1,17 +1,25 @@
-import { act, renderHook } from "@testing-library/react";
+import "@/test-utils/antd";
+
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { App, ConfigProvider } from "antd";
 
 import { deleteUser, updateUserRole } from "@/features/users/api";
 import { userKeys, useDeleteUser, useUpdateUserRole } from "@/features/users/hooks";
 import { updateTenant } from "@/features/tenants/api";
 import { tenantKeys, useUpdateTenant } from "@/features/tenants/hooks";
-import { updateAlimtalkTemplate } from "@/features/alimtalk/api";
-import { alimtalkKeys, useUpdateAlimtalkTemplate } from "@/features/alimtalk/hooks";
+import { fetchAlimtalkTemplates, sendTestAlimtalk, updateAlimtalkTemplate, syncAlimtalkTemplate } from "@/features/alimtalk/api";
+import { alimtalkKeys, useUpdateAlimtalkTemplate, useSyncAlimtalkTemplate } from "@/features/alimtalk/hooks";
+import { AlimtalkTestSendModal } from "@/features/alimtalk/components/AlimtalkTestSendModal";
 
 jest.mock("@/features/users/api", () => ({ deleteUser: jest.fn(), updateUserRole: jest.fn() }));
 jest.mock("@/features/tenants/api", () => ({ updateTenant: jest.fn() }));
-jest.mock("@/features/alimtalk/api", () => ({ updateAlimtalkTemplate: jest.fn() }));
+jest.mock("@/features/alimtalk/api", () => ({
+  fetchAlimtalkTemplates: jest.fn(), sendTestAlimtalk: jest.fn(),
+  updateAlimtalkTemplate: jest.fn(), syncAlimtalkTemplate: jest.fn(),
+}));
+import { approvedAlimtalkTemplate as template } from "@/test-utils/alimtalk";
 
 test("권한·임차인 변경은 영향받은 상세와 목록을 한 번씩 재조회하고 비활성 캐시도 무효화한다", async () => {
   jest.mocked(updateUserRole).mockResolvedValue({ userId: 1, role: "ADMIN" });
@@ -54,26 +62,64 @@ test("권한·임차인 변경은 영향받은 상세와 목록을 한 번씩 �
   }
 });
 
-test("알림톡 템플릿 저장은 활성 승인 템플릿을 한 번만 재조회한다", async () => {
-  jest.mocked(updateAlimtalkTemplate).mockResolvedValue({ type: "DUE", pfId: "channel", templateId: "template", body: "납부일 안내", enabled: true, sendable: true, updatedAt: "2026-10-04T12:00:00" });
+test.each(["save", "sync"] as const)("알림톡 %s는 반환 승인 정보를 같은 캐시에 반영하고 활성 목록을 한 번 재조회한다", async (operation) => {
+  const saved = { ...template, title: "갱신된 제목" };
+  jest.mocked(updateAlimtalkTemplate).mockResolvedValue(saved);
+  jest.mocked(syncAlimtalkTemplate).mockResolvedValue(saved);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  const fetchRemote = jest.fn(async () => ({ refreshed: true }));
+  const fetchTemplates = jest.fn(async () => ({ templates: [saved] }));
   const observer = new QueryObserver(client, {
-    queryKey: alimtalkKeys.remoteTemplate("DUE"), queryFn: fetchRemote, initialData: { refreshed: false },
+    queryKey: alimtalkKeys.templates, queryFn: fetchTemplates, initialData: { templates: [template] },
   });
   const unsubscribe = observer.subscribe(() => {});
-  client.setQueryData(alimtalkKeys.templates, { refreshed: false });
-  const hook = renderHook(() => useUpdateAlimtalkTemplate(), { wrapper });
+  client.setQueryData(alimtalkKeys.list({ userId: 1 }), { unchanged: true });
+  const hook = renderHook(() => ({ save: useUpdateAlimtalkTemplate(), sync: useSyncAlimtalkTemplate() }), { wrapper });
+  try {
+    await act(() => operation === "save"
+      ? hook.result.current.save.mutateAsync({ type: "DUE", body: { enabled: true } })
+      : hook.result.current.sync.mutateAsync("DUE"));
+    expect(fetchTemplates).toHaveBeenCalledTimes(1);
+    expect(client.getQueryData(alimtalkKeys.templates)).toEqual({ templates: [saved] });
+    expect(client.getQueryState(alimtalkKeys.list({ userId: 1 }))?.isInvalidated).toBe(false);
+  } finally {
+    hook.unmount(); unsubscribe(); client.clear();
+  }
+});
+
+test("same-ID 갱신 400 뒤 무효화된 승인 정보를 재조회하고 열려 있는 테스트 발송을 차단한다", async () => {
+  const invalidated = {
+    ...template, sendable: false, syncRequired: true, form: null, content: null, title: null,
+    subtitle: null, status: null, variableNames: [], buttons: [], quickReplies: [],
+  };
+  const failure = Object.assign(new Error("Unsupported template form"), { response: { status: 400 } });
+  jest.mocked(syncAlimtalkTemplate).mockRejectedValueOnce(failure);
+  jest.mocked(fetchAlimtalkTemplates).mockResolvedValueOnce({ templates: [invalidated] });
+  jest.mocked(fetchAlimtalkTemplates).mockClear();
+  jest.mocked(sendTestAlimtalk).mockClear();
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
+  });
+  client.setQueryData(alimtalkKeys.templates, { templates: [template] });
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const hook = renderHook(() => useSyncAlimtalkTemplate(), { wrapper });
+  const modal = render(<ConfigProvider theme={{ token: { motion: false } }}><App>
+    <AlimtalkTestSendModal open onClose={jest.fn()} />
+  </App></ConfigProvider>, { wrapper });
 
   try {
-    await act(() => hook.result.current.mutateAsync({ type: "DUE", body: { body: "납부일 안내" } }));
-    expect(fetchRemote).toHaveBeenCalledTimes(1);
-    expect(client.getQueryState(alimtalkKeys.templates)?.isInvalidated).toBe(true);
+    expect(screen.getByRole("button", { name: "발송" })).toBeEnabled();
+    await act(async () => {
+      await expect(hook.result.current.mutateAsync("DUE")).rejects.toBe(failure);
+    });
+    expect(fetchAlimtalkTemplates).toHaveBeenCalledTimes(1);
+    expect(client.getQueryData(alimtalkKeys.templates)).toEqual({ templates: [invalidated] });
+    await waitFor(() => expect(screen.getByRole("button", { name: "발송" })).toBeDisabled());
+    expect(screen.getByText("저장된 승인 정보가 필요합니다")).toBeInTheDocument();
+    expect(screen.queryByText(template.content!)).not.toBeInTheDocument();
+    expect(sendTestAlimtalk).not.toHaveBeenCalled();
   } finally {
-    hook.unmount();
-    unsubscribe();
-    client.clear();
+    modal.unmount(); hook.unmount(); client.clear();
   }
 });
 
@@ -87,7 +133,7 @@ test("유저 삭제는 함께 삭제된 도메인 캐시를 무효화하고 공�
     ["notifications", "list"], ["notifications", "outbox"], ["contract-documents", "list"],
     ["contract-documents", "document-1", "files"], alimtalkKeys.list({ userId: 1 }),
   ];
-  const independentKeys = [alimtalkKeys.templates, alimtalkKeys.remoteTemplate("DUE"), ["release-policies"], ["batch", "schedules"]];
+  const independentKeys = [alimtalkKeys.templates, ["release-policies"], ["batch", "schedules"]];
   for (const key of [...affectedKeys, ...independentKeys]) client.setQueryData(key, { before: true });
   const hook = renderHook(() => useDeleteUser(), { wrapper });
 

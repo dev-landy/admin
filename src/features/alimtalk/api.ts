@@ -6,7 +6,6 @@ import type {
   AlimtalkTemplatesResponse,
   AlimtalkType,
   AlimtalkSummary,
-  RemoteAlimtalkTemplate,
   ResolveAlimtalkRequest,
   SendTestAlimtalkRequest,
   SendTestAlimtalkResponse,
@@ -38,14 +37,20 @@ export async function updateAlimtalkTemplate(
   type: AlimtalkType,
   body: UpdateAlimtalkTemplateRequest,
 ): Promise<AlimtalkTemplate> {
-  const { data } = await apiClient.patch<AlimtalkTemplate>(`/v1/admin/alimtalks/templates/${type}`, body);
+  const { pfId, templateId, enabled } = body;
+  const request = {
+    ...(pfId !== undefined ? { pfId } : {}),
+    ...(templateId !== undefined ? { templateId } : {}),
+    ...(enabled !== undefined ? { enabled } : {}),
+  };
+  const { data } = await apiClient.patch<AlimtalkTemplate>(`/v1/admin/alimtalks/templates/${type}`, request);
   return data;
 }
 
-/** 공급자 왕복이라 느리고 실패할 수 있다. 화면 진입만으로 부르지 않고 요청이 있을 때만 부른다. */
-export async function fetchRemoteAlimtalkTemplate(type: AlimtalkType): Promise<RemoteAlimtalkTemplate> {
-  const { data } = await apiClient.get<RemoteAlimtalkTemplate>(
-    `/v1/admin/alimtalks/templates/${type}/remote`,
+/** 저장된 ID의 승인 정보를 명시적으로 갱신한다. 요청 본문은 없다. */
+export async function syncAlimtalkTemplate(type: AlimtalkType): Promise<AlimtalkTemplate> {
+  const { data } = await apiClient.post<AlimtalkTemplate>(
+    `/v1/admin/alimtalks/templates/${type}/sync`,
   );
   return data;
 }

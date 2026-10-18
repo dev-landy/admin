@@ -4,7 +4,7 @@ import { OPERATIONAL_QUERY_OPTIONS } from "@/lib/query/query-policy";
 import {
   fetchAlimtalkTemplates,
   fetchAlimtalks,
-  fetchRemoteAlimtalkTemplate,
+  syncAlimtalkTemplate,
   resolveAlimtalk,
   sendTestAlimtalk,
   updateAlimtalkTemplate,
@@ -12,6 +12,8 @@ import {
 import type {
   AlimtalksListParams,
   AlimtalkType,
+  AlimtalkTemplate,
+  AlimtalkTemplatesResponse,
   ResolveAlimtalkRequest,
   SendTestAlimtalkRequest,
   UpdateAlimtalkTemplateRequest,
@@ -21,7 +23,6 @@ export const alimtalkKeys = {
   all: ["alimtalks"] as const,
   list: (p: AlimtalksListParams) => ["alimtalks", "list", p] as const,
   templates: ["alimtalks", "templates"] as const,
-  remoteTemplate: (type: AlimtalkType) => ["alimtalks", "templates", type, "remote"] as const,
 };
 
 export function useAlimtalks(params: AlimtalksListParams) {
@@ -38,8 +39,13 @@ export function useResolveAlimtalk() {
   });
 }
 
-export function useAlimtalkTemplates() {
-  return useQuery({ queryKey: alimtalkKeys.templates, queryFn: fetchAlimtalkTemplates });
+export function useAlimtalkTemplates(enabled = true) {
+  return useQuery({ queryKey: alimtalkKeys.templates, queryFn: fetchAlimtalkTemplates, enabled });
+}
+
+function replaceTemplate(current: AlimtalkTemplatesResponse | undefined, saved: AlimtalkTemplate) {
+  if (!current) return undefined;
+  return { templates: current.templates.map((template) => template.type === saved.type ? saved : template) };
 }
 
 export function useUpdateAlimtalkTemplate() {
@@ -47,24 +53,22 @@ export function useUpdateAlimtalkTemplate() {
   return useMutation({
     mutationFn: ({ type, body }: { type: AlimtalkType; body: UpdateAlimtalkTemplateRequest }) =>
       updateAlimtalkTemplate(type, body),
-    onSuccess: () => {
-      // 승인 템플릿 키도 이 접두사에 포함되어 저장 후 일치 여부를 다시 조회한다.
-      qc.invalidateQueries({ queryKey: alimtalkKeys.templates });
+    onSuccess: (saved) => {
+      qc.setQueryData<AlimtalkTemplatesResponse>(alimtalkKeys.templates, (current) => replaceTemplate(current, saved));
+      return qc.invalidateQueries({ queryKey: alimtalkKeys.templates });
     },
   });
 }
 
-/**
- * 승인 템플릿은 공급자에서 요청 시점에 가져온다. `enabled`가 켜졌을 때만 조회해 화면 진입마다
- * 외부 왕복이 일어나지 않게 한다.
- */
-export function useRemoteAlimtalkTemplate(type: AlimtalkType, enabled: boolean) {
-  return useQuery({
-    queryKey: alimtalkKeys.remoteTemplate(type),
-    queryFn: () => fetchRemoteAlimtalkTemplate(type),
-    enabled,
-    retry: false,
-    staleTime: 0,
+export function useSyncAlimtalkTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (type: AlimtalkType) => syncAlimtalkTemplate(type),
+    onSuccess: (saved) => {
+      qc.setQueryData<AlimtalkTemplatesResponse>(alimtalkKeys.templates, (current) => replaceTemplate(current, saved));
+    },
+    // 미지원 형태로 확정되면 실패 응답이어도 서버의 기존 승인 정보가 무효화될 수 있다.
+    onSettled: () => qc.invalidateQueries({ queryKey: alimtalkKeys.templates }),
   });
 }
 

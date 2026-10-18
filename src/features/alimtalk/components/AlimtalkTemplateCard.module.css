@@ -21,11 +21,6 @@
 .headerActions :global(.admin-row-actions) { flex-wrap: wrap; justify-content: flex-end; }
 .alertActions :global(.ant-btn) { min-height: 36px; }
 
-/* Ant Design paints showCount one line below the textarea, outside its height. */
-.bodyField :global(.ant-form-item-control-input-content) {
-  padding-block-end: calc(1lh + 8px);
-}
-
 .saveBar {
   position: sticky;
   bottom: 0;

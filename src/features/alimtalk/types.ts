@@ -67,7 +67,7 @@ export type AlimtalksListResponse = {
   totalElements: number;
 };
 
-/** `sendable`은 켜져 있고 채널·템플릿·본문이 모두 채워졌는지다. 하나라도 비면 발송이 막힌다. */
+/** 설정 ID와 일치하는 승인 정보를 보관한다. 발송과 미리보기는 같은 저장 정보를 사용한다. */
 export type AlimtalkTemplate = {
   type: AlimtalkType;
   pfId: string | null;
@@ -76,32 +76,28 @@ export type AlimtalkTemplate = {
   enabled: boolean;
   sendable: boolean;
   updatedAt: string;
+  form: "NONE" | "TEXT" | null;
+  content: string | null;
+  title: string | null;
+  subtitle: string | null;
+  extra: string | null;
+  ad: string | null;
+  variableNames: string[];
+  status: string | null;
+  syncedAt: string | null;
+  messageType: string | null;
+  buttons: Record<string, unknown>[];
+  quickReplies: Record<string, unknown>[];
+  syncRequired: boolean;
 };
 
 export type AlimtalkTemplatesResponse = { templates: AlimtalkTemplate[] };
 
-/** 생략한 값은 서버가 유지한다. 채널만 바꾸려고 본문을 다시 붙여넣지 않아도 된다. */
+/** ID를 바꾸면 서버가 승인 정보를 함께 가져온다. 승인 문구는 직접 수정하지 않는다. */
 export type UpdateAlimtalkTemplateRequest = {
   pfId?: string;
   templateId?: string;
-  body?: string;
   enabled?: boolean;
-};
-
-/**
- * 공급자에 등록된 승인 템플릿의 요청 시점 내용이다.
- *
- * <p>`storedBodyMatches`가 false면 우리가 보관한 본문 사본이 승인 본문과 어긋났다는 뜻이고,
- * 임대인 미리보기만 틀리고 실제 발송은 승인 본문으로 나간다.
- */
-export type RemoteAlimtalkTemplate = {
-  type: AlimtalkType;
-  templateId: string;
-  name: string;
-  status: string;
-  content: string;
-  variableNames: string[];
-  storedBodyMatches: boolean;
 };
 
 export type SendTestAlimtalkRequest = {
@@ -116,4 +112,5 @@ export type SendTestAlimtalkResponse = {
   messageId: string | null;
   providerCode: string | null;
   renderedContent: string;
+  renderedTitle?: string | null;
 };

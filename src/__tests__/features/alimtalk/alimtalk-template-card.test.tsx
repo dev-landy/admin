@@ -1,116 +1,78 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-
+import "@/test-utils/antd";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { App } from "antd";
 import { AlimtalkTemplateCard } from "@/features/alimtalk/components/AlimtalkTemplateCard";
-import type { AlimtalkTemplate, RemoteAlimtalkTemplate } from "@/features/alimtalk/types";
-
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
-
-const APPROVED_BODY = "#{세대정보} 임대료 #{납부액}원의 납부일입니다.";
-
-const template: AlimtalkTemplate = {
-  type: "DUE",
-  pfId: "KA01PF",
-  templateId: "KA01TP",
-  body: "예전 문구입니다.",
-  enabled: true,
-  sendable: true,
-  updatedAt: "2026-09-18T08:20:11.123456",
-};
-
-const remote: RemoteAlimtalkTemplate = {
-  type: "DUE",
-  templateId: "KA01TP",
-  name: "납부일 안내",
-  status: "APPROVED",
-  content: APPROVED_BODY,
-  variableNames: ["#{세대정보}", "#{납부액}"],
-  storedBodyMatches: false,
-};
+import { approvedAlimtalkTemplate as template } from "@/test-utils/alimtalk";
 
 const mockUpdate = jest.fn();
-let remoteEnabledCalls: boolean[] = [];
-
+const mockSync = jest.fn();
 jest.mock("@/features/alimtalk/hooks", () => ({
   useUpdateAlimtalkTemplate: () => ({ mutate: mockUpdate, isPending: false }),
-  useRemoteAlimtalkTemplate: (_type: string, enabled: boolean) => {
-    remoteEnabledCalls.push(enabled);
-    return { data: enabled ? remote : undefined, isFetching: false, error: null };
-  },
+  useSyncAlimtalkTemplate: () => ({ mutate: mockSync, isPending: false }),
 }));
-
-beforeEach(() => {
-  mockUpdate.mockReset();
-  remoteEnabledCalls = [];
-});
-
-test("화면 진입만으로는 공급자 승인 템플릿을 부르지 않는다", () => {
-  render(<AlimtalkTemplateCard template={template} />);
-
-  expect(remoteEnabledCalls.every((enabled) => !enabled)).toBe(true);
-  expect(screen.queryByText("공급자 승인 템플릿")).not.toBeInTheDocument();
-});
-
-test("본문 사본이 승인 본문과 다르면 경고하고 가져올 수 있게 한다", async () => {
-  render(<AlimtalkTemplateCard template={template} />);
-
+beforeEach(() => { jest.clearAllMocks(); mockUpdate.mockReset(); mockSync.mockReset(); });
+function tree(target = template) { return <App><AlimtalkTemplateCard template={target} /></App>; }
+async function syncMenu() {
   fireEvent.click(screen.getByRole("button", { name: "납부일 안내 더보기" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: "승인 템플릿 조회" }));
+  return screen.findByRole("menuitem", { name: "승인 정보 갱신" });
+}
 
-  await screen.findByText(
-    "본문 사본이 승인 본문과 다릅니다 — 임대인 미리보기가 실제 발송과 어긋납니다.",
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: "승인 본문 가져오기" }));
-  expect(screen.getByLabelText("본문 사본")).toHaveValue(APPROVED_BODY);
+test("저장된 승인 본문·강조 정보와 상태를 읽기 전용으로 표시하며 자동 갱신하지 않는다", () => {
+  render(tree());
+  expect(screen.getByText(template.content!)).toBeInTheDocument();
+  expect(screen.getByText(template.title!)).toBeInTheDocument();
+  expect(screen.getByText(template.subtitle!)).toBeInTheDocument();
+  expect(screen.getByText("강조형 (TEXT)")).toBeInTheDocument();
+  expect(screen.getByText("APPROVED")).toBeInTheDocument();
+  expect(screen.getByText("부가 안내")).toBeInTheDocument();
+  expect(screen.queryByRole("textbox", { name: /본문/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "승인 본문 가져오기" })).not.toBeInTheDocument();
+  expect(mockSync).not.toHaveBeenCalled();
 });
 
-test("저장은 채널·템플릿·본문·사용 여부를 함께 보낸다", async () => {
-  render(<AlimtalkTemplateCard template={template} />);
-
-  fireEvent.change(screen.getByLabelText("채널 ID (pfId)"), { target: { value: "KA01PF_NEW" } });
+test("저장은 ID·사용 여부만 보내고 반환된 승인 정보를 곧바로 표시한다", async () => {
+  mockUpdate.mockImplementation((_request, options) => options.onSuccess({ ...template, pfId: "new-channel", content: "새 승인 본문", title: "새 승인 제목" }));
+  render(tree());
+  fireEvent.change(screen.getByLabelText("채널 ID (pfId)"), { target: { value: "new-channel" } });
   fireEvent.click(screen.getByRole("button", { name: "저장" }));
-
-  await waitFor(() => {
-    expect(mockUpdate).toHaveBeenCalledWith(
-      {
-        type: "DUE",
-        body: {
-          pfId: "KA01PF_NEW",
-          templateId: "KA01TP",
-          body: "예전 문구입니다.",
-          enabled: true,
-        },
-      },
-      expect.any(Object),
-    );
-  });
+  await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith({ type: "DUE", body: {
+    pfId: "new-channel", templateId: "template", enabled: true,
+  } }, expect.any(Object)));
+  expect(screen.getByText("새 승인 본문")).toBeInTheDocument();
+  expect(screen.getByText("새 승인 제목")).toBeInTheDocument();
+  expect(mockSync).not.toHaveBeenCalled();
 });
 
-test("발송 불가 상태는 이유와 복구 조회를 직접 제공하며 조회 전에는 공급자를 부르지 않는다", async () => {
-  render(<AlimtalkTemplateCard template={{ ...template, sendable: false, enabled: false }} />);
+test("ID 초안은 저장을 안내하고 저장 전 갱신을 막는다", async () => {
+  render(tree());
+  fireEvent.change(screen.getByLabelText("템플릿 ID"), { target: { value: "new-template" } });
+  expect(await screen.findByText("ID 변경 사항을 먼저 저장하세요")).toBeInTheDocument();
+  const menu = await syncMenu();
+  expect(menu).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(menu);
+  expect(mockSync).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("템플릿 ID")).toHaveValue("new-template");
+});
 
-  expect(screen.getByText("이 종류는 지금 발송되지 않습니다")).toBeInTheDocument();
-  expect(screen.getByText("발송 불가")).toBeInTheDocument();
-  expect(remoteEnabledCalls.every((value) => !value)).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "승인 템플릿 조회" }));
-  expect(await screen.findByText("공급자 승인 템플릿")).toBeInTheDocument();
+test("저장된 ID의 갱신 성공은 승인 metadata를 교체한다", async () => {
+  mockSync.mockImplementation((_type, options) => options.onSuccess({ ...template, title: "갱신된 제목", content: "갱신된 본문" }));
+  render(tree());
+  fireEvent.click(await syncMenu());
+  await screen.findByText("갱신된 제목");
+  expect(screen.getByText("갱신된 본문")).toBeInTheDocument();
+  expect(mockSync).toHaveBeenCalledWith("DUE", expect.any(Object));
   expect(mockUpdate).not.toHaveBeenCalled();
+});
+
+test("갱신 중 중복 요청을 막고 실패 뒤 기존 승인 정보를 보존하며 재시도한다", async () => {
+  render(tree({ ...template, sendable: false }));
+  const sync = screen.getByRole("button", { name: "승인 정보 갱신" });
+  fireEvent.click(sync);
+  fireEvent.click(sync);
+  expect(mockSync).toHaveBeenCalledTimes(1);
+  expect(sync).toBeDisabled();
+  await act(async () => { mockSync.mock.calls[0][1].onError(new Error("network")); });
+  expect(screen.getByText(template.content!)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "다시 갱신" }));
+  expect(mockSync).toHaveBeenCalledTimes(2);
 });
