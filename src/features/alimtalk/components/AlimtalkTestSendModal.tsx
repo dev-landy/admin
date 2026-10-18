@@ -42,7 +42,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
 
   function handleClose() {
     if (sending || sendInProgress.current) return;
-    form.resetFields();
+    if (approved && template) form.resetFields();
     setResult(null);
     onClose();
   }
@@ -50,7 +50,7 @@ export function AlimtalkTestSendModal({ open, onClose }: Props) {
   function handleTypeChange(next: AlimtalkType) {
     if (sending || sendInProgress.current) return;
     // 변수 이름은 종류마다 다르다. 남겨 두면 옛 종류의 값이 새 칸에 섞인다.
-    form.resetFields(["variables"]);
+    if (approved && template) form.resetFields(["variables"]);
     setResult(null);
     setType(next);
   }
