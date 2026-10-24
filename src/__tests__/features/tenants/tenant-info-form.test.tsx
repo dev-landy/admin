@@ -857,3 +857,59 @@ test("날짜 지우기 버튼은 값이 처음 있거나 입력 후 생겨도 Ta
   });
   expect(within(endPicker).getByRole("button")).toHaveAttribute("tabindex", "-1");
 });
+
+test.each(["Enter", "Tab", "blur"] as const)("축약 날짜를 %s로 확정하고 두 자리 연도를 항상 2000년대로 저장한다", async (commit) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ startDate: null, endDate: null, paymentDay: null }} />);
+  for (const [label, text, expected] of [
+    ["계약 시작일", "261106", "2026-11-06"],
+    ["계약 종료일", "691106", "2069-11-06"],
+  ]) {
+    const input = screen.getByLabelText(label);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: text } });
+    if (commit === "blur") fireEvent.blur(input);
+    else fireEvent.keyDown(input, { key: commit, code: commit });
+    await waitFor(() => expect(input).toHaveValue(expected));
+  }
+  expect(screen.getByLabelText("납부일")).toHaveValue("6");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    startDate: "2026-11-06", endDate: "2069-11-06", paymentDay: 6,
+  });
+});
+
+test("존재하지 않는 축약 날짜는 반영하지 않고 2000년과 2099년 경계를 엄격히 파싱한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  const input = screen.getByLabelText("계약 시작일");
+  for (const text of ["260229", "260230", "261301", "26110"]) {
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    fireEvent.blur(input);
+    await waitFor(() => expect(input).toHaveValue("2026-09-01"));
+  }
+  for (const [label, text, expected] of [["계약 시작일", "000229", "2000-02-29"], ["계약 종료일", "991231", "2099-12-31"]]) {
+    const dateInput = screen.getByLabelText(label);
+    fireEvent.change(dateInput, { target: { value: text } });
+    fireEvent.blur(dateInput);
+    await waitFor(() => expect(dateInput).toHaveValue(expected));
+  }
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({ startDate: "2000-02-29", endDate: "2099-12-31" });
+});
+
+test("축약 시작일 blur 직후 기간 칩을 누르면 최신 입력 날짜에서 계산한다", async () => {
+  render(<TestForm onFinish={jest.fn()} />);
+  const input = screen.getByLabelText("계약 시작일");
+  await commitDateEvent(() => {
+    fireEvent.change(input, { target: { value: "261106" } });
+    fireEvent.blur(input);
+    fireEvent.click(screen.getByRole("button", { name: "2년" }));
+  });
+  expect(input).toHaveValue("2026-11-06");
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-11-05");
+});

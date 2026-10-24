@@ -3,6 +3,16 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 
 dayjs.extend(customParseFormat);
 
+export const TENANT_DATE_INPUT_FORMATS = ["YYYY-MM-DD", "YYYYMMDD", "YYMMDD"];
+
+/** 계약의 두 자리 연도는 항상 2000~2099년으로 해석한다. */
+export function parseDateInput(text: string, formats: readonly string[]): Dayjs {
+  if (formats.includes("YYMMDD") && /^\d{6}$/.test(text)) {
+    return dayjs(`20${text}`, "YYYYMMDD", true);
+  }
+  return dayjs(text, [...formats], true);
+}
+
 /** Picker의 지연된 blur 알림 전에 다음 클릭이 확정된 입력을 사용할 수 있게 한다. */
 export function commitDateInput(
   target: EventTarget | null,
@@ -12,7 +22,7 @@ export function commitDateInput(
 ) {
   if (!(target instanceof HTMLInputElement) || target.disabled || target.readOnly) return;
   const text = target.value.trim();
-  const next = text ? dayjs(text, [...formats], true) : null;
+  const next = text ? parseDateInput(text, formats) : null;
   if (next && !next.isValid()) return;
   if ((!next && !current) || (next && dayjs.isDayjs(current) && current.isSame(next, "day"))) return;
   onCommit(next);

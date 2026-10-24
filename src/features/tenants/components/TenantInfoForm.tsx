@@ -17,12 +17,28 @@ import {
 import type { DatePickerProps, FormInstance, InputNumberProps, InputProps } from "antd";
 import { CalendarOutlined, CloseCircleFilled } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import { commitDateInput } from "@/components/date-input";
+import dayjsGenerateConfig from "@rc-component/picker/generate/dayjs";
+import { commitDateInput, parseDateInput, TENANT_DATE_INPUT_FORMATS } from "@/components/date-input";
 
 import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
 import type { BillingCycle, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
 import styles from "./TenantInfoForm.module.css";
+
+// Picker와 blur 확정이 같은 두 자리 연도 정책을 사용하도록 폼에만 파서를 적용한다.
+const TenantDatePicker = DatePicker.generatePicker<Dayjs>({
+  ...dayjsGenerateConfig,
+  locale: {
+    ...dayjsGenerateConfig.locale,
+    parse(locale, text, formats) {
+      if (formats.includes("YYMMDD") && /^\d{6}$/.test(text)) {
+        const parsed = parseDateInput(text, formats);
+        return parsed.isValid() ? parsed : null;
+      }
+      return dayjsGenerateConfig.locale.parse(locale, text, formats);
+    },
+  },
+});
 
 const CONTRACT_TYPE_OPTIONS = [
   { value: "ROOM", label: "세대" },
@@ -231,7 +247,7 @@ function DateClearIcon() {
 }
 
 // DatePicker에는 Input의 addonAfter가 없어서, "일"·"만원" addon과 같은 룩의
-// 달력 버튼을 Space.Compact로 붙인다. 숫자 8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
+// 달력 버튼을 Space.Compact로 붙인다. 숫자 6·8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
 function DateAddonPicker({
   field,
   value,
@@ -254,17 +270,17 @@ function DateAddonPicker({
 
   function commitTypedInput(target: EventTarget | null) {
     if (disabled) return;
-    commitDateInput(target, ["YYYY-MM-DD", "YYYYMMDD"], form.getFieldValue(field), commitDate);
+    commitDateInput(target, TENANT_DATE_INPUT_FORMATS, form.getFieldValue(field), commitDate);
   }
 
   return (
     <Space.Compact data-tenant-date-field={field} style={{ width: "100%" }}>
-      <DatePicker
+      <TenantDatePicker
         {...pickerProps}
         allowClear={pickerProps.allowClear === false ? false : { clearIcon: <DateClearIcon /> }}
         value={value ?? null}
         onChange={commitDate}
-        format={["YYYY-MM-DD", "YYYYMMDD"]}
+        format={TENANT_DATE_INPUT_FORMATS}
         onBlur={(event, ...args) => {
           commitTypedInput(event.target);
           pickerProps.onBlur?.(event, ...args);
