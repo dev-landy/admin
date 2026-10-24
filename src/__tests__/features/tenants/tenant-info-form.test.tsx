@@ -814,3 +814,46 @@ test("255자 호실에 지하 접두사를 추가하면 서버 호실 길이를 
   await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
   expect(toTenantValues(onFinish.mock.calls[0][0]).roomNumber).toHaveLength(255);
 });
+
+test("달력과 금액 단위 버튼은 Tab 순서에서 빠지고 클릭으로 계속 사용할 수 있다", async () => {
+  render(<TestForm onFinish={jest.fn()} />);
+  for (const button of screen.getAllByRole("button", { name: "날짜 선택" })) {
+    expect(button).toHaveAttribute("tabindex", "-1");
+  }
+  for (const label of ["임대료", "관리비", "보증금"]) {
+    const button = screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` });
+    expect(button).toHaveAttribute("tabindex", "-1");
+    fireEvent.click(button);
+    expect(screen.getByRole("button", { name: `${label} 원 단위, 만원으로 전환` })).toHaveAttribute("tabindex", "-1");
+  }
+  expect(screen.getByLabelText("계약 시작일")).not.toHaveAttribute("tabindex", "-1");
+  expect(screen.getByLabelText("계약 종료일")).not.toHaveAttribute("tabindex", "-1");
+  expect(screen.getByLabelText("임대료")).not.toHaveAttribute("tabindex", "-1");
+  fireEvent.click(screen.getAllByRole("button", { name: "날짜 선택" })[0]);
+  expect(await screen.findByTitle("2026-09-20")).toBeInTheDocument();
+});
+
+test("날짜 지우기 버튼은 값이 처음 있거나 입력 후 생겨도 Tab 순서에서 제외하고 클릭은 유지한다", async () => {
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={jest.fn()} onValuesChange={onValuesChange} initialValues={{ endDate: null }} />);
+  const startPicker = screen.getByLabelText("계약 시작일").closest(".ant-picker") as HTMLElement;
+  const endInput = screen.getByLabelText("계약 종료일");
+  const endPicker = endInput.closest(".ant-picker") as HTMLElement;
+  expect(within(startPicker).getByRole("button")).toHaveAttribute("tabindex", "-1");
+  expect(within(endPicker).queryByRole("button")).not.toBeInTheDocument();
+  await commitDateEvent(() => {
+    fireEvent.change(endInput, { target: { value: "20281105" } });
+    fireEvent.keyDown(endInput, { key: "Tab", code: "Tab" });
+  });
+  expect(endInput).toHaveValue("2028-11-05");
+  expect(within(endPicker).getByRole("button")).toHaveAttribute("tabindex", "-1");
+  fireEvent.click(within(endPicker).getByRole("button"));
+  await waitFor(() => expect(endInput).toHaveValue(""));
+  expect(within(endPicker).queryByRole("button")).not.toBeInTheDocument();
+  expect(onValuesChange).toHaveBeenCalledWith({ endDate: null }, expect.objectContaining({ endDate: null }));
+  await commitDateEvent(() => {
+    fireEvent.change(endInput, { target: { value: "20291105" } });
+    fireEvent.blur(endInput);
+  });
+  expect(within(endPicker).getByRole("button")).toHaveAttribute("tabindex", "-1");
+});

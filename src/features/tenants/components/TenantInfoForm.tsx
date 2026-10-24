@@ -15,7 +15,7 @@ import {
   theme,
 } from "antd";
 import type { DatePickerProps, FormInstance, InputNumberProps, InputProps } from "antd";
-import { CalendarOutlined } from "@ant-design/icons";
+import { CalendarOutlined, CloseCircleFilled } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { commitDateInput } from "@/components/date-input";
 
@@ -222,6 +222,14 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
   );
 }
 
+function DateClearIcon() {
+  return <CloseCircleFilled ref={(icon) => {
+    // Picker는 지우기 버튼의 tabIndex를 노출하지 않아 공개 아이콘 슬롯에서 해당 버튼만 조정한다.
+    const button = icon?.closest("button");
+    if (button) button.tabIndex = -1;
+  }} />;
+}
+
 // DatePicker에는 Input의 addonAfter가 없어서, "일"·"만원" addon과 같은 룩의
 // 달력 버튼을 Space.Compact로 붙인다. 숫자 8자리도 엄격히 파싱하고 첫 포맷으로 표시한다.
 function DateAddonPicker({
@@ -253,6 +261,7 @@ function DateAddonPicker({
     <Space.Compact data-tenant-date-field={field} style={{ width: "100%" }}>
       <DatePicker
         {...pickerProps}
+        allowClear={pickerProps.allowClear === false ? false : { clearIcon: <DateClearIcon /> }}
         value={value ?? null}
         onChange={commitDate}
         format={["YYYY-MM-DD", "YYYYMMDD"]}
@@ -274,6 +283,7 @@ function DateAddonPicker({
       <Button
         icon={<CalendarOutlined />}
         aria-label="날짜 선택"
+        tabIndex={-1}
         disabled={disabled}
         onClick={() => setOpen(true)}
       />
@@ -328,6 +338,7 @@ function MoneyInputWithUnit({
       />
       <Button
         className={styles.moneyUnitButton}
+        tabIndex={-1}
         style={{
           background: token.colorFillAlter,
           borderColor: status === "error" ? token.colorError : status === "warning" ? token.colorWarning : undefined,
