@@ -2,7 +2,7 @@
 
 import { type RefObject, useCallback, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Card, Flex, Form, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
+import { Alert, App, Button, Card, Flex, Form, Input, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 
 import {
@@ -69,6 +69,8 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const [rejectionReason, setRejectionReason] = useState<ContractDocumentRejectionReason>();
   const [rejectionNotifyUser, setRejectionNotifyUser] = useState(true);
   const [rejectionNotificationOverridden, setRejectionNotificationOverridden] = useState(false);
+  const [rejectionMessage, setRejectionMessage] = useState("");
+  const rejectionMessageId = useId();
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [rejectionError, setRejectionError] = useState<string>();
   const actionInProgress = useRef(false);
@@ -197,7 +199,9 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     actionInProgress.current = true;
     setRejectionError(undefined);
     try {
-      await rejectMutation.mutateAsync({ documentId: document.documentId, reason: rejectionReason, notifyUser: rejectionNotifyUser });
+      const notificationMessage = rejectionNotifyUser ? rejectionMessage.trim() : "";
+      await rejectMutation.mutateAsync({ documentId: document.documentId, reason: rejectionReason, notifyUser: rejectionNotifyUser,
+        ...(notificationMessage ? { notificationMessage } : {}) });
       clearUnsavedChanges();
       notification.success({ title: "계약서를 반려했습니다." });
       setRejectionModalOpen(false);
@@ -214,6 +218,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     setRejectionReason(undefined);
     setRejectionNotifyUser(true);
     setRejectionNotificationOverridden(false);
+    setRejectionMessage("");
     setRejectionError(undefined);
     setRejectionModalOpen(true);
   }
@@ -224,6 +229,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     setRejectionReason(undefined);
     setRejectionNotifyUser(true);
     setRejectionNotificationOverridden(false);
+    setRejectionMessage("");
     setRejectionError(undefined);
   }
 
@@ -355,6 +361,14 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
                     ? "이 계약서의 반려 결과를 인앱 알림과 푸시로 알립니다."
                     : "이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다."}
                 </Text>
+                {rejectionNotifyUser && <Form.Item label="푸시 메시지 (선택)" htmlFor={rejectionMessageId}
+                  extra="비워 두면 기본 반려 안내를 보냅니다. 작성한 문구는 인앱 알림에도 표시됩니다."
+                  style={{ marginBottom: 0 }}>
+                  <Input.TextArea id={rejectionMessageId} value={rejectionMessage} onChange={(event) => setRejectionMessage(event.target.value)}
+                    placeholder="예: 계약서 하단이 잘려 있어요. 전체 내용이 보이도록 다시 촬영해 주세요."
+                    maxLength={255} showCount styles={{ root: { marginBottom: 22 } }}
+                    autoSize={{ minRows: 3, maxRows: 6 }} disabled={isBusy || !rejectionReason} />
+                </Form.Item>}
               </Space>
             </Card>
           </Form>

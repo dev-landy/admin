@@ -7,6 +7,7 @@ export type ContractDocumentRejectionReason = "UNREADABLE" | "NOT_A_CONTRACT" | 
 export type RejectContractDocumentRequest = {
   reason: ContractDocumentRejectionReason;
   notifyUser: boolean;
+  notificationMessage?: string;
 };
 
 export type ContractDocument = {
