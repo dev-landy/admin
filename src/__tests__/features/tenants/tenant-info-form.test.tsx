@@ -669,8 +669,8 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     });
     expect(startInput).toHaveValue("2026-10-17");
     expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-04-16");
-    expect(chip).toHaveAttribute("title", "2027-04-16까지");
-    expect(chip).toHaveAttribute("aria-pressed", "true");
+    expect(chip).toHaveAttribute("title", "2027-10-16까지");
+    expect(chip).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
     expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
@@ -750,7 +750,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
 
     await waitFor(() => {
       expect(screen.getByLabelText("계약 종료일")).toHaveValue(end);
-      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: label })).toBeEnabled();
     });
     expect(onFinish).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
@@ -912,4 +912,40 @@ test("축약 시작일 blur 직후 기간 칩을 누르면 최신 입력 날짜�
   });
   expect(input).toHaveValue("2026-11-06");
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-11-05");
+});
+
+test.each([
+  ["2026-11-06", ["2년", "2년", "1년", "6개월"], "2032-05-05"],
+  ["2026-08-31", ["6개월", "6개월"], "2027-08-30"],
+  ["2028-02-29", ["1년", "1년", "2년"], "2032-02-28"],
+] as const)("기간 칩을 반복하면 %s의 월말·윤년 기준을 유지하며 누적한다", async (start, chips, expected) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ startDate: dayjs(start), endDate: null }} />);
+  await commitDateEvent(() => {
+    for (const label of chips) fireEvent.click(screen.getByRole("button", { name: label }));
+  });
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue(expected);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).endDate).toBe(expected);
+});
+
+test("기존 종료일과 직접 입력한 종료일에서 연장하고 시작일이 바뀌면 새 기준으로 계산한다", async () => {
+  render(<TestForm onFinish={jest.fn()} initialValues={{ startDate: dayjs("2021-11-06"), endDate: dayjs("2023-11-05") }} />);
+  await commitDateEvent(() => fireEvent.click(screen.getByRole("button", { name: "2년" })));
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2025-11-05");
+  await commitDateEvent(() => {
+    const input = screen.getByLabelText("계약 종료일");
+    fireEvent.change(input, { target: { value: "261231" } });
+    fireEvent.blur(input);
+    fireEvent.click(screen.getByRole("button", { name: "6개월" }));
+  });
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-06-30");
+  await commitDateEvent(() => {
+    const input = screen.getByLabelText("계약 시작일");
+    fireEvent.change(input, { target: { value: "280101" } });
+    fireEvent.blur(input);
+    fireEvent.click(screen.getByRole("button", { name: "1년" }));
+  });
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-12-31");
 });

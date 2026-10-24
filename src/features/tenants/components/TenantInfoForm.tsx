@@ -59,6 +59,20 @@ function getContractEndDate(startDate: Dayjs, months: number): Dayjs {
   return anniversary.date() < startDate.date() ? anniversary : anniversary.subtract(1, "day");
 }
 
+// 월말·윤년에도 연속 클릭한 기간을 원래 시작일에 합산해 날짜가 밀리지 않게 한다.
+function extendContractEndDate(startDate: Dayjs, endDate: Dayjs | null | undefined, months: number): Dayjs {
+  if (!endDate?.isValid() || endDate.isBefore(startDate, "day")) {
+    return getContractEndDate(startDate, months);
+  }
+  const difference = (endDate.year() - startDate.year()) * 12 + endDate.month() - startDate.month();
+  for (const elapsed of [difference, difference + 1]) {
+    if (elapsed > 0 && getContractEndDate(startDate, elapsed).isSame(endDate, "day")) {
+      return getContractEndDate(startDate, elapsed + months);
+    }
+  }
+  return getContractEndDate(endDate.add(1, "day"), months);
+}
+
 // 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다.
 // 폼 값은 만원 단위를 유지하고 금액 입력의 표시 단위만 원/만원으로 바꾼다.
@@ -595,24 +609,20 @@ export function TenantInfoFormFields({
           dependencies={["startDate"]}
           extra={<div className={styles.durationShortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
             {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
-              const nextEndDate = startDate?.isValid() ? getContractEndDate(startDate, months) : null;
-              const selected = Boolean(nextEndDate && endDate?.isSame(nextEndDate, "day"));
+              const nextEndDate = startDate?.isValid() ? extendContractEndDate(startDate, endDate, months) : null;
               return (
                 <Button
                   key={months}
                   size="small"
                   shape="round"
                   htmlType="button"
-                  color={selected ? "primary" : "default"}
-                  variant={selected ? "filled" : "outlined"}
-                  aria-pressed={selected}
                   disabled={!nextEndDate || undefined}
                   title={nextEndDate ? `${nextEndDate.format("YYYY-MM-DD")}까지` : "계약 시작일을 먼저 선택해 주세요."}
                   onClick={(event) => {
                     // 날짜 blur 확정과 연속 클릭하면 useWatch보다 Form 값이 먼저 갱신된다.
                     const currentStart: Dayjs | null | undefined = form.getFieldValue("startDate");
                     if (event.currentTarget.hasAttribute("disabled") || !dayjs.isDayjs(currentStart) || !currentStart.isValid()) return;
-                    form.setFieldValue("endDate", getContractEndDate(currentStart, months));
+                    form.setFieldValue("endDate", extendContractEndDate(currentStart, form.getFieldValue("endDate"), months));
                   }}
                 >
                   {label}
