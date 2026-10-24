@@ -771,3 +771,46 @@ test("시작일이 없거나 폼이 비활성화되어 있으면 기간 칩을 �
   }
   expect(screen.getByLabelText("계약 시작일")).toBeDisabled();
 });
+
+test.each(["A동 101", "B동 1층", "BA501", "0202"])("세대 호실 %s의 문자열과 선행 0을 등록·수정·재편집에서 유지한다", async (room) => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} />);
+  const input = screen.getByLabelText("호실");
+  expect(input).not.toHaveAttribute("inputmode", "numeric");
+  expect(input).toHaveAttribute("maxlength", "255");
+  fireEvent.change(input, { target: { value: room } });
+  expect(input).toHaveValue(room);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  const values = onFinish.mock.calls[0][0];
+  expect(toTenantValues(values).roomNumber).toBe(room);
+  expect(toUpdateTenantRequest(values).roomNumber).toBe(room);
+  expect(fromTenantValues(toTenantValues(values))).toMatchObject({ room, basement: false });
+});
+
+test("숫자 지하 호실은 B 접두사를 유지하고 일반 B 이름은 지하로 오인하지 않는다", async () => {
+  const onFinish = jest.fn();
+  const values = fromTenantValues({ ...toTenantValues({ room: "101", basement: true }), contractType: "ROOM" });
+  expect(values).toMatchObject({ room: "101", basement: true });
+  render(<TestForm onFinish={onFinish} initialValues={{ room: values.room, basement: values.basement }} />);
+  expect(screen.getByRole("checkbox", { name: "지하" })).toBeChecked();
+  expect(screen.getByLabelText("호실")).toHaveAttribute("maxlength", "254");
+  fireEvent.change(screen.getByLabelText("호실"), { target: { value: "창고 A" } });
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).roomNumber).toBe("B창고 A");
+  expect(toTenantValues(fromTenantValues(toTenantValues(onFinish.mock.calls[0][0]))).roomNumber).toBe("B창고 A");
+});
+
+test("255자 호실에 지하 접두사를 추가하면 서버 호실 길이를 넘겨 저장하지 않는다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialValues={{ room: "가".repeat(255) }} />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "지하" }));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("호실은 254자 이내로 입력해 주세요.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("호실"), { target: { value: "가".repeat(254) } });
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).roomNumber).toHaveLength(255);
+});

@@ -158,7 +158,7 @@ export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoForm
   const contractType = values.contractType ?? "ROOM";
   const parkingEnabled = contractType === "PARKING" || values.parkingEnabled === true;
   const roomNumber = String(values.roomNumber ?? "").trim();
-  const basement = contractType === "ROOM" && roomNumber.startsWith("B");
+  const basement = contractType === "ROOM" && /^B\d+$/.test(roomNumber);
   const rentBillingCycle = normalizeBillingCycle(values.rentBillingCycle);
   return {
     contractType,
@@ -180,7 +180,7 @@ export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoForm
   };
 }
 
-// 등록된 임차인 값을 폼 형태로 되돌린다 (호실은 숫자로 내려와 문자열로 정규화).
+// 등록된 임차인 값을 폼 형태로 되돌린다 (과거 숫자 호실도 문자열로 정규화).
 export function fromTenantDetail(tenant: TenantDetail): TenantInfoFormValues {
   return fromTenantValues({
     ...tenant,
@@ -466,19 +466,24 @@ export function TenantInfoFormFields({
               <Form.Item
                 label={roomLabel}
                 name="room"
-                normalize={(value?: string) => isRoom ? value?.replace(/\D/g, "") : value}
                 rules={[{
                   required: true,
                   whitespace: true,
                   message: `${roomLabel}을 입력해 주세요.`,
-                }]}
+                }, ({ getFieldValue }) => ({
+                  validator(_, value: string | undefined) {
+                    const limit = (getFieldValue("contractType") ?? "ROOM") === "ROOM" && getFieldValue("basement") ? 254 : 255;
+                    return !value || value.length <= limit
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(`${roomLabel}은 ${limit}자 이내로 입력해 주세요.`));
+                  },
+                })]}
               >
                 {isRoom ? (
                   <TextInputWithAddon
-                    maxLength={10}
-                    placeholder="123"
+                    maxLength={basement ? 254 : 255}
+                    placeholder="예: 101, A동 101"
                     addon="호"
-                    inputMode="numeric"
                     prefix={
                       <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
                     }
