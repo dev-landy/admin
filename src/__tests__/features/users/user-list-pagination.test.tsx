@@ -31,7 +31,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 test("임차인 2페이지를 요청하고 응답의 0-based 페이지와 전체 건수를 표시한다", async () => {
   mockTenants.mockImplementation(async (_id, params) => ({
     tenants: [{ tenantId: params?.page ?? 1, userId: 12, name: `임차인 ${params?.page}`, roomNumber: 101,
-      rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID", rentBillingCycle: "MONTHLY", startDate: "2026-01-01", endDate: null, notifyEnabled: false }],
+      rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-01-01", endDate: null, notifyEnabled: false }],
     page: (params?.page ?? 1) - 1, size: params?.size ?? 20, totalElements: 25,
   }));
   render(<UserTenantsTab userId={12} />, { wrapper });
@@ -104,7 +104,7 @@ test("임차인 21→20건 재조회로 마지막 페이지가 사라지면 요�
     const page = params?.page ?? 1;
     return {
       tenants: page === 1 || total > 20 ? [{ tenantId: page === 1 ? 1 : 21, userId: 12, name: `임차인 ${page === 1 ? 1 : 21}`, roomNumber: 101,
-        rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID" as const, rentBillingCycle: "MONTHLY" as const, startDate: "2026-01-01", endDate: null, notifyEnabled: false }] : [],
+        rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID" as const, rentChargeFrequency: "MONTHLY" as const, startDate: "2026-01-01", endDate: null, notifyEnabled: false }] : [],
       page: page - 1, size: params?.size ?? 20, totalElements: total,
     };
   });
@@ -123,7 +123,7 @@ test("임차인 21→20건 재조회로 마지막 페이지가 사라지면 요�
 
 test("사용자 임차인 검색은 URL의 서버 조건을 복원하고 다른 탭 상태를 유지하며 상세로 돌아갈 경로를 제공한다", async () => {
   mockTenants.mockImplementation(async (_id, params) => ({
-    tenants: [{ tenantId: 7, userId: 12, name: "홍길동", propertyId: 8, propertyName: "신관", roomNumber: "A101", phone: "010-****-5678", rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID", rentBillingCycle: "MONTHLY", startDate: "2026-01-01", endDate: null, notifyEnabled: false }],
+    tenants: [{ tenantId: 7, userId: 12, name: "홍길동", propertyId: 8, propertyName: "신관", roomNumber: "A101", phone: "010-****-5678", rentPrice: 1, paymentDay: 1, billingTiming: "PREPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-01-01", endDate: null, notifyEnabled: false }],
     page: (params?.page ?? 1) - 1, size: params?.size ?? 20, totalElements: 81,
   }));
   const changed = jest.fn();

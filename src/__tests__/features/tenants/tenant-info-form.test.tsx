@@ -12,7 +12,7 @@ import {
   toTenantValues,
   toUpdateTenantRequest,
 } from "@/features/tenants/components/TenantInfoForm";
-import type { BillingCycle } from "@/features/tenants/types";
+import type { RentChargeFrequency } from "@/features/tenants/types";
 
 global.ResizeObserver = class {
   observe() {}
@@ -46,8 +46,8 @@ Object.defineProperty(window, "matchMedia", {
 function TestForm({
   onFinish,
   billingTimingEditable = true,
-  rentBillingCycleEditable = true,
-  initialRentBillingCycle = "MONTHLY",
+  rentChargeFrequencyEditable = true,
+  initialRentChargeFrequency = "MONTHLY",
   contractTypeEditable = true,
   initialValues,
   appliedValues,
@@ -57,8 +57,8 @@ function TestForm({
 }: {
   onFinish: (values: TenantInfoFormValues) => void;
   billingTimingEditable?: boolean;
-  rentBillingCycleEditable?: boolean;
-  initialRentBillingCycle?: BillingCycle;
+  rentChargeFrequencyEditable?: boolean;
+  initialRentChargeFrequency?: RentChargeFrequency;
   contractTypeEditable?: boolean;
   initialValues?: TenantInfoFormValues;
   appliedValues?: TenantInfoFormValues;
@@ -83,7 +83,7 @@ function TestForm({
         startDate: dayjs("2026-09-01"),
         paymentDay: 25,
         billingTiming: "PREPAID",
-        rentBillingCycle: initialRentBillingCycle,
+        rentChargeFrequency: initialRentChargeFrequency,
         rentManwon: 50,
         maintenanceFeeManwon: 5,
         depositManwon: 1_000,
@@ -96,7 +96,7 @@ function TestForm({
         form={form}
         contractTypeEditable={contractTypeEditable}
         billingTimingEditable={billingTimingEditable}
-        rentBillingCycleEditable={rentBillingCycleEditable}
+        rentChargeFrequencyEditable={rentChargeFrequencyEditable}
       />
       {appliedValues && (
         <Button onClick={() => form.setFieldsValue(appliedValues)}>서버 값 적용</Button>
@@ -253,7 +253,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     );
   });
 
-  test("연세를 선택하면 선불로 맞추고 후불 선택을 차단한다", async () => {
+  test("기간 일시납을 선택하면 선불로 맞추고 후불 선택을 차단한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} />);
 
@@ -280,7 +280,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(onFinish).toHaveBeenCalledWith(
       expect.objectContaining({
         billingTiming: "PREPAID",
-        rentBillingCycle: "YEARLY",
+        rentChargeFrequency: "ONE_TIME",
       }),
     );
   });
@@ -293,7 +293,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
       startDate: dayjs("2026-09-01"),
       paymentDay: 25,
       billingTiming: "POSTPAID",
-      rentBillingCycle: "MONTHLY",
+      rentChargeFrequency: "MONTHLY",
       rentManwon: 50,
     };
 
@@ -301,22 +301,22 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
       expect.objectContaining({
         paymentDay: 25,
         billingTiming: "POSTPAID",
-        rentBillingCycle: "MONTHLY",
+        rentChargeFrequency: "MONTHLY",
       }),
     );
     expect(toUpdateTenantRequest(formValues)).toEqual(
       expect.objectContaining({ paymentDay: 25 }),
     );
     expect(toUpdateTenantRequest(formValues)).not.toHaveProperty("billingTiming");
-    expect(toUpdateTenantRequest(formValues)).not.toHaveProperty("rentBillingCycle");
+    expect(toUpdateTenantRequest(formValues)).not.toHaveProperty("rentChargeFrequency");
 
     const legacyValues = {
       ...toTenantValues(formValues),
       billingTiming: undefined,
-      rentBillingCycle: undefined,
+      rentChargeFrequency: undefined,
     };
     expect(fromTenantValues(legacyValues).billingTiming).toBe("PREPAID");
-    expect(fromTenantValues(legacyValues).rentBillingCycle).toBe("MONTHLY");
+    expect(fromTenantValues(legacyValues).rentChargeFrequency).toBe("MONTHLY");
   });
 
   test("일반 수정에서는 납부 방식과 임대료 청구 주기 선택을 비활성화한다", () => {
@@ -324,7 +324,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
       <TestForm
         onFinish={jest.fn()}
         billingTimingEditable={false}
-        rentBillingCycleEditable={false}
+        rentChargeFrequencyEditable={false}
       />,
     );
 
@@ -332,20 +332,20 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(screen.getByLabelText("임대료 청구 주기")).toBeDisabled();
   });
 
-  test("등록된 연세 계약은 시작일을 수정할 수 없다", () => {
+  test("등록된 기간 일시납 계약은 시작일을 수정할 수 없다", () => {
     render(
       <TestForm
         onFinish={jest.fn()}
         billingTimingEditable={false}
-        rentBillingCycleEditable={false}
-        initialRentBillingCycle="YEARLY"
+        rentChargeFrequencyEditable={false}
+        initialRentChargeFrequency="ONE_TIME"
       />,
     );
 
     expect(screen.getByLabelText("계약 시작일")).toBeDisabled();
-    expect(screen.getByText("연세 계약의 시작일은 등록 후 수정할 수 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다.")).toBeInTheDocument();
     const descriptionIds = screen.getByLabelText("계약 시작일").getAttribute("aria-describedby")?.split(/\s+/) ?? [];
-    expect(descriptionIds.some((id) => document.getElementById(id)?.textContent?.includes("연세 계약의 시작일은 등록 후 수정할 수 없습니다."))).toBe(true);
+    expect(descriptionIds.some((id) => document.getElementById(id)?.textContent?.includes("기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다."))).toBe(true);
   });
 
   test("납부일 범위 밖 값은 저장하지 않고 31일 경계는 허용한다", async () => {

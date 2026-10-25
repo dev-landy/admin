@@ -1,4 +1,4 @@
-import type { BillingCycle, BillingTiming, ContractType } from "@/features/tenants/types";
+import type { RentChargeFrequency, BillingTiming, ContractType } from "@/features/tenants/types";
 
 export type ContractDocumentStatus = "PENDING_REVIEW" | "REGISTERED" | "REJECTED";
 export type ContractDocumentListStatus = "PENDING" | "COMPLETED";
@@ -58,7 +58,7 @@ export type ContractTenantValues = {
   depositAmount: number | null;
   paymentDay: number | null;
   billingTiming: BillingTiming;
-  rentBillingCycle: BillingCycle;
+  rentChargeFrequency: RentChargeFrequency;
   startDate: string | null;
   endDate: string | null;
 };

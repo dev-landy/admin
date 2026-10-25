@@ -77,7 +77,7 @@ test("사용자 선택은 첫 페이지 밖의 연락처와 숫자 ID OR 검색�
 
 test("임차인 검색은 임대인 범위와 건물 식별 정보를 보존하고 검색 실패·숫자 ID 조회를 처리한다", async () => {
   const tenant = (tenantId: number, propertyName: string): TenantDetail => ({
-    tenantId, userId: 12, propertyId: tenantId, propertyName, name: "홍길동", phone: "010-****-7777", roomNumber: "A101", contractType: "ROOM", rentPrice: 500000, paymentDay: 1, billingTiming: "PREPAID", rentBillingCycle: "MONTHLY", startDate: "2026-10-01", endDate: null, notifyEnabled: false, dueAlimtalkEnabled: false, createdAt: "2026-10-01", updatedAt: "2026-10-01",
+    tenantId, userId: 12, propertyId: tenantId, propertyName, name: "홍길동", phone: "010-****-7777", roomNumber: "A101", contractType: "ROOM", rentPrice: 500000, paymentDay: 1, billingTiming: "PREPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-10-01", endDate: null, notifyEnabled: false, dueAlimtalkEnabled: false, createdAt: "2026-10-01", updatedAt: "2026-10-01",
   });
   const tenants = [tenant(99, "신관"), tenant(100, "본관")];
   let failSearch = true;

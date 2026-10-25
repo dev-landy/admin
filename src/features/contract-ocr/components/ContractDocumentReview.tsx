@@ -45,7 +45,7 @@ const ANALYSIS_LABELS = {
   QUEUED: "분석 대기", PROCESSING: "분석 중", SUCCEEDED: "분석 완료", FAILED: "분석 실패", TIMED_OUT: "분석 시간 초과",
 };
 const EMPTY_FORM: TenantInfoFormValues = {
-  contractType: "ROOM", parkingEnabled: false, basement: false, billingTiming: "PREPAID", rentBillingCycle: "MONTHLY",
+  contractType: "ROOM", parkingEnabled: false, basement: false, billingTiming: "PREPAID", rentChargeFrequency: "MONTHLY",
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -113,13 +113,13 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     !watchedValues?.startDate ? "계약 시작일" : undefined,
     watchedValues?.paymentDay == null ? "납부일" : undefined,
     watchedValues?.billingTiming == null ? "납부 방식" : undefined,
-    watchedValues?.rentBillingCycle == null ? "청구 주기" : undefined,
+    watchedValues?.rentChargeFrequency == null ? "청구 주기" : undefined,
   ].filter((label): label is string => label !== undefined);
   const submitDisabledReason = savedTenantState === "failed" ? "저장된 임차인 정보를 다시 확인한 뒤 등록할 수 있습니다."
     : savedTenantState === "checking" ? "저장된 임차인 정보를 확인하는 중입니다."
     : isBusy ? "진행 중인 처리가 끝난 뒤 등록할 수 있습니다."
     : !propertyAvailable ? "등록할 건물을 선택하거나 새 건물 정보를 완성해 주세요."
-    : watchedValues?.rentBillingCycle === "YEARLY" && watchedValues.billingTiming === "POSTPAID" ? "연세는 선불로 설정해 주세요."
+    : watchedValues?.rentChargeFrequency === "ONE_TIME" && watchedValues.billingTiming === "POSTPAID" ? "기간 일시납은 선불로 설정해 주세요."
     : !((watchedValues?.rentManwon ?? 0) >= 0) ? "임대료는 0 이상으로 입력해 주세요."
     : missingTenantFields.length > 0 ? `필수 입력: ${missingTenantFields.join(" · ")}. 값을 입력하면 등록 버튼이 활성화됩니다.`
     : undefined;
@@ -276,7 +276,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
               const field = input.closest("[data-tenant-date-field]")?.getAttribute("data-tenant-date-field");
               if (field === "startDate" || field === "endDate") dateInputs.current.set(field, input);
             }}>
-            <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentBillingCycleEditable={isPendingReview} />
+            <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentChargeFrequencyEditable={isPendingReview} />
             {isPendingReview ? <ContractDocumentActions ref={actionBarRef}>
               <RowActions subject="계약서 등록" primary={<Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
                 aria-describedby={submitDisabledReason ? submitReasonId : undefined} disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>} items={[]} />

@@ -24,7 +24,7 @@ import { CONTRACT_TYPE_OPTIONS, CONTRACT_STATUS_OPTIONS, readTenantFilters, TENA
 
 import { TenantEditDrawerById } from "@/features/tenants/components/TenantEditDrawerById";
 import { TenantChargesCell, TenantContractCell, TenantNotificationCell } from "@/features/tenants/components/TenantRecordCells";
-import { formatRentSchedule } from "@/features/tenants/billingCycle";
+import { formatRentSchedule } from "@/features/tenants/rentChargeFrequency";
 import { formatBillingSchedule } from "@/features/tenants/billingTiming";
 import { formatManwon } from "@/lib/format/currency";
 import { usePropertyTenants } from "../hooks";
@@ -101,7 +101,7 @@ export function PropertyTenantsModal({
   ];
   const compactColumns: TableColumnsType<PropertyTenant> = [
     { ...columns[0], width: 210 },
-    { title: "임대료·납부 조건", key: "rent-summary", width: 200, align: "right", className: "admin-numeric", render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice)} secondary={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
+    { title: "임대료·납부 조건", key: "rent-summary", width: 200, align: "right", className: "admin-numeric", render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
     columns[4],
   ];
 
@@ -148,7 +148,7 @@ export function PropertyTenantsModal({
         renderCard={(tenant) => <RecordCard title={tenant.name} subtitle={`호실 ${tenant.roomNumber} · 임차인 전화 ${tenant.phone || "없음"}`} meta={`임차인 #${tenant.tenantId}`} ariaLabel={`임차인 #${tenant.tenantId} ${tenant.name}`}
           extra={<Tag>{CONTRACT_TYPE_OPTIONS.find((option) => option.value === tenant.contractType)?.label ?? "임대 계약"}</Tag>}
           fields={[
-            { label: "임대료", value: formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice) },
+            { label: "임대료", value: formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice) },
             { label: "납부 조건", value: formatBillingSchedule(tenant.billingTiming, tenant.paymentDay) },
             { label: "계약 기간", value: `${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}` },
           ]} details={recordDetails(tenant)} actions={actions(tenant, true)} />}

@@ -20,9 +20,9 @@ import dayjs, { type Dayjs } from "dayjs";
 import dayjsGenerateConfig from "@rc-component/picker/generate/dayjs";
 import { commitDateInput, parseDateInput, TENANT_DATE_INPUT_FORMATS } from "@/components/date-input";
 
-import { BILLING_CYCLE_OPTIONS, normalizeBillingCycle } from "../billingCycle";
+import { BILLING_CYCLE_OPTIONS, normalizeRentChargeFrequency } from "../rentChargeFrequency";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
-import type { BillingCycle, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
+import type { RentChargeFrequency, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
 import styles from "./TenantInfoForm.module.css";
 
 // Picker와 blur 확정이 같은 두 자리 연도 정책을 사용하도록 폼에만 파서를 적용한다.
@@ -90,7 +90,7 @@ export type TenantInfoFormValues = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming?: BillingTiming;
-  rentBillingCycle?: BillingCycle;
+  rentChargeFrequency?: RentChargeFrequency;
   rentManwon?: number | null;
   maintenanceFeeManwon?: number | null;
   depositManwon?: number | null;
@@ -111,20 +111,20 @@ export type TenantInfoValues = {
   // 기존에는 paymentDay만 있었다. PREPAID/POSTPAID는 귀속월 대비 납부월을 정하고,
   // paymentDay와 함께 dueDate를 결정한다.
   billingTiming: BillingTiming;
-  rentBillingCycle: BillingCycle;
+  rentChargeFrequency: RentChargeFrequency;
   startDate: string | null;
   endDate: string | null;
 };
 
 type TenantInfoSourceValues = Omit<
   TenantInfoValues,
-  "billingTiming" | "rentBillingCycle" | "contractType" | "parkingEnabled" | "vehicleNumber"
+  "billingTiming" | "rentChargeFrequency" | "contractType" | "parkingEnabled" | "vehicleNumber"
 > & {
   contractType?: ContractType | null;
   parkingEnabled?: boolean | null;
   vehicleNumber?: string | null;
   billingTiming?: BillingTiming | null;
-  rentBillingCycle?: BillingCycle | null;
+  rentChargeFrequency?: RentChargeFrequency | null;
 };
 
 function toWon(manwon: number | null | undefined): number | null {
@@ -158,7 +158,7 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
   const contractType = form.contractType ?? "ROOM";
   const parkingEnabled = contractType === "PARKING" || form.parkingEnabled === true;
   const room = form.room?.trim();
-  const rentBillingCycle = normalizeBillingCycle(form.rentBillingCycle);
+  const rentChargeFrequency = normalizeRentChargeFrequency(form.rentChargeFrequency);
   return {
     contractType,
     parkingEnabled,
@@ -174,10 +174,10 @@ export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
     maintenanceFee: toWon(form.maintenanceFeeManwon) ?? 0,
     depositAmount: toWon(form.depositManwon) ?? 0,
     paymentDay: form.paymentDay ?? null,
-    // 연세 후불은 서버 도메인에서 허용하지 않는다. UI 상태가 어긋나도 writer 경계에서 선불로 보정한다.
+    // 기간 일시납 후불은 서버 도메인에서 허용하지 않는다. UI 상태가 어긋나도 writer 경계에서 선불로 보정한다.
     billingTiming:
-      rentBillingCycle === "YEARLY" ? "PREPAID" : normalizeBillingTiming(form.billingTiming),
-    rentBillingCycle,
+      rentChargeFrequency === "ONE_TIME" ? "PREPAID" : normalizeBillingTiming(form.billingTiming),
+    rentChargeFrequency,
     startDate: form.startDate ? form.startDate.format("YYYY-MM-DD") : null,
     endDate: form.endDate ? form.endDate.format("YYYY-MM-DD") : null,
   };
@@ -189,7 +189,7 @@ export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoForm
   const parkingEnabled = contractType === "PARKING" || values.parkingEnabled === true;
   const roomNumber = String(values.roomNumber ?? "").trim();
   const basement = contractType === "ROOM" && /^B\d+$/.test(roomNumber);
-  const rentBillingCycle = normalizeBillingCycle(values.rentBillingCycle);
+  const rentChargeFrequency = normalizeRentChargeFrequency(values.rentChargeFrequency);
   return {
     contractType,
     parkingEnabled,
@@ -202,8 +202,8 @@ export function fromTenantValues(values: TenantInfoSourceValues): TenantInfoForm
     endDate: values.endDate ? dayjs(values.endDate) : null,
     paymentDay: values.paymentDay,
     billingTiming:
-      rentBillingCycle === "YEARLY" ? "PREPAID" : normalizeBillingTiming(values.billingTiming),
-    rentBillingCycle,
+      rentChargeFrequency === "ONE_TIME" ? "PREPAID" : normalizeBillingTiming(values.billingTiming),
+    rentChargeFrequency,
     rentManwon: values.rentPrice != null ? values.rentPrice / 10_000 : undefined,
     maintenanceFeeManwon: values.maintenanceFee != null ? values.maintenanceFee / 10_000 : undefined,
     depositManwon: values.depositAmount != null ? values.depositAmount / 10_000 : undefined,
@@ -246,8 +246,8 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.startDate &&
       values?.paymentDay != null &&
       values?.billingTiming != null &&
-      values?.rentBillingCycle != null &&
-      !(values.rentBillingCycle === "YEARLY" && values.billingTiming === "POSTPAID") &&
+      values?.rentChargeFrequency != null &&
+      !(values.rentChargeFrequency === "ONE_TIME" && values.billingTiming === "POSTPAID") &&
       (values.rentManwon ?? 0) >= 0,
   );
 }
@@ -418,12 +418,12 @@ function BillingScheduleInput({
 
 function RentScheduleInput({
   formInstance,
-  rentBillingCycleEditable,
+  rentChargeFrequencyEditable,
   label,
   ...rentProps
 }: InputNumberProps<number> & {
   formInstance: FormInstance<TenantInfoFormValues>;
-  rentBillingCycleEditable: boolean;
+  rentChargeFrequencyEditable: boolean;
   label: string;
 }) {
   return (
@@ -431,14 +431,14 @@ function RentScheduleInput({
       {...rentProps}
       label={label}
       before={
-        <Form.Item name="rentBillingCycle" noStyle>
-          <Select<BillingCycle>
+        <Form.Item name="rentChargeFrequency" noStyle>
+          <Select<RentChargeFrequency>
             aria-label="임대료 청구 주기"
-            disabled={!rentBillingCycleEditable}
+            disabled={!rentChargeFrequencyEditable}
             options={BILLING_CYCLE_OPTIONS}
             style={{ width: "min(80px, 48%)", flexShrink: 0 }}
             onChange={(cycle) => {
-              if (cycle === "YEARLY") {
+              if (cycle === "ONE_TIME") {
                 formInstance.setFieldValue("billingTiming", "PREPAID");
               }
             }}
@@ -453,12 +453,12 @@ export function TenantInfoFormFields({
   form,
   contractTypeEditable = false,
   billingTimingEditable,
-  rentBillingCycleEditable,
+  rentChargeFrequencyEditable,
 }: {
   form: FormInstance<TenantInfoFormValues>;
   contractTypeEditable?: boolean;
   billingTimingEditable: boolean;
-  rentBillingCycleEditable: boolean;
+  rentChargeFrequencyEditable: boolean;
 }) {
   const endDateInputId = useId();
   const { token } = theme.useToken();
@@ -470,9 +470,9 @@ export function TenantInfoFormFields({
   const basement = Form.useWatch("basement", form);
   const startDate: Dayjs | null | undefined = Form.useWatch("startDate", form);
   const endDate: Dayjs | null | undefined = Form.useWatch("endDate", form);
-  const rentBillingCycle = normalizeBillingCycle(Form.useWatch("rentBillingCycle", form));
-  const yearlyStartDateImmutable =
-    rentBillingCycle === "YEARLY" && !rentBillingCycleEditable;
+  const rentChargeFrequency = normalizeRentChargeFrequency(Form.useWatch("rentChargeFrequency", form));
+  const oneTimeStartDateImmutable =
+    rentChargeFrequency === "ONE_TIME" && !rentChargeFrequencyEditable;
   return (
     <Row gutter={12} className={styles.fields}>
       <Col xs={24} sm={12}>
@@ -583,8 +583,8 @@ export function TenantInfoFormFields({
           label="계약 시작일"
           name="startDate"
           extra={
-            yearlyStartDateImmutable
-              ? "연세 계약의 시작일은 등록 후 수정할 수 없습니다."
+            oneTimeStartDateImmutable
+              ? "기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다."
               : undefined
           }
           rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
@@ -592,7 +592,7 @@ export function TenantInfoFormFields({
           <DateAddonPicker
             field="startDate"
             placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
-            disabled={yearlyStartDateImmutable || undefined}
+            disabled={oneTimeStartDateImmutable || undefined}
             onChange={(nextDate) => {
               if (nextDate && form.getFieldValue("paymentDay") == null) {
                 form.setFieldValue("paymentDay", nextDate.date());
@@ -669,7 +669,7 @@ export function TenantInfoFormFields({
             max={31}
             placeholder="25"
             billingTimingEditable={billingTimingEditable}
-            yearly={rentBillingCycle === "YEARLY"}
+            yearly={rentChargeFrequency === "ONE_TIME"}
           />
         </Form.Item>
       </Col>
@@ -684,7 +684,7 @@ export function TenantInfoFormFields({
             label={isParking ? "주차비" : "임대료"}
             min={0}
             placeholder="50"
-            rentBillingCycleEditable={rentBillingCycleEditable}
+            rentChargeFrequencyEditable={rentChargeFrequencyEditable}
           />
         </Form.Item>
       </Col>

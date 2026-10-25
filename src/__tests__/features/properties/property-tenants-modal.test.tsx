@@ -25,7 +25,7 @@ jest.mock("@/features/properties/hooks", () => ({
           depositAmount: 10_000_000,
           paymentDay: 25,
           billingTiming: "PREPAID",
-          rentBillingCycle: "YEARLY",
+          rentChargeFrequency: "ONE_TIME",
           startDate: "2026-07-01",
           endDate: null,
           notifyEnabled: true,

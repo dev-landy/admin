@@ -96,7 +96,7 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
         <TenantInfoFormFields
           form={form}
           billingTimingEditable={false}
-          rentBillingCycleEditable={false}
+          rentChargeFrequencyEditable={false}
         />
         <div className={styles.actions}><Button onClick={handleClose} disabled={busy}>취소</Button><Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || isSubmitting || isPending} block>
           수정

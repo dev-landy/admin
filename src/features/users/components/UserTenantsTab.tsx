@@ -12,7 +12,7 @@ import { PagedTable } from "@/components/PagedTable";
 import { RecordCard } from "@/components/RecordCard";
 import { EntityCell } from "@/components/EntityCell";
 import { formatManwon } from "@/lib/format/currency";
-import { formatRentSchedule } from "@/features/tenants/billingCycle";
+import { formatRentSchedule } from "@/features/tenants/rentChargeFrequency";
 import { formatBillingSchedule } from "@/features/tenants/billingTiming";
 import { RowActions } from "@/components/RowActions";
 import { TenantIdentityCell, TenantCompactIdentityCell, TenantReferencesCell, TenantLocationCell, TenantContractCell, TenantChargesCell, TenantNotificationCell } from "@/features/tenants/components/TenantRecordCells";
@@ -83,11 +83,11 @@ export function UserTenantsTab({ userId, navigation, readOnly = false }: { userI
 
   const compactColumns: TableColumnsType<AdminUserTenant> = [
     { title: "임차인·공간", key: "identity", width: 290, render: (_, tenant) => readOnly ? retainedIdentity(tenant) : <TenantCompactIdentityCell tenant={tenant} returnPath={returnPath} showOwner={false} /> },
-    { title: "계약·청구", key: "terms", width: 260, render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice)} secondary={`${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}`} meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
+    { title: "계약·청구", key: "terms", width: 260, render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={`${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}`} meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
     columns[5],
   ];
   const wideColumns: TableColumnsType<AdminUserTenant> = [columns[0], columns[1], columns[2],
-    { title: "임대료", key: "rent", width: 160, className: "admin-numeric", render: (_, tenant) => formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice) },
+    { title: "임대료", key: "rent", width: 160, className: "admin-numeric", render: (_, tenant) => formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice) },
     { title: "관리비", dataIndex: "maintenanceFee", width: 110, className: "admin-numeric", render: formatManwon },
     { title: "보증금", dataIndex: "depositAmount", width: 130, className: "admin-numeric", render: formatManwon },
     { title: "납부 조건", key: "billing", width: 140, render: (_, tenant) => formatBillingSchedule(tenant.billingTiming, tenant.paymentDay) },

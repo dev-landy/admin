@@ -19,7 +19,7 @@ jest.mock("@/features/users/hooks", () => ({ useDeleteUser: () => ({ mutateAsync
 jest.mock("@/features/tenants/hooks", () => ({ useDeleteTenant: () => ({ mutate: (...args: unknown[]) => { mockDeleteTenant(...args); }, mutateAsync: mockDeleteTenant, isPending: false }) }));
 
 const user: UserSummary = { userId: 12, email: "landy@example.com", phone: "010-1234-5678", provider: "KAKAO", role: "ADMIN", status: "ONBOARDED", createdAt: "2026-10-05T09:00:00" };
-const tenant: TenantSummary = { tenantId: 30, userId: 12, propertyId: 8, propertyName: "신관", userEmail: user.email, name: "홍길동", phone: "010-2345-6789", roomNumber: "A101", contractType: "COMMERCIAL", rentPrice: 12_000_000, maintenanceFee: 50_000, depositAmount: 10_000_000, paymentDay: 5, billingTiming: "POSTPAID", rentBillingCycle: "YEARLY", startDate: "2026-01-01", endDate: "2027-01-01", notifyEnabled: true, dueAlimtalkEnabled: false };
+const tenant: TenantSummary = { tenantId: 30, userId: 12, propertyId: 8, propertyName: "신관", userEmail: user.email, name: "홍길동", phone: "010-2345-6789", roomNumber: "A101", contractType: "COMMERCIAL", rentPrice: 12_000_000, maintenanceFee: 50_000, depositAmount: 10_000_000, paymentDay: 5, billingTiming: "POSTPAID", rentChargeFrequency: "ONE_TIME", startDate: "2026-01-01", endDate: "2027-01-01", notifyEnabled: true, dueAlimtalkEnabled: false };
 function wrapper({ children }: { children: React.ReactNode }) {
   return <ConfigProvider theme={{ token: { motion: false } }}><App>{children}</App></ConfigProvider>;
 }

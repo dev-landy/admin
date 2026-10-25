@@ -7,13 +7,13 @@ import { EntityCell } from "@/components/EntityCell";
 import { formatManwon } from "@/lib/format/currency";
 import { listDetailPath, relatedListPath } from "@/lib/navigation/listReturn";
 import { CONTRACT_TYPE_OPTIONS } from "../listFilters";
-import { formatRentSchedule } from "../billingCycle";
+import { formatRentSchedule } from "../rentChargeFrequency";
 import { formatBillingSchedule } from "../billingTiming";
 import type { TenantSummary } from "../types";
 
 type TenantRecord = Omit<Pick<TenantSummary,
   "tenantId" | "userId" | "name" | "roomNumber" | "rentPrice" | "paymentDay" |
-  "billingTiming" | "rentBillingCycle" | "startDate" | "endDate" | "notifyEnabled"
+  "billingTiming" | "rentChargeFrequency" | "startDate" | "endDate" | "notifyEnabled"
 >, "roomNumber"> & { roomNumber: number | string | null } & Partial<Pick<TenantSummary,
   "phone" | "propertyId" | "propertyName" | "userEmail" | "maintenanceFee" |
   "depositAmount" | "contractType" | "dueAlimtalkEnabled" | "parkingEnabled" | "vehicleNumber"
@@ -63,7 +63,7 @@ export function TenantContractCell({ tenant }: { tenant: TenantRecord }) {
 
 export function TenantChargesCell({ tenant }: { tenant: TenantRecord }) {
   return <EntityCell
-    primary={formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice)}
+    primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)}
     secondary={<div className="admin-cell-stack">
       <span>관리비 {formatManwon(tenant.maintenanceFee)}</span>
       <span>보증금 {formatManwon(tenant.depositAmount)}</span>

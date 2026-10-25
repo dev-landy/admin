@@ -54,7 +54,7 @@ const tenant: TenantDetail = {
   depositAmount: 10_000_000,
   paymentDay: 5,
   billingTiming: "POSTPAID",
-  rentBillingCycle: "MONTHLY",
+  rentChargeFrequency: "MONTHLY",
   startDate: "2026-01-01",
   endDate: null,
   notifyEnabled: true,

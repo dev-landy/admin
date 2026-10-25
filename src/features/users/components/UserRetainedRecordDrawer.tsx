@@ -4,7 +4,7 @@ import { Descriptions, Drawer, Typography } from "antd";
 import { useAdminViewport } from "@/components/useAdminViewport";
 import { formatTechnicalDateTime } from "@/lib/format/date";
 import { formatManwon } from "@/lib/format/currency";
-import { formatRentSchedule } from "@/features/tenants/billingCycle";
+import { formatRentSchedule } from "@/features/tenants/rentChargeFrequency";
 import { formatBillingSchedule } from "@/features/tenants/billingTiming";
 import { CONTRACT_TYPE_OPTIONS } from "@/features/tenants/listFilters";
 import type { UserPropertySummary } from "@/features/properties/types";
@@ -24,7 +24,7 @@ export function UserRetainedTenantDetails({ tenant }: { tenant: AdminUserTenant 
     { key: "type", label: "계약 유형", children: CONTRACT_TYPE_OPTIONS.find((option) => option.value === tenant.contractType)?.label ?? "정보 없음" },
     { key: "start", label: "계약 시작", children: tenant.startDate },
     { key: "end", label: "계약 종료", children: tenant.endDate ?? "종료일 없음" },
-    { key: "rent", label: "임대료", children: formatRentSchedule(tenant.rentBillingCycle, tenant.rentPrice) },
+    { key: "rent", label: "임대료", children: formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice) },
     { key: "maintenance", label: "관리비", children: formatManwon(tenant.maintenanceFee) },
     { key: "deposit", label: "보증금", children: formatManwon(tenant.depositAmount) },
     { key: "billing", label: "납부 조건", children: formatBillingSchedule(tenant.billingTiming, tenant.paymentDay) },

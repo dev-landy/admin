@@ -828,7 +828,7 @@ test("등록된 임차인 refetch는 편집값을 덮지 않고 수정 요청에
   await waitFor(() => expect(mockUpdateTenant).toHaveBeenCalledTimes(1));
   expect(mockUpdateTenant.mock.calls[0][1]).toMatchObject({ name: "유지할 편집값", paymentDay: 25 });
   expect(mockUpdateTenant.mock.calls[0][1]).not.toHaveProperty("billingTiming");
-  expect(mockUpdateTenant.mock.calls[0][1]).not.toHaveProperty("rentBillingCycle");
+  expect(mockUpdateTenant.mock.calls[0][1]).not.toHaveProperty("rentChargeFrequency");
   expect(mockLatest).not.toHaveBeenCalled();
   await screen.findByText("임차인 정보가 수정되었습니다.");
   fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
