@@ -19,7 +19,7 @@ jest.mock("@/features/users/hooks", () => ({ useDeleteUser: () => ({ mutateAsync
 jest.mock("@/features/tenants/hooks", () => ({ useDeleteTenant: () => ({ mutate: (...args: unknown[]) => { mockDeleteTenant(...args); }, mutateAsync: mockDeleteTenant, isPending: false }) }));
 
 const user: UserSummary = { userId: 12, email: "landy@example.com", phone: "010-1234-5678", provider: "KAKAO", role: "ADMIN", status: "ONBOARDED", createdAt: "2026-10-05T09:00:00" };
-const tenant: TenantSummary = { tenantId: 30, userId: 12, propertyId: 8, propertyName: "신관", userEmail: user.email, name: "홍길동", phone: "010-2345-6789", roomNumber: "A101", contractType: "COMMERCIAL", rentPrice: 12_000_000, maintenanceFee: 50_000, depositAmount: 10_000_000, paymentDay: 5, billingTiming: "POSTPAID", rentChargeFrequency: "ONE_TIME", startDate: "2026-01-01", endDate: "2027-01-01", notifyEnabled: true, dueAlimtalkEnabled: false };
+const tenant: TenantSummary = { tenantId: 30, userId: 12, propertyId: 8, propertyName: "신관", userEmail: user.email, name: "홍길동", phone: "010-2345-6789", roomNumber: "A101", contractType: "COMMERCIAL", rentPrice: 12_000_000, maintenanceFee: 50_000, depositAmount: 10_000_000, paymentDay: 5, billingTiming: "PREPAID", rentChargeFrequency: "ONE_TIME", startDate: "2026-01-01", endDate: "2027-01-01", notifyEnabled: true, dueAlimtalkEnabled: false };
 function wrapper({ children }: { children: React.ReactNode }) {
   return <ConfigProvider theme={{ token: { motion: false } }}><App>{children}</App></ConfigProvider>;
 }
@@ -49,7 +49,7 @@ test("임차인·공간·계약·청구를 묶어 읽고 실제 금액과 관계
   const row = screen.getByRole("row", { name: /홍길동.*신관.*A101/ });
   expect(screen.getAllByRole("columnheader")).toHaveLength(9);
   expect(within(row).getByText(tenant.phone!)).toBeVisible();
-  expect(within(row).getByText("매년 · 1,200만원")).toBeVisible();
+  expect(within(row).getByText("계약기간 일시납 · 총 1,200만원")).toBeVisible();
   expect(within(row).getByText("5만원")).toBeVisible();
   expect(within(row).getByText("1,000만원")).toBeVisible();
   expect(within(row).getByText("2026-01-01 → 2027-01-01")).toBeVisible();
@@ -96,8 +96,8 @@ test("모바일은 표 없이 임차인 핵심 정보 카드와 추가 정보·�
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
   const card = screen.getByRole("article", { name: "임차인 #30 홍길동" });
   expect(within(card).getByText(tenant.phone!)).toBeVisible();
-  expect(within(card).getByText("매년 · 1,200만원")).toBeVisible();
-  expect(within(card).getByText("관리비 5만원")).toBeVisible();
+  expect(within(card).getByText("계약기간 일시납 · 총 1,200만원")).toBeVisible();
+  expect(within(card).getByText("월 관리비 5만원")).toBeVisible();
   expect(within(card).getByRole("link", { name: "신관" })).toBeVisible();
   expect(within(card).getByRole("button", { name: "상세" })).toBeVisible();
   const extra = within(card).getByText("추가 정보").closest("details")!;
@@ -121,7 +121,7 @@ test("중간 화면에서는 핵심 열과 읽기 전용 펼침을 사용하고 
   expect(within(row).getByRole("link", { name: `임대인 ${user.email}` })).toBeVisible();
   expect(screen.queryByRole("link", { name: "임차인 #30" })).not.toBeInTheDocument();
   fireEvent.click(row);
-  expect(await screen.findByText("관리비 5만원")).toBeVisible();
+  expect(await screen.findByText("월 관리비 5만원")).toBeVisible();
   expect(screen.getByRole("link", { name: "임차인 #30" })).toBeVisible();
   expect(screen.getByRole("link", { name: "건물 #8" })).toBeVisible();
   expect(screen.getByRole("link", { name: "유저 #12" })).toBeVisible();
@@ -129,7 +129,7 @@ test("중간 화면에서는 핵심 열과 읽기 전용 펼침을 사용하고 
   mockViewport.mockReturnValue("wide");
   view.rerender(<TenantTable {...props} />);
   expect(screen.getAllByRole("columnheader")).toHaveLength(9);
-  expect(screen.getByRole("columnheader", { name: "관리비" })).toBeVisible();
+  expect(screen.getByRole("columnheader", { name: "월 관리비" })).toBeVisible();
 });
 
 

@@ -9,6 +9,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Radio,
   Row,
   Select,
   Space,
@@ -20,7 +21,7 @@ import dayjs, { type Dayjs } from "dayjs";
 import dayjsGenerateConfig from "@rc-component/picker/generate/dayjs";
 import { commitDateInput, parseDateInput, TENANT_DATE_INPUT_FORMATS } from "@/components/date-input";
 
-import { BILLING_CYCLE_OPTIONS, normalizeRentChargeFrequency } from "../rentChargeFrequency";
+import { RENT_CHARGE_FREQUENCY_OPTIONS, normalizeRentChargeFrequency } from "../rentChargeFrequency";
 import { BILLING_TIMING_OPTIONS, normalizeBillingTiming } from "../billingTiming";
 import type { RentChargeFrequency, BillingTiming, ContractType, TenantDetail, UpdateTenantRequest } from "../types";
 import styles from "./TenantInfoForm.module.css";
@@ -248,6 +249,7 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.billingTiming != null &&
       values?.rentChargeFrequency != null &&
       !(values.rentChargeFrequency === "ONE_TIME" && values.billingTiming === "POSTPAID") &&
+      (values.rentChargeFrequency !== "ONE_TIME" || values.endDate?.isValid()) &&
       (values.rentManwon ?? 0) >= 0,
   );
 }
@@ -339,14 +341,13 @@ function TextInputWithAddon({
 
 function MoneyInputWithUnit({
   label,
-  before,
   value,
   onChange,
   placeholder,
   disabled,
   style,
   ...inputProps
-}: InputNumberProps<number> & { label: string; before?: ReactNode }) {
+}: InputNumberProps<number> & { label: string }) {
   const [unit, setUnit] = useState<"만원" | "원">("만원");
   const { status } = Form.Item.useStatus();
   const { token } = theme.useToken();
@@ -355,7 +356,6 @@ function MoneyInputWithUnit({
 
   return (
     <Space.Compact block>
-      {before}
       <InputNumber<number>
         {...inputProps}
         disabled={disabled}
@@ -387,10 +387,10 @@ function MoneyInputWithUnit({
 
 function BillingScheduleInput({
   billingTimingEditable,
-  yearly,
+  oneTime,
   style,
   ...paymentDayProps
-}: InputNumberProps<number> & { billingTimingEditable: boolean; yearly: boolean }) {
+}: InputNumberProps<number> & { billingTimingEditable: boolean; oneTime: boolean }) {
   const { status } = Form.Item.useStatus();
   const addonStatus = status === "error" || status === "warning" ? status : undefined;
 
@@ -402,7 +402,7 @@ function BillingScheduleInput({
           disabled={!billingTimingEditable}
           options={BILLING_TIMING_OPTIONS.map((option) => ({
             ...option,
-            disabled: yearly && option.value === "POSTPAID",
+            disabled: oneTime && option.value === "POSTPAID",
           }))}
           style={{ width: "min(80px, 48%)", flexShrink: 0 }}
         />
@@ -413,39 +413,6 @@ function BillingScheduleInput({
       />
       <Space.Addon status={addonStatus}>일</Space.Addon>
     </Space.Compact>
-  );
-}
-
-function RentScheduleInput({
-  formInstance,
-  rentChargeFrequencyEditable,
-  label,
-  ...rentProps
-}: InputNumberProps<number> & {
-  formInstance: FormInstance<TenantInfoFormValues>;
-  rentChargeFrequencyEditable: boolean;
-  label: string;
-}) {
-  return (
-    <MoneyInputWithUnit
-      {...rentProps}
-      label={label}
-      before={
-        <Form.Item name="rentChargeFrequency" noStyle>
-          <Select<RentChargeFrequency>
-            aria-label="임대료 청구 주기"
-            disabled={!rentChargeFrequencyEditable}
-            options={BILLING_CYCLE_OPTIONS}
-            style={{ width: "min(80px, 48%)", flexShrink: 0 }}
-            onChange={(cycle) => {
-              if (cycle === "ONE_TIME") {
-                formInstance.setFieldValue("billingTiming", "PREPAID");
-              }
-            }}
-          />
-        </Form.Item>
-      }
-    />
   );
 }
 
@@ -471,6 +438,9 @@ export function TenantInfoFormFields({
   const startDate: Dayjs | null | undefined = Form.useWatch("startDate", form);
   const endDate: Dayjs | null | undefined = Form.useWatch("endDate", form);
   const rentChargeFrequency = normalizeRentChargeFrequency(Form.useWatch("rentChargeFrequency", form));
+  const oneTime = rentChargeFrequency === "ONE_TIME";
+  const rentLabel = oneTime ? (isParking ? "계약기간 주차비 총액" : "계약기간 임대료 총액")
+    : (isParking ? "월 주차비" : "월 임대료");
   const oneTimeStartDateImmutable =
     rentChargeFrequency === "ONE_TIME" && !rentChargeFrequencyEditable;
   return (
@@ -578,13 +548,36 @@ export function TenantInfoFormFields({
           <Input placeholder="010-1111-2222" inputMode="numeric" maxLength={13} />
         </Form.Item>
       </Col>
+      <Col span={24}>
+        <Form.Item
+          label="임대료 납부 유형"
+          name="rentChargeFrequency"
+          rules={[{ required: true, message: "임대료 납부 유형을 선택해 주세요." }]}
+          extra={oneTime
+            ? "계약기간 전체 임대료를 시작월에 한 번만 청구합니다. 12개월이 지나도 다시 청구하지 않으며 관리비는 별도 월별 청구입니다."
+            : "계약 기간 동안 매월 임대료와 관리비를 청구합니다."}
+        >
+          <Radio.Group
+            aria-label="임대료 납부 유형"
+            block
+            optionType="button"
+            buttonStyle="solid"
+            options={RENT_CHARGE_FREQUENCY_OPTIONS}
+            disabled={!rentChargeFrequencyEditable}
+            onChange={(event) => {
+              if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
+              void form.validateFields(["endDate"]).catch(() => undefined);
+            }}
+          />
+        </Form.Item>
+      </Col>
       <Col xs={24} sm={12}>
         <Form.Item
           label="계약 시작일"
           name="startDate"
           extra={
             oneTimeStartDateImmutable
-              ? "기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다."
+              ? "계약기간 일시납의 시작일은 등록 후 수정할 수 없습니다."
               : undefined
           }
           rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
@@ -604,9 +597,10 @@ export function TenantInfoFormFields({
       <Col xs={24} sm={12}>
         <Form.Item
           label="계약 종료일"
+          required={oneTime}
           htmlFor={endDateInputId}
           name="endDate"
-          dependencies={["startDate"]}
+          dependencies={["startDate", "rentChargeFrequency"]}
           extra={<div className={styles.durationShortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
             {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
               const nextEndDate = startDate?.isValid() ? extendContractEndDate(startDate, endDate, months) : null;
@@ -633,6 +627,9 @@ export function TenantInfoFormFields({
           rules={[
             ({ getFieldValue }) => ({
               validator(_, value: Dayjs | null | undefined) {
+                if (getFieldValue("rentChargeFrequency") === "ONE_TIME" && !value) {
+                  return Promise.reject(new Error("계약기간 일시납은 계약 종료일이 필요합니다."));
+                }
                 const start: Dayjs | null | undefined = getFieldValue("startDate");
                 if (!value || !start || !value.isBefore(start, "day")) {
                   return Promise.resolve();
@@ -658,7 +655,9 @@ export function TenantInfoFormFields({
         <Form.Item
           label="납부일"
           name="paymentDay"
-          extra="1~31 사이의 날짜를 입력하세요."
+          extra={oneTime
+            ? "첫 납기는 시작월의 이 날짜이며 시작일보다 이르면 시작일에 납부합니다. 관리비는 이후 월별로 청구합니다."
+            : "1~31 사이의 날짜를 입력하세요."}
           rules={[
             { required: true, message: "납부일을 입력해 주세요." },
             { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
@@ -669,32 +668,33 @@ export function TenantInfoFormFields({
             max={31}
             placeholder="25"
             billingTimingEditable={billingTimingEditable}
-            yearly={rentChargeFrequency === "ONE_TIME"}
+            oneTime={oneTime}
           />
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
         <Form.Item
-          label={isParking ? "주차비" : "임대료"}
+          label={rentLabel}
           name="rentManwon"
+          extra={oneTime ? (rentChargeFrequencyEditable
+            ? "계약 기간 전체의 합의 금액입니다. 기간을 바꿔도 자동 환산하지 않습니다."
+            : "총액은 최초 납기 전이며 시작월에 납부 기록이 없을 때만 정정할 수 있습니다.") : undefined}
           rules={[{ type: "number", min: 0, message: "임대료는 0 이상이어야 합니다." }]}
         >
-          <RentScheduleInput
-            formInstance={form}
-            label={isParking ? "주차비" : "임대료"}
+          <MoneyInputWithUnit
+            label={rentLabel}
             min={0}
             placeholder="50"
-            rentChargeFrequencyEditable={rentChargeFrequencyEditable}
           />
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
         <Form.Item
-          label="관리비"
+          label="월 관리비"
           name="maintenanceFeeManwon"
           rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
         >
-          <MoneyInputWithUnit min={0} label="관리비" placeholder="0" />
+          <MoneyInputWithUnit min={0} label="월 관리비" placeholder="0" />
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>

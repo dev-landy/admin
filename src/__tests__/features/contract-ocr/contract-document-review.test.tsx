@@ -857,7 +857,7 @@ test("최초 진입 시 낡은 임차인 캐시 대신 이번 조회 결과로 �
   mockTenant.mockResolvedValue({ ...TENANT, rentPrice: 900000, name: "최신 이름" });
   renderReview(TENANT);
   await waitFor(() => expect(screen.getByLabelText("세입자 이름")).toHaveValue("최신 이름"));
-  expect(screen.getByLabelText("임대료")).toHaveValue("90");
+  expect(screen.getByLabelText("월 임대료")).toHaveValue("90");
 });
 
 test("수정 성공 후 생략된 종료일을 서버가 유지하면 실제 저장된 날짜를 다시 표시한다", async () => {

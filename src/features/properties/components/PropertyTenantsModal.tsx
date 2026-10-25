@@ -78,7 +78,7 @@ export function PropertyTenantsModal({
   }
   const recordDetails = (tenant: PropertyTenant) => <dl className="admin-record-fields">
     <div><dt>계약</dt><dd><TenantContractCell tenant={tenant} /></dd></div>
-    <div><dt>관리비</dt><dd>{formatManwon(tenant.maintenanceFee)}</dd></div>
+    <div><dt>월 관리비</dt><dd>{formatManwon(tenant.maintenanceFee)}</dd></div>
     <div><dt>보증금</dt><dd>{formatManwon(tenant.depositAmount)}</dd></div>
     <div><dt>알림 설정</dt><dd><TenantNotificationCell tenant={tenant} /></dd></div>
     <div><dt>임차인 ID</dt><dd>{tenant.tenantId}</dd></div>
@@ -101,7 +101,7 @@ export function PropertyTenantsModal({
   ];
   const compactColumns: TableColumnsType<PropertyTenant> = [
     { ...columns[0], width: 210 },
-    { title: "임대료·납부 조건", key: "rent-summary", width: 200, align: "right", className: "admin-numeric", render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
+    { title: "임대료·납부 조건", key: "rent-summary", width: 200, align: "right", className: "admin-numeric", render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay, tenant.rentChargeFrequency, tenant.maintenanceFee)} /> },
     columns[4],
   ];
 
@@ -149,7 +149,7 @@ export function PropertyTenantsModal({
           extra={<Tag>{CONTRACT_TYPE_OPTIONS.find((option) => option.value === tenant.contractType)?.label ?? "임대 계약"}</Tag>}
           fields={[
             { label: "임대료", value: formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice) },
-            { label: "납부 조건", value: formatBillingSchedule(tenant.billingTiming, tenant.paymentDay) },
+            { label: "납부 조건", value: formatBillingSchedule(tenant.billingTiming, tenant.paymentDay, tenant.rentChargeFrequency, tenant.maintenanceFee) },
             { label: "계약 기간", value: `${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}` },
           ]} details={recordDetails(tenant)} actions={actions(tenant, true)} />}
         dataSource={data?.tenants ?? []}

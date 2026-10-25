@@ -68,14 +68,14 @@ export function TenantTable({ sortControl, returnPath = "/tenants", data, loadin
 
   const compactColumns: TableColumnsType<TenantSummary> = [
     { title: "임차인·공간", key: "identity", width: 290, render: (_, tenant) => <TenantCompactIdentityCell tenant={tenant} returnPath={returnPath} /> },
-    { title: "계약·청구", key: "terms", width: 260, render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={`${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}`} meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)} /> },
+    { title: "계약·청구", key: "terms", width: 260, render: (_, tenant) => <EntityCell primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)} secondary={`${tenant.startDate} → ${tenant.endDate ?? "종료일 없음"}`} meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay, tenant.rentChargeFrequency, tenant.maintenanceFee)} /> },
     columns[5],
   ];
   const wideColumns: TableColumnsType<TenantSummary> = [columns[0], columns[1], columns[2],
     { title: "임대료", key: "rent", width: 160, className: "admin-numeric", render: (_, tenant) => formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice) },
-    { title: "관리비", dataIndex: "maintenanceFee", width: 110, className: "admin-numeric", render: formatManwon },
+    { title: "월 관리비", dataIndex: "maintenanceFee", width: 110, className: "admin-numeric", render: formatManwon },
     { title: "보증금", dataIndex: "depositAmount", width: 130, className: "admin-numeric", render: formatManwon },
-    { title: "납부 조건", key: "billing", width: 140, render: (_, tenant) => formatBillingSchedule(tenant.billingTiming, tenant.paymentDay) },
+    { title: "납부 조건", key: "billing", width: 140, render: (_, tenant) => formatBillingSchedule(tenant.billingTiming, tenant.paymentDay, tenant.rentChargeFrequency, tenant.maintenanceFee) },
     columns[4], columns[5],
   ];
   function renderDetails(tenant: TenantSummary) { return <div className="admin-detail-grid"><TenantReferencesCell tenant={tenant} returnPath={returnPath} /><TenantContractCell tenant={tenant} /><TenantChargesCell tenant={tenant} /><TenantNotificationCell tenant={tenant} /></div>; }

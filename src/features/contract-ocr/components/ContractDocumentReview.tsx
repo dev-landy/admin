@@ -111,15 +111,16 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     !watchedValues?.name?.trim() ? "세입자 이름" : undefined,
     !watchedValues?.phone?.trim() ? "연락처" : undefined,
     !watchedValues?.startDate ? "계약 시작일" : undefined,
+    watchedValues?.rentChargeFrequency === "ONE_TIME" && !watchedValues.endDate ? "계약 종료일" : undefined,
     watchedValues?.paymentDay == null ? "납부일" : undefined,
     watchedValues?.billingTiming == null ? "납부 방식" : undefined,
-    watchedValues?.rentChargeFrequency == null ? "청구 주기" : undefined,
+    watchedValues?.rentChargeFrequency == null ? "임대료 납부 유형" : undefined,
   ].filter((label): label is string => label !== undefined);
   const submitDisabledReason = savedTenantState === "failed" ? "저장된 임차인 정보를 다시 확인한 뒤 등록할 수 있습니다."
     : savedTenantState === "checking" ? "저장된 임차인 정보를 확인하는 중입니다."
     : isBusy ? "진행 중인 처리가 끝난 뒤 등록할 수 있습니다."
     : !propertyAvailable ? "등록할 건물을 선택하거나 새 건물 정보를 완성해 주세요."
-    : watchedValues?.rentChargeFrequency === "ONE_TIME" && watchedValues.billingTiming === "POSTPAID" ? "기간 일시납은 선불로 설정해 주세요."
+    : watchedValues?.rentChargeFrequency === "ONE_TIME" && watchedValues.billingTiming === "POSTPAID" ? "계약기간 일시납은 선불로 설정해 주세요."
     : !((watchedValues?.rentManwon ?? 0) >= 0) ? "임대료는 0 이상으로 입력해 주세요."
     : missingTenantFields.length > 0 ? `필수 입력: ${missingTenantFields.join(" · ")}. 값을 입력하면 등록 버튼이 활성화됩니다.`
     : undefined;
@@ -265,7 +266,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
         {isPendingReview && <ContractDocumentPropertyField userId={document.userId} value={propertySelection}
           onChange={setPropertySelection} onAvailabilityChange={setPropertyAvailable} onDirtyChange={setPropertyDraftDirty} disabled={isBusy} />}
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
-          <Text type="secondary">{isPendingReview ? "원본과 입력값을 확인한 뒤 등록해 주세요." : "납부 방식과 청구 주기는 변경할 수 없습니다."}</Text>
+          <Text type="secondary">{isPendingReview ? "원본과 입력값을 확인한 뒤 등록해 주세요." : "납부 방식과 임대료 납부 유형은 변경할 수 없습니다."}</Text>
           {savedTenantState === "failed" && <Alert type="warning" showIcon title="저장 완료 · 저장된 정보 조회 실패"
             description="중복 저장을 막기 위해 입력을 잠시 잠갔습니다. 저장된 정보를 다시 확인해 주세요."
             action={<Button onClick={retrySavedTenantLookup}>저장된 정보 다시 조회</Button>} />}

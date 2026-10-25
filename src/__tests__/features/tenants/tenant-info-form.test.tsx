@@ -112,6 +112,49 @@ const EXACT_MONEY_VALUES = fromTenantValues({
   paymentDay: 25, startDate: "2026-09-01", endDate: null,
 });
 
+test("일시납은 종료일이 없으면 등록할 수 없고 월납으로 바꾸면 종료일은 선택값이다", async () => {
+  const onFinish = jest.fn();
+  const onFormReady = jest.fn();
+  render(<TestForm onFinish={onFinish} onFormReady={onFormReady} initialRentChargeFrequency="ONE_TIME" />);
+  const form: FormInstance<TenantInfoFormValues> = onFormReady.mock.calls[0][0];
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("계약기간 일시납은 계약 종료일이 필요합니다.")).toBeInTheDocument();
+  expect(isTenantFormComplete(form.getFieldsValue())).toBe(false);
+  expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("radio", { name: "월납" }));
+  await screen.findByLabelText("월 임대료");
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(isTenantFormComplete(form.getFieldsValue())).toBe(true);
+});
+
+test("일시납 기간을 8개월에서 13개월로 바꿔도 입력 총액을 환산하지 않는다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialRentChargeFrequency="ONE_TIME" initialValues={{
+    startDate: dayjs("2026-03-20"), endDate: dayjs("2026-11-19"), rentManwon: 800.0001,
+  }} />);
+  const end = screen.getByLabelText("계약 종료일");
+  fireEvent.change(end, { target: { value: "2027-04-19" } });
+  fireEvent.blur(end);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    rentChargeFrequency: "ONE_TIME", startDate: "2026-03-20", endDate: "2027-04-19", rentPrice: 8_000_001,
+  });
+});
+
+test("등록된 일시납의 종료일을 지워도 필수 검증을 우회할 수 없다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialRentChargeFrequency="ONE_TIME" rentChargeFrequencyEditable={false}
+    initialValues={{ endDate: dayjs("2027-04-19") }} />);
+  const end = screen.getByLabelText("계약 종료일");
+  fireEvent.change(end, { target: { value: "" } });
+  fireEvent.blur(end);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("계약기간 일시납은 계약 종료일이 필요합니다.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
+});
+
 async function commitDateEvent(action: () => void) {
   await act(async () => {
     action();
@@ -126,8 +169,8 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
   render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={EXACT_MONEY_VALUES} />);
 
   for (const [label, manwon, won] of [
-      ["임대료", "50.0001", "500001"],
-      ["관리비", "1.2345", "12345"],
+      ["월 임대료", "50.0001", "500001"],
+      ["월 관리비", "1.2345", "12345"],
       ["보증금", "123.4567", "1234567"],
     ]) {
       expect(screen.getByLabelText(label)).toHaveValue(manwon);
@@ -150,8 +193,8 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     render(<TestForm onFinish={onFinish} />);
 
     for (const [label, won, manwon] of [
-      ["임대료", "501234", "50.1234"],
-      ["관리비", "56789", "5.6789"],
+      ["월 임대료", "501234", "50.1234"],
+      ["월 관리비", "56789", "5.6789"],
       ["보증금", "10000001", "1000.0001"],
     ]) {
       fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
@@ -172,14 +215,14 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
   test("만원 입력 중 소수점을 유지하고 원 단위 입력은 정수 원으로 제출한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} />);
-    const rent = screen.getByLabelText("임대료");
+    const rent = screen.getByLabelText("월 임대료");
     fireEvent.focus(rent);
     for (const value of ["1", "1.", "1.2", "1.23", "1.2345"]) {
       fireEvent.change(rent, { target: { value } });
       expect(rent).toHaveValue(value);
     }
     fireEvent.blur(rent);
-    fireEvent.click(screen.getByRole("button", { name: "임대료 만원 단위, 원으로 전환" }));
+    fireEvent.click(screen.getByRole("button", { name: "월 임대료 만원 단위, 원으로 전환" }));
     expect(rent).toHaveValue("12345");
     fireEvent.change(rent, { target: { value: "12345.6" } });
     fireEvent.blur(rent);
@@ -192,14 +235,14 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
   test("원 단위 전환은 다른 금액에 영향을 주지 않고 초안·OCR·저장된 서버값을 현재 단위로 표시한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} appliedValues={EXACT_MONEY_VALUES} />);
-    fireEvent.click(screen.getByRole("button", { name: "임대료 만원 단위, 원으로 전환" }));
-    expect(screen.getByLabelText("임대료")).toHaveValue("500000");
-    expect(screen.getByRole("button", { name: "관리비 만원 단위, 원으로 전환" })).toBeInTheDocument();
-    expect(screen.getByLabelText("관리비")).toHaveValue("5");
+    fireEvent.click(screen.getByRole("button", { name: "월 임대료 만원 단위, 원으로 전환" }));
+    expect(screen.getByLabelText("월 임대료")).toHaveValue("500000");
+    expect(screen.getByRole("button", { name: "월 관리비 만원 단위, 원으로 전환" })).toBeInTheDocument();
+    expect(screen.getByLabelText("월 관리비")).toHaveValue("5");
 
     fireEvent.click(screen.getByRole("button", { name: "서버 값 적용" }));
-    await waitFor(() => expect(screen.getByLabelText("임대료")).toHaveValue("500001"));
-    expect(screen.getByLabelText("관리비")).toHaveValue("1.2345");
+    await waitFor(() => expect(screen.getByLabelText("월 임대료")).toHaveValue("500001"));
+    expect(screen.getByLabelText("월 관리비")).toHaveValue("1.2345");
     expect(screen.getByLabelText("보증금")).toHaveValue("123.4567");
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
@@ -209,7 +252,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
   test("원 단위 필드를 비우면 0원을 제출하고 비활성화 폼에서는 단위를 전환할 수 없다", async () => {
     const onFinish = jest.fn();
     const { unmount } = render(<TestForm onFinish={onFinish} />);
-    for (const label of ["임대료", "관리비", "보증금"]) {
+    for (const label of ["월 임대료", "월 관리비", "보증금"]) {
       fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
       fireEvent.change(screen.getByLabelText(label), { target: { value: "" } });
     }
@@ -221,7 +264,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     unmount();
 
     render(<TestForm onFinish={jest.fn()} disabled />);
-    for (const label of ["임대료", "관리비", "보증금"]) {
+    for (const label of ["월 임대료", "월 관리비", "보증금"]) {
       expect(screen.getByLabelText(label)).toBeDisabled();
       expect(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` })).toBeDisabled();
     }
@@ -235,7 +278,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(screen.getByLabelText("카테고리").closest(".ant-select")).toHaveTextContent("세대");
     expect(screen.getByLabelText("납부일")).toHaveValue("25");
     expect(screen.getByText("선불")).toBeInTheDocument();
-    expect(screen.getByText("매월")).toBeInTheDocument();
+    expect(screen.getByText("월납")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("호실"), { target: { value: "202" } });
     fireEvent.mouseDown(screen.getByLabelText("납부 방식"));
@@ -255,18 +298,13 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
 
   test("기간 일시납을 선택하면 선불로 맞추고 후불 선택을 차단한다", async () => {
     const onFinish = jest.fn();
-    render(<TestForm onFinish={onFinish} />);
+    render(<TestForm onFinish={onFinish} initialValues={{ endDate: dayjs("2027-04-30") }} />);
 
     fireEvent.mouseDown(screen.getByLabelText("납부 방식"));
     fireEvent.click(await screen.findByText("후불"));
-    fireEvent.mouseDown(screen.getByLabelText("임대료 청구 주기"));
-    fireEvent.click(await screen.findByText("매년"));
-
-    await waitFor(() =>
-      expect(screen.getByLabelText("임대료 청구 주기").closest(".ant-select")).toHaveTextContent(
-        "매년",
-      ),
-    );
+    fireEvent.click(screen.getByRole("radio", { name: "계약기간 일시납" }));
+    expect(screen.getByRole("radio", { name: "계약기간 일시납" })).toBeChecked();
+    await screen.findByLabelText("계약기간 임대료 총액");
 
     fireEvent.mouseDown(screen.getByLabelText("납부 방식"));
     expect(await screen.findByRole("option", { name: "후불" })).toHaveAttribute(
@@ -310,16 +348,16 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(toUpdateTenantRequest(formValues)).not.toHaveProperty("billingTiming");
     expect(toUpdateTenantRequest(formValues)).not.toHaveProperty("rentChargeFrequency");
 
-    const legacyValues = {
+    const incompleteDraftValues = {
       ...toTenantValues(formValues),
       billingTiming: undefined,
       rentChargeFrequency: undefined,
     };
-    expect(fromTenantValues(legacyValues).billingTiming).toBe("PREPAID");
-    expect(fromTenantValues(legacyValues).rentChargeFrequency).toBe("MONTHLY");
+    expect(fromTenantValues(incompleteDraftValues).billingTiming).toBe("PREPAID");
+    expect(fromTenantValues(incompleteDraftValues).rentChargeFrequency).toBe("MONTHLY");
   });
 
-  test("일반 수정에서는 납부 방식과 임대료 청구 주기 선택을 비활성화한다", () => {
+  test("일반 수정에서는 납부 방식과 임대료 납부 유형 선택을 비활성화한다", () => {
     render(
       <TestForm
         onFinish={jest.fn()}
@@ -329,7 +367,8 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     );
 
     expect(screen.getByLabelText("납부 방식")).toBeDisabled();
-    expect(screen.getByLabelText("임대료 청구 주기")).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "월납" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "계약기간 일시납" })).toBeDisabled();
   });
 
   test("등록된 기간 일시납 계약은 시작일을 수정할 수 없다", () => {
@@ -343,9 +382,9 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     );
 
     expect(screen.getByLabelText("계약 시작일")).toBeDisabled();
-    expect(screen.getByText("기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("계약기간 일시납의 시작일은 등록 후 수정할 수 없습니다.")).toBeInTheDocument();
     const descriptionIds = screen.getByLabelText("계약 시작일").getAttribute("aria-describedby")?.split(/\s+/) ?? [];
-    expect(descriptionIds.some((id) => document.getElementById(id)?.textContent?.includes("기간 일시납 계약의 시작일은 등록 후 수정할 수 없습니다."))).toBe(true);
+    expect(descriptionIds.some((id) => document.getElementById(id)?.textContent?.includes("계약기간 일시납의 시작일은 등록 후 수정할 수 없습니다."))).toBe(true);
   });
 
   test("납부일 범위 밖 값은 저장하지 않고 31일 경계는 허용한다", async () => {
@@ -373,7 +412,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     for (const rentManwon of [undefined, null, 0]) {
       onFinish.mockClear();
       await commitDateEvent(() => form.setFieldValue("rentManwon", rentManwon));
-      expect(screen.getByLabelText("임대료")).not.toHaveAttribute("aria-required", "true");
+      expect(screen.getByLabelText("월 임대료")).not.toHaveAttribute("aria-required", "true");
       fireEvent.click(screen.getByRole("button", { name: "저장" }));
 
       await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
@@ -450,7 +489,7 @@ test("주차 계약의 선택 차량번호를 저장하고 세대 전환에서 �
     expect(screen.queryByLabelText("차량 번호 (선택)")).not.toBeInTheDocument();
     expect(screen.getByLabelText("차량 번호")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("차량 번호"), { target: { value: vehicleNumber } });
-    expect(screen.getByLabelText("주차비")).toBeInTheDocument();
+    expect(screen.getByLabelText("월 주차비")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
     const formValues = onFinish.mock.calls[0][0];
@@ -820,7 +859,7 @@ test("달력과 금액 단위 버튼은 Tab 순서에서 빠지고 클릭으로 
   for (const button of screen.getAllByRole("button", { name: "날짜 선택" })) {
     expect(button).toHaveAttribute("tabindex", "-1");
   }
-  for (const label of ["임대료", "관리비", "보증금"]) {
+  for (const label of ["월 임대료", "월 관리비", "보증금"]) {
     const button = screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` });
     expect(button).toHaveAttribute("tabindex", "-1");
     fireEvent.click(button);
@@ -828,7 +867,7 @@ test("달력과 금액 단위 버튼은 Tab 순서에서 빠지고 클릭으로 
   }
   expect(screen.getByLabelText("계약 시작일")).not.toHaveAttribute("tabindex", "-1");
   expect(screen.getByLabelText("계약 종료일")).not.toHaveAttribute("tabindex", "-1");
-  expect(screen.getByLabelText("임대료")).not.toHaveAttribute("tabindex", "-1");
+  expect(screen.getByLabelText("월 임대료")).not.toHaveAttribute("tabindex", "-1");
   fireEvent.click(screen.getAllByRole("button", { name: "날짜 선택" })[0]);
   expect(await screen.findByTitle("2026-09-20")).toBeInTheDocument();
 });

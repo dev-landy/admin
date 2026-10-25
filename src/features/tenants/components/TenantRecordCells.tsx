@@ -65,10 +65,10 @@ export function TenantChargesCell({ tenant }: { tenant: TenantRecord }) {
   return <EntityCell
     primary={formatRentSchedule(tenant.rentChargeFrequency, tenant.rentPrice)}
     secondary={<div className="admin-cell-stack">
-      <span>관리비 {formatManwon(tenant.maintenanceFee)}</span>
+      <span>월 관리비 {formatManwon(tenant.maintenanceFee)}</span>
       <span>보증금 {formatManwon(tenant.depositAmount)}</span>
     </div>}
-    meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay)}
+    meta={formatBillingSchedule(tenant.billingTiming, tenant.paymentDay, tenant.rentChargeFrequency, tenant.maintenanceFee)}
   />;
 }
 

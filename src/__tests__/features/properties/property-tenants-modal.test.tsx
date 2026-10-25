@@ -27,7 +27,7 @@ jest.mock("@/features/properties/hooks", () => ({
           billingTiming: "PREPAID",
           rentChargeFrequency: "ONE_TIME",
           startDate: "2026-07-01",
-          endDate: null,
+          endDate: "2027-06-30",
           notifyEnabled: true,
         },
       ],
@@ -49,23 +49,23 @@ test("건물 소속 임차인의 납부 조건과 계약 시작일을 표시한�
   );
 
   expect(screen.getByRole("columnheader", { name: "임대료·납부 조건" })).toBeInTheDocument();
-  expect(screen.getByText("선불 · 매월 25일")).toBeInTheDocument();
-  expect(screen.getByText("매년 · 50만원")).toBeInTheDocument();
+  expect(screen.getByText("선불 · 시작월 25일 기준")).toBeInTheDocument();
+  expect(screen.getByText("계약기간 일시납 · 총 50만원")).toBeInTheDocument();
   expect(screen.getByText("보증금 1,000만원")).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "계약" })).toBeInTheDocument();
-  expect(screen.getByText(/2026-07-01 → 종료일 없음/)).toBeInTheDocument();
+  expect(screen.getByText(/2026-07-01 → 2027-06-30/)).toBeInTheDocument();
   await waitFor(() => expect(screen.getByText("호실 101 · 임차인 전화 010-0000-0000")).toBeVisible());
 });
 
-test("모바일 건물 임차인 모달은 가로 표 없이 연 임대료와 전체 계약·보증금 정보를 읽을 수 있다", async () => {
+test("모바일 건물 임차인 모달은 가로 표 없이 계약기간 임대료 총액과 전체 계약·보증금 정보를 읽을 수 있다", async () => {
   mockViewport = "mobile";
   render(<ConfigProvider theme={{ token: { motion: false } }}><App><PropertyTenantsModal propertyId={3} propertyName="테스트 건물" onClose={jest.fn()} /></App></ConfigProvider>);
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
   const card = screen.getByRole("article", { name: "임차인 #1 홍길동" });
   await waitFor(() => expect(card).toBeVisible());
   expect(within(card).getByText("호실 101 · 임차인 전화 010-0000-0000")).toBeVisible();
-  expect(within(card).getByText("매년 · 50만원")).toBeVisible();
-  expect(within(card).getByText("선불 · 매월 25일")).toBeVisible();
+  expect(within(card).getByText("계약기간 일시납 · 총 50만원")).toBeVisible();
+  expect(within(card).getByText("선불 · 시작월 25일 기준")).toBeVisible();
   expect(within(card).getByRole("link", { name: "상세 보기" })).toHaveAttribute("href", expect.stringContaining("/tenants/1?"));
   fireEvent.click(within(card).getByText("추가 정보"));
   await waitFor(() => expect(within(card).getByText("1,000만원")).toBeVisible());
