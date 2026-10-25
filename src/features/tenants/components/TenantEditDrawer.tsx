@@ -8,6 +8,7 @@ import { App, Button, Drawer, Form } from "antd";
 import { useUnsavedChanges } from "@/components/NavigationGuard";
 import { parseProblemDetail } from "@/lib/api/problem";
 import { useUpdateTenant } from "../hooks";
+import { tenantBillingFieldErrors } from "../billingValidation";
 import { useContractOverlapConfirmation } from "../useContractOverlapConfirmation";
 import type { TenantDetail } from "../types";
 import {
@@ -76,6 +77,7 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
       clearUnsavedChanges();
       onClose();
     } catch (err) {
+      form.setFields(tenantBillingFieldErrors(err));
       const p = parseProblemDetail(err);
       notification.error({ title: p?.title ?? "수정 실패", description: p?.detail });
     }

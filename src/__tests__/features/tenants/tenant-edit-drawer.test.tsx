@@ -40,6 +40,26 @@ beforeEach(() => {
 });
 afterEach(() => client.clear());
 
+test("서버가 일시납 총액 정정을 거절하면 금액 오류와 나머지 입력을 보존한다", async () => {
+  const detail = "최초 납기가 지났거나 시작월 납부 기록이 있어 총액을 정정할 수 없습니다.";
+  mockUpdate.mockRejectedValueOnce(new AxiosError("one-time rent locked", undefined, undefined, undefined, {
+    data: { type: "/problems/tenant-one-time-rent-change-not-allowed", title: "총액 정정 불가", detail, status: 422 },
+    status: 422, statusText: "Unprocessable Entity", headers: new AxiosHeaders(), config: { headers: new AxiosHeaders() },
+  }));
+  render(<Drawer tenant={{ ...TENANT, rentChargeFrequency: "ONE_TIME", billingTiming: "PREPAID", endDate: "2027-04-19" }} />);
+  fireEvent.change(await screen.findByLabelText("계약기간 임대료 총액"), { target: { value: "800" } });
+  fireEvent.change(screen.getByLabelText("월 관리비"), { target: { value: "7" } });
+  await submitChangedName("보존할 이름");
+  await waitFor(() => expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveAttribute("aria-invalid", "true"));
+  await waitFor(() => expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveAccessibleDescription(expect.stringContaining(detail)));
+  expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveValue("800");
+  expect(screen.getByLabelText("월 관리비")).toHaveValue("7");
+  expect(screen.getByLabelText("세입자 이름")).toHaveValue("보존할 이름");
+  expect(mockUpdate.mock.calls[0][1]).toMatchObject({ rentPrice: 8_000_000, maintenanceFee: 70_000 });
+  expect(mockUpdate.mock.calls[0][1]).not.toHaveProperty("rentChargeFrequency");
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 test("일반 수정은 한 번 저장하고 중복 확인창 없이 닫는다", async () => {
   render(<Drawer />);
   await submitChangedName();

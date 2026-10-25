@@ -20,6 +20,7 @@ import { useContractOverlapConfirmation } from "@/features/tenants/useContractOv
 import { RowActions } from "@/components/RowActions";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { tenantBillingFieldErrors } from "@/features/tenants/billingValidation";
 import { toContractRegistrationValues } from "../registrationValues";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
@@ -193,6 +194,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
         if (synchronized) notification.success({ title: "임차인 정보가 수정되었습니다." });
       }
     } catch (error) {
+      form.setFields(tenantBillingFieldErrors(error));
       notification.error({ title: "저장 실패", description: errorMessage(error, "입력값과 문서 상태를 확인한 뒤 다시 시도해 주세요.") });
     } finally {
       actionInProgress.current = false;
