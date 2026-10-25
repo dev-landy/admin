@@ -20,7 +20,7 @@ test("최종 일시납 요청은 종료일 누락과 후불을 거부한다", ()
     .toThrow("선불만 가능합니다");
 });
 
-test("월납은 후불과 종료일 미입력을 유지하고 선택 금액은 0원으로 등록한다", () => {
+test("매월 납부는 후불과 종료일 미입력을 유지하고 선택 금액은 0원으로 등록한다", () => {
   expect(toContractRegistrationValues({ ...VALUES, rentPrice: null, maintenanceFee: null, depositAmount: null }))
     .toMatchObject({ rentChargeFrequency: "MONTHLY", billingTiming: "POSTPAID", endDate: null, rentPrice: 0, maintenanceFee: 0, depositAmount: 0 });
 });

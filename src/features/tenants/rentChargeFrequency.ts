@@ -2,7 +2,7 @@ import { formatManwon } from "@/lib/format/currency";
 import type { RentChargeFrequency } from "./types";
 
 export const RENT_CHARGE_FREQUENCY_OPTIONS: { label: string; value: RentChargeFrequency }[] = [
-  { label: "월납", value: "MONTHLY" },
+  { label: "매월", value: "MONTHLY" },
   { label: "계약기간 일시납", value: "ONE_TIME" },
 ];
 
