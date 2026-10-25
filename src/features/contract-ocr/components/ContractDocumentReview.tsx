@@ -20,6 +20,7 @@ import { useContractOverlapConfirmation } from "@/features/tenants/useContractOv
 import { RowActions } from "@/components/RowActions";
 import { QueryErrorAlert } from "@/components/QueryErrorAlert";
 import { parseProblemDetail } from "@/lib/api/problem";
+import { toContractRegistrationValues } from "../registrationValues";
 import styles from "./ContractDocumentReview.module.css";
 import { ContractDocumentSourcePanel } from "./ContractDocumentSourcePanel";
 import { ContractDocumentSourceImage } from "./ContractDocumentSourceImage";
@@ -175,7 +176,10 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     actionInProgress.current = true;
     try {
       if (isPendingReview) {
-        const registrationValues: RegisterContractDocumentRequest = { ...toTenantValues(values), ...toContractPropertyRequest(propertySelection, document.propertyId) };
+        const registrationValues: RegisterContractDocumentRequest = {
+          ...toContractRegistrationValues(toTenantValues(values)),
+          ...toContractPropertyRequest(propertySelection, document.propertyId),
+        };
         if (!await submitWithOverlapConfirmation(registrationValues,
           (request) => registerMutation.mutateAsync({ documentId: document.documentId, values: request }), "등록")) return;
         clearUnsavedChanges();

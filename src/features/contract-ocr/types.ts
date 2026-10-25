@@ -63,7 +63,22 @@ export type ContractTenantValues = {
   endDate: string | null;
 };
 export type ContractPropertyValues = { name: string; address: string | null };
-export type RegisterContractDocumentRequest = ContractTenantValues & {
+export type ContractRegistrationValues = Omit<ContractTenantValues,
+  "name" | "phone" | "startDate" | "paymentDay" | "rentPrice" | "maintenanceFee" | "depositAmount" |
+  "rentChargeFrequency" | "billingTiming" | "endDate"
+> & {
+  name: string;
+  phone: string;
+  startDate: string;
+  paymentDay: number;
+  rentPrice: number;
+  maintenanceFee: number;
+  depositAmount: number;
+} & (
+  | { rentChargeFrequency: "MONTHLY"; billingTiming: BillingTiming; endDate: string | null }
+  | { rentChargeFrequency: "ONE_TIME"; billingTiming: "PREPAID"; endDate: string }
+);
+export type RegisterContractDocumentRequest = ContractRegistrationValues & {
   allowContractOverlap?: boolean;
   propertyId?: number;
   propertyUpdate?: ContractPropertyValues;

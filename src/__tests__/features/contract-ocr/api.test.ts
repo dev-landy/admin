@@ -4,6 +4,7 @@ import {
   fetchLatestContractOcrAnalysis, registerContractDocument, rejectContractDocument, requestContractOcrAnalysis, retryContractStorage,
 } from "@/features/contract-ocr/api";
 import { ANALYSIS, DOCUMENT, VALUES } from "@/test-utils/contractDocumentFixtures";
+import { toContractRegistrationValues } from "@/features/contract-ocr/registrationValues";
 
 jest.mock("@/lib/api/client", () => ({ apiClient: { get: jest.fn(), post: jest.fn() } }));
 const mockGet = jest.mocked(apiClient.get);
@@ -23,6 +24,19 @@ test("등록은 values 래퍼 없이 보내고 동기 완료 결과를 반환한
   mockPost.mockResolvedValue({ status: 200, data: result });
   await expect(registerContractDocument("document-1", VALUES)).resolves.toEqual(result);
   expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, VALUES);
+});
+
+test("일시납 등록은 새 필드와 계약 총액을 평탄한 요청으로 전송한다", async () => {
+  mockPost.mockResolvedValue({ status: 200, data: { status: "REGISTERED" } });
+  const request = toContractRegistrationValues({
+    ...VALUES, rentChargeFrequency: "ONE_TIME", billingTiming: "PREPAID",
+    startDate: "2026-03-20", endDate: "2027-04-19", rentPrice: 8_000_001,
+  });
+  await registerContractDocument("document-1", request);
+  expect(mockPost).toHaveBeenCalledWith(`${base}/document-1/registration`, expect.objectContaining({
+    rentChargeFrequency: "ONE_TIME", billingTiming: "PREPAID", rentPrice: 8_000_001, endDate: "2027-04-19",
+  }));
+  expect(mockPost.mock.calls[0][1]).not.toHaveProperty("rentBillingCycle");
 });
 
 test("반려는 결과 알림 여부를 명시해 전송한다", async () => {
