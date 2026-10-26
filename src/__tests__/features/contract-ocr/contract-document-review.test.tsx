@@ -629,6 +629,8 @@ test("반려 사유 선택 항목을 드롭다운 첫 번째에 표시하고 미
   const confirm = within(dialog).getByRole("button", { name: "반려 확정" });
   expect(within(dialog).getByText("반려 사유 선택")).toBeInTheDocument();
   expect(confirm).toBeDisabled();
+  expect(within(dialog).getByLabelText("푸시 메시지")).toHaveValue("");
+  expect(within(dialog).getByLabelText("푸시 메시지")).toBeDisabled();
 
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   const emptyOption = await screen.findByText("반려 사유 선택", { selector: ".ant-select-item-option-content" });
@@ -652,12 +654,14 @@ test("반려 사유를 선택한 뒤 첫 항목으로 돌아오면 확정과 알
   expect(confirm).toBeEnabled();
   fireEvent.click(notificationSwitch);
   expect(within(dialog).getByText("직접 변경")).toBeInTheDocument();
+  fireEvent.change(within(dialog).getByLabelText("푸시 메시지"), { target: { value: "미선택으로 돌아가면 초기화할 문구" } });
 
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("반려 사유 선택", { selector: ".ant-select-item-option-content" }));
   expect(confirm).toBeDisabled();
   expect(notificationSwitch).toBeDisabled();
-  expect(within(dialog).getByLabelText("푸시 메시지 (선택)")).toBeDisabled();
+  expect(within(dialog).getByLabelText("푸시 메시지")).toBeDisabled();
+  expect(within(dialog).getByLabelText("푸시 메시지")).toHaveValue("");
   expect(within(dialog).queryByText("직접 변경")).not.toBeInTheDocument();
   expect(within(dialog).getByText("사유를 선택하면 알림 기본값이 적용됩니다.")).toBeInTheDocument();
   fireEvent.click(confirm);
@@ -670,7 +674,7 @@ test("반려 사유를 선택한 뒤 첫 항목으로 돌아오면 확정과 알
   expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
 });
 
-test("반려 사유 네 가지의 알림 기본값을 선택·전송하고 실패 후 다음 사유를 확인한다", async () => {
+test("반려 사유 네 가지의 알림·문구 기본값을 표시·전송하고 실패 후 다음 사유를 확인한다", async () => {
   for (let index = 0; index < 3; index++) mockReject.mockRejectedValueOnce(conflict("사유를 다시 확인해 주세요."));
   renderReview();
   const rejectButton = await screen.findByRole("button", { name: "반려" });
@@ -686,20 +690,27 @@ test("반려 사유 네 가지의 알림 기본값을 선택·전송하고 실�
   expect(mockReject).not.toHaveBeenCalled();
 
   const reasons = [
-    ["UNREADABLE", "내용을 읽을 수 없음", true],
-    ["NOT_A_CONTRACT", "계약서가 아님", true],
-    ["EXPIRED", "만료된 계약서", true],
-    ["DUPLICATE", "중복 제출", false],
+    ["UNREADABLE", "내용을 읽을 수 없음", true, "계약서를 인식할 수 없었어요. 선명한 사진으로 다시 등록해 주세요."],
+    ["NOT_A_CONTRACT", "계약서가 아님", true, "제출하신 문서가 계약서가 아니에요. 계약서를 촬영해 다시 등록해 주세요."],
+    ["EXPIRED", "만료된 계약서", true, "계약 기간이 만료된 계약서예요. 현재 유효한 계약서를 다시 등록해 주세요."],
+    ["DUPLICATE", "중복 제출", false, ""],
   ] as const;
-  for (const [index, [reason, label, notifyUser]] of reasons.entries()) {
+  for (const [index, [reason, label, notifyUser, notificationMessage]] of reasons.entries()) {
     fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
     fireEvent.click(await screen.findByText(label));
     expect(notificationSwitch).toBeEnabled();
     expect(notificationSwitch).toHaveAttribute("aria-checked", String(notifyUser));
     expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
+    const message = within(dialog).getByLabelText("푸시 메시지");
+    expect(message).toBeInTheDocument();
+    expect(message).toHaveValue(notificationMessage);
+    if (notifyUser) expect(message).toBeEnabled();
+    else expect(message).toBeDisabled();
     expect(within(dialog).getByText(notifyUser ? "이 계약서의 반려 결과를 인앱 알림과 푸시로 알립니다." : "이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다.")).toBeInTheDocument();
     fireEvent.click(confirm);
-    await waitFor(() => expect(mockReject).toHaveBeenNthCalledWith(index + 1, DOCUMENT.documentId, { reason, notifyUser }));
+    await waitFor(() => expect(mockReject).toHaveBeenNthCalledWith(index + 1, DOCUMENT.documentId, {
+      reason, notifyUser, ...(notifyUser ? { notificationMessage } : {}),
+    }));
     if (index < reasons.length - 1) {
       expect(await within(dialog).findByText("사유를 다시 확인해 주세요.")).toBeInTheDocument();
       await waitFor(() => expect(confirm).toBeEnabled());
@@ -735,25 +746,54 @@ test("재렌더는 직접 선택을 유지하고 사유를 변경하면 새 사�
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("중복 제출"));
   fireEvent.click(notificationSwitch);
+  const message = within(dialog).getByLabelText("푸시 메시지");
+  fireEvent.change(message, { target: { value: "직접 작성한 알림 문구" } });
   await act(async () => {
     client.setQueryData(contractDocumentKeys.analysis(DOCUMENT.documentId), { ...ANALYSIS, status: "SUCCEEDED", values: VALUES });
   });
   expect(notificationSwitch).toHaveAttribute("aria-checked", "true");
   expect(within(dialog).getByText("직접 변경")).toBeInTheDocument();
+  expect(message).toHaveValue("직접 작성한 알림 문구");
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("만료된 계약서"));
   expect(notificationSwitch).toHaveAttribute("aria-checked", "true");
   expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
   expect(within(dialog).queryByText("직접 변경")).not.toBeInTheDocument();
+  expect(message).toHaveValue("계약 기간이 만료된 계약서예요. 현재 유효한 계약서를 다시 등록해 주세요.");
   fireEvent.click(notificationSwitch);
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("내용을 읽을 수 없음"));
   expect(notificationSwitch).toHaveAttribute("aria-checked", "true");
   expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
+  expect(message).toHaveValue("계약서를 인식할 수 없었어요. 선명한 사진으로 다시 등록해 주세요.");
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("중복 제출"));
   expect(notificationSwitch).toHaveAttribute("aria-checked", "false");
   expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
+  expect(message).toHaveValue("");
+  expect(message).toBeDisabled();
+});
+
+test("기본 알림이 꺼진 중복 제출은 빈 메시지를 표시하고 알림을 켜 직접 작성한 문구를 전송한다", async () => {
+  renderReview();
+  fireEvent.click(await screen.findByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("중복 제출"));
+  const message = within(dialog).getByLabelText("푸시 메시지");
+  expect(message).toBeInTheDocument();
+  expect(within(dialog).getByText("푸시 메시지", { selector: "label" })).toBeInTheDocument();
+  expect(message).toHaveValue("");
+  expect(message).toBeDisabled();
+  expect(within(dialog).getByText("알림을 켜면 메시지를 작성할 수 있습니다.")).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" }));
+  expect(message).toBeEnabled();
+  expect(message).toHaveValue("");
+  fireEvent.change(message, { target: { value: "  이미 등록된 계약서라 추가 등록 없이 처리했어요.  " } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
+  await waitFor(() => expect(mockReject).toHaveBeenCalledWith(DOCUMENT.documentId, {
+    reason: "DUPLICATE", notifyUser: true, notificationMessage: "이미 등록된 계약서라 추가 등록 없이 처리했어요.",
+  }));
 });
 
 test("반려 모달을 취소하면 요청하지 않고 다시 열 때 사유와 알림 여부를 초기화한다", async () => {
@@ -763,7 +803,7 @@ test("반려 모달을 취소하면 요청하지 않고 다시 열 때 사유와
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("중복 제출"));
   fireEvent.click(within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" }));
-  fireEvent.change(within(dialog).getByLabelText("푸시 메시지 (선택)"), { target: { value: "다시 촬영해 주세요." } });
+  fireEvent.change(within(dialog).getByLabelText("푸시 메시지"), { target: { value: "다시 촬영해 주세요." } });
   fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(mockReject).not.toHaveBeenCalled();
@@ -774,7 +814,7 @@ test("반려 모달을 취소하면 요청하지 않고 다시 열 때 사유와
   expect(within(reopenedDialog).queryByText("직접 변경")).not.toBeInTheDocument();
   expect(within(reopenedDialog).getByText("사유를 선택하면 알림 기본값이 적용됩니다.")).toBeInTheDocument();
   expect(within(reopenedDialog).queryByText("이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다.")).not.toBeInTheDocument();
-  expect(within(reopenedDialog).getByLabelText("푸시 메시지 (선택)")).toHaveValue("");
+  expect(within(reopenedDialog).getByLabelText("푸시 메시지")).toHaveValue("");
 });
 
 test("직접 작성한 반려 문구는 공백을 정리해 전송하고 실패·알림 토글 후에도 유지한다", async () => {
@@ -785,19 +825,21 @@ test("직접 작성한 반려 문구는 공백을 정리해 전송하고 실패�
   const dialog = await screen.findByRole("dialog");
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("내용을 읽을 수 없음"));
-  const message = within(dialog).getByLabelText("푸시 메시지 (선택)");
+  const message = within(dialog).getByLabelText("푸시 메시지");
+  expect(message).toHaveValue("계약서를 인식할 수 없었어요. 선명한 사진으로 다시 등록해 주세요.");
   expect(message).toHaveAttribute("maxlength", "255");
   fireEvent.change(message, { target: { value: "  계약서 전체가 보이도록 다시 촬영해 주세요.  " } });
   const toggle = within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" });
   fireEvent.click(toggle);
-  expect(within(dialog).queryByLabelText("푸시 메시지 (선택)")).not.toBeInTheDocument();
+  expect(within(dialog).getByLabelText("푸시 메시지")).toBeInTheDocument();
+  expect(within(dialog).getByLabelText("푸시 메시지")).toBeDisabled();
   fireEvent.click(toggle);
-  expect(within(dialog).getByLabelText("푸시 메시지 (선택)")).toHaveValue("  계약서 전체가 보이도록 다시 촬영해 주세요.  ");
+  expect(within(dialog).getByLabelText("푸시 메시지")).toHaveValue("  계약서 전체가 보이도록 다시 촬영해 주세요.  ");
   fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
   expect(await within(dialog).findByText("다시 시도해 주세요.")).toBeInTheDocument();
   const request = { reason: "UNREADABLE", notifyUser: true, notificationMessage: "계약서 전체가 보이도록 다시 촬영해 주세요." };
   expect(mockReject).toHaveBeenLastCalledWith(DOCUMENT.documentId, request);
-  expect(within(dialog).getByLabelText("푸시 메시지 (선택)")).toHaveValue("  계약서 전체가 보이도록 다시 촬영해 주세요.  ");
+  expect(within(dialog).getByLabelText("푸시 메시지")).toHaveValue("  계약서 전체가 보이도록 다시 촬영해 주세요.  ");
   fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
   await waitFor(() => expect(mockReject).toHaveBeenCalledTimes(2));
   expect(mockReject).toHaveBeenLastCalledWith(DOCUMENT.documentId, request);
@@ -810,7 +852,7 @@ test.each([false, true])("알림 여부=%s일 때 끈 알림과 공백 문구는
   const dialog = await screen.findByRole("dialog");
   fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
   fireEvent.click(await screen.findByText("내용을 읽을 수 없음"));
-  fireEvent.change(within(dialog).getByLabelText("푸시 메시지 (선택)"), { target: { value: notifyUser ? "   " : "전송하지 않을 문구" } });
+  fireEvent.change(within(dialog).getByLabelText("푸시 메시지"), { target: { value: notifyUser ? "   " : "전송하지 않을 문구" } });
   if (!notifyUser) fireEvent.click(within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" }));
   fireEvent.click(within(dialog).getByRole("button", { name: "반려 확정" }));
   await waitFor(() => expect(mockReject).toHaveBeenCalledWith(DOCUMENT.documentId, { reason: "UNREADABLE", notifyUser }));

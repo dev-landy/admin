@@ -44,6 +44,12 @@ const REJECTION_NOTIFICATION_DEFAULTS: Record<ContractDocumentRejectionReason, b
   EXPIRED: true,
   DUPLICATE: false,
 };
+const REJECTION_MESSAGE_DEFAULTS: Record<ContractDocumentRejectionReason, string> = {
+  UNREADABLE: "계약서를 인식할 수 없었어요. 선명한 사진으로 다시 등록해 주세요.",
+  NOT_A_CONTRACT: "제출하신 문서가 계약서가 아니에요. 계약서를 촬영해 다시 등록해 주세요.",
+  EXPIRED: "계약 기간이 만료된 계약서예요. 현재 유효한 계약서를 다시 등록해 주세요.",
+  DUPLICATE: "",
+};
 const ANALYSIS_LABELS = {
   QUEUED: "분석 대기", PROCESSING: "분석 중", SUCCEEDED: "분석 완료", FAILED: "분석 실패", TIMED_OUT: "분석 시간 초과",
 };
@@ -244,6 +250,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   function selectRejectionReason(reason: ContractDocumentRejectionReason | "") {
     setRejectionReason(reason || undefined);
     setRejectionNotifyUser(reason ? REJECTION_NOTIFICATION_DEFAULTS[reason] : true);
+    setRejectionMessage(reason ? REJECTION_MESSAGE_DEFAULTS[reason] : "");
     setRejectionNotificationOverridden(false);
   }
 
@@ -369,14 +376,16 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
                     ? "이 계약서의 반려 결과를 인앱 알림과 푸시로 알립니다."
                     : "이 계약서는 인앱 알림과 푸시 없이 반려 처리합니다."}
                 </Text>
-                {rejectionNotifyUser && <Form.Item label="푸시 메시지 (선택)" htmlFor={rejectionMessageId}
-                  extra="비워 두면 기본 반려 안내를 보냅니다. 작성한 문구는 인앱 알림에도 표시됩니다."
+                <Form.Item label="푸시 메시지" htmlFor={rejectionMessageId}
+                  extra={rejectionNotifyUser
+                    ? "기본 문구를 수정할 수 있습니다. 비워 두면 공통 반려 안내를 보냅니다."
+                    : "알림을 켜면 메시지를 작성할 수 있습니다."}
                   style={{ marginBottom: 0 }}>
                   <Input.TextArea id={rejectionMessageId} value={rejectionMessage} onChange={(event) => setRejectionMessage(event.target.value)}
                     placeholder="예: 계약서 하단이 잘려 있어요. 전체 내용이 보이도록 다시 촬영해 주세요."
                     maxLength={255} showCount styles={{ root: { marginBottom: 22 } }}
-                    autoSize={{ minRows: 3, maxRows: 6 }} disabled={isBusy || !rejectionReason} />
-                </Form.Item>}
+                    autoSize={{ minRows: 3, maxRows: 6 }} disabled={isBusy || !rejectionReason || !rejectionNotifyUser} />
+                </Form.Item>
               </Space>
             </Card>
           </Form>
