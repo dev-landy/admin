@@ -32,7 +32,6 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { ReceiptIcon } from "@/components/ReceiptIcon";
 import { useTheme } from "@/components/ThemeProvider";
 import { NavigationGuardProvider, useNavigationGuard } from "@/components/NavigationGuard";
-import { useAdminViewport } from "@/components/useAdminViewport";
 import { useSidebarPreference } from "@/components/SidebarPreference";
 
 const { Sider, Header, Content } = Layout;
@@ -72,11 +71,14 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { logout, isLoggingOut, isAuthenticated } = useAuth();
   const { requestNavigation } = useNavigationGuard();
-  const viewport = useAdminViewport();
   const screens = Grid.useBreakpoint();
+  const isDesktop = screens.xl ?? true;
   const [collapsedOverride, setCollapsedOverride] = useSidebarPreference();
-  const collapsed = collapsedOverride ?? (viewport === "compact" && !(screens.xl ?? true));
-  const [navOpen, setNavOpen] = useState(false);
+  const collapsed = collapsedOverride ?? false;
+  const [navigation, setNavigation] = useState({ isDesktop, open: false });
+  if (navigation.isDesktop !== isDesktop) setNavigation({ isDesktop, open: false });
+  const navOpen = navigation.isDesktop === isDesktop && navigation.open;
+  const setNavOpen = (open: boolean) => setNavigation({ isDesktop, open });
   const nav = useRef<HTMLElement>(null);
   const prefetchedPaths = useRef(new Set<string>());
   const selectedPath = selectedMenuPath(pathname);
@@ -110,7 +112,6 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
     document.title = `${label} | [${appEnvMeta.label}] Landy Admin`;
   }, [pathname, selectedPath]);
 
-  const isDesktop = viewport !== "mobile";
   useEffect(() => {
     if (!isDesktop && !navOpen) return;
     nav.current?.querySelector<HTMLElement>(".ant-menu-item-selected")?.scrollIntoView?.({ block: "nearest" });
@@ -202,6 +203,8 @@ function AdminLayoutContent({ children }: { children: ReactNode }) {
               <Button
                 type="text"
                 aria-label="메뉴 열기"
+                aria-haspopup="dialog"
+                aria-expanded={navOpen}
                 icon={<MenuOutlined />}
                 onClick={() => setNavOpen(true)}
                 style={{ flexShrink: 0 }}

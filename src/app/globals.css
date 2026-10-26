@@ -344,12 +344,15 @@ html:root .ant-tag.ant-tag-orange:not(.ant-tag-disabled) { color: var(--admin-or
   .ant-form.admin-filter-bar { grid-template-columns: minmax(0, 1fr); }
   .admin-filter-bar > .ant-form-item { grid-column: 1 / -1; }
 }
+@media (max-width: 1199px) {
+  .admin-header-controls > .ant-btn { min-height: 44px; min-width: 44px; }
+  .admin-header-controls > .ant-btn .anticon { font-size: 20px; }
+}
+
 @media (max-width: 767px) {
   .admin-filter-buttons .ant-form-item-label { display: none; }
   .admin-filter-bar .ant-form-item:has(.admin-entity-lookup), .admin-filter-more-fields .ant-form-item:has(.admin-entity-lookup) { grid-column: 1 / -1; }
   .admin-filter-bar > .admin-filter-actions { grid-column: 1 / -1; }
-  .admin-header-controls > .ant-btn { min-height: 44px; min-width: 44px; }
-  .admin-header-controls > .ant-btn .anticon { font-size: 20px; }
   .admin-quick-views .ant-btn { min-height: 44px; padding-inline: 12px; }
   .admin-filter-more > summary { min-height: 44px; padding-block: 10px; }
   .ant-form .ant-input:not(textarea):not(.ant-input-affix-wrapper > .ant-input), .ant-form .ant-input-affix-wrapper,

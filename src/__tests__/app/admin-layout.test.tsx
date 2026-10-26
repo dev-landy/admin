@@ -1,6 +1,7 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { Grid } from "antd";
 
 const mockPush = jest.fn();
 const mockPrefetch = jest.fn();
@@ -20,7 +21,6 @@ jest.mock("@/features/auth/context", () => ({
 }));
 
 let mockViewport: "mobile" | "compact" | "wide" = "wide";
-jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: () => mockViewport }));
 
 import AdminLayout from "@/app/(admin)/layout";
 import { appEnvMeta } from "@/config/app-env";
@@ -44,6 +44,7 @@ async function renderLayout(dirty = false) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Grid, "useBreakpoint").mockImplementation(() => ({ xl: mockViewport === "wide" }));
   mockIsLoggingOut = false;
   jest.spyOn(window, "confirm").mockReturnValue(false);
   mockLogout.mockResolvedValue(undefined);
@@ -88,6 +89,16 @@ test("작성 중 모바일 메뉴 이동을 취소하면 드로어와 현재 화
   jest.mocked(window.confirm).mockReturnValue(true);
   fireEvent.click(screen.getByText("납부 목록"));
   expect(mockPush).toHaveBeenCalledWith("/payments");
+  await waitFor(() => expect(document.querySelector(".ant-drawer-open")).not.toBeInTheDocument());
+});
+
+test("펼친 모바일 화면에서도 메뉴 레일 없이 헤더 메뉴로 이동한다", async () => {
+  mockViewport = "compact";
+  await renderLayout();
+  expect(document.querySelector(".admin-sidebar")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));
+  fireEvent.click(await screen.findByText("계약서 관리"));
+  expect(mockPush).toHaveBeenCalledWith("/contract-documents");
   await waitFor(() => expect(document.querySelector(".ant-drawer-open")).not.toBeInTheDocument());
 });
 

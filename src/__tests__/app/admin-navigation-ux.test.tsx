@@ -1,14 +1,18 @@
 import "@/test-utils/antd";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { Grid } from "antd";
 
 let mockPathname = "/users/1";
 jest.mock("next/navigation", () => ({ usePathname: () => mockPathname, useRouter: () => ({ push: jest.fn(), prefetch: jest.fn() }) }));
 jest.mock("@/features/auth/guard", () => ({ AuthGuard: ({ children }: { children: ReactNode }) => children }));
 jest.mock("@/features/auth/context", () => ({ useAuth: () => ({ logout: jest.fn() }) }));
-jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: jest.fn(() => "wide") }));
-import { useAdminViewport } from "@/components/useAdminViewport";
-beforeEach(() => jest.mocked(useAdminViewport).mockReturnValue("wide"));
+let mockDesktop = true;
+beforeEach(() => {
+  mockDesktop = true;
+  jest.spyOn(Grid, "useBreakpoint").mockImplementation(() => ({ xl: mockDesktop }));
+});
+afterEach(() => jest.restoreAllMocks());
 import AdminLayout from "@/app/(admin)/layout";
 
 test.each([
@@ -23,17 +27,20 @@ test.each([
   expect(container.querySelector(".ant-menu-item-selected")).toHaveTextContent(label);
 });
 
-test("중간 화면은 메뉴 레일을 기본으로 제공하고 모바일은 메뉴를 열어 경로를 선택한다", async () => {
-  jest.mocked(useAdminViewport).mockReturnValue("compact");
+test("펼친 모바일과 작은 화면은 헤더 메뉴를 쓰며 데스크톱 전환 뒤에는 이전 드로어를 다시 열지 않는다", async () => {
+  mockDesktop = false;
   const view = render(<AdminLayout><h1>본문</h1></AdminLayout>);
-  expect(screen.getByRole("button", { name: "메뉴 펼치기" })).toHaveAttribute("aria-expanded", "false");
-  fireEvent.click(screen.getByRole("button", { name: "메뉴 펼치기" }));
-  expect(screen.getByRole("button", { name: "메뉴 접기" })).toHaveAttribute("aria-expanded", "true");
-  jest.mocked(useAdminViewport).mockReturnValue("mobile");
-  view.rerender(<AdminLayout><h1>본문</h1></AdminLayout>);
   expect(screen.queryByRole("navigation", { name: "관리자 메뉴" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));
   expect(await screen.findByRole("navigation", { name: "관리자 메뉴" })).toBeVisible();
+  mockDesktop = true;
+  view.rerender(<AdminLayout><h1>본문</h1></AdminLayout>);
+  expect(screen.queryByRole("button", { name: "메뉴 열기" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "메뉴 접기" })).toBeInTheDocument();
+  mockDesktop = false;
+  view.rerender(<AdminLayout><h1>본문</h1></AdminLayout>);
+  expect(screen.queryByRole("navigation", { name: "관리자 메뉴" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "메뉴 열기" })).toBeInTheDocument();
 });
 
 test("keyboard users can bypass navigation and toggle the sidebar", async () => {
