@@ -32,6 +32,7 @@ import { ContractDocumentCompletion } from "./ContractDocumentCompletion";
 
 const { Text, Title } = Typography;
 const REJECTION_OPTIONS = [
+  { value: "", label: "반려 사유 선택" },
   { value: "UNREADABLE", label: "내용을 읽을 수 없음" },
   { value: "NOT_A_CONTRACT", label: "계약서가 아님" },
   { value: "EXPIRED", label: "만료된 계약서" },
@@ -240,9 +241,9 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     setRejectionError(undefined);
   }
 
-  function selectRejectionReason(reason: ContractDocumentRejectionReason) {
-    setRejectionReason(reason);
-    setRejectionNotifyUser(REJECTION_NOTIFICATION_DEFAULTS[reason]);
+  function selectRejectionReason(reason: ContractDocumentRejectionReason | "") {
+    setRejectionReason(reason || undefined);
+    setRejectionNotifyUser(reason ? REJECTION_NOTIFICATION_DEFAULTS[reason] : true);
     setRejectionNotificationOverridden(false);
   }
 
@@ -348,8 +349,8 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
           <Text>사유를 선택한 뒤 반려를 확정해 주세요.</Text>
           <Form layout="vertical">
             <Form.Item label="반려 사유" htmlFor="contract-rejection-reason" required>
-              <Select id="contract-rejection-reason" aria-label="반려 사유" placeholder="반려 사유 선택" options={REJECTION_OPTIONS}
-                value={rejectionReason} onChange={selectRejectionReason} disabled={isBusy} style={{ width: "100%" }} />
+              <Select<ContractDocumentRejectionReason | ""> id="contract-rejection-reason" aria-label="반려 사유" options={REJECTION_OPTIONS}
+                value={rejectionReason ?? ""} onChange={selectRejectionReason} disabled={isBusy} style={{ width: "100%" }} />
             </Form.Item>
             <Card size="small">
               <Space orientation="vertical" size={8} style={{ width: "100%" }}>

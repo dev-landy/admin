@@ -622,6 +622,54 @@ test("초안 로딩 실패는 경고하고 수동 입력을 막지 않는다", a
   expect(screen.getByRole("button", { name: "이전 입력 다시 조회" })).toBeInTheDocument();
 });
 
+test("반려 사유 선택 항목을 드롭다운 첫 번째에 표시하고 미선택 상태의 확정을 막는다", async () => {
+  renderReview();
+  fireEvent.click(await screen.findByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  const confirm = within(dialog).getByRole("button", { name: "반려 확정" });
+  expect(within(dialog).getByText("반려 사유 선택")).toBeInTheDocument();
+  expect(confirm).toBeDisabled();
+
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  const emptyOption = await screen.findByText("반려 사유 선택", { selector: ".ant-select-item-option-content" });
+  expect(Array.from(document.querySelectorAll(".ant-select-item-option-content"), (option) => option.textContent)).toEqual([
+    "반려 사유 선택", "내용을 읽을 수 없음", "계약서가 아님", "만료된 계약서", "중복 제출",
+  ]);
+  fireEvent.click(emptyOption);
+  expect(confirm).toBeDisabled();
+  fireEvent.click(confirm);
+  expect(mockReject).not.toHaveBeenCalled();
+});
+
+test("반려 사유를 선택한 뒤 첫 항목으로 돌아오면 확정과 알림 설정을 다시 비활성화한다", async () => {
+  renderReview();
+  fireEvent.click(await screen.findByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  const confirm = within(dialog).getByRole("button", { name: "반려 확정" });
+  const notificationSwitch = within(dialog).getByRole("switch", { name: "사용자에게 결과 알림 보내기" });
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("중복 제출", { selector: ".ant-select-item-option-content" }));
+  expect(confirm).toBeEnabled();
+  fireEvent.click(notificationSwitch);
+  expect(within(dialog).getByText("직접 변경")).toBeInTheDocument();
+
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("반려 사유 선택", { selector: ".ant-select-item-option-content" }));
+  expect(confirm).toBeDisabled();
+  expect(notificationSwitch).toBeDisabled();
+  expect(within(dialog).getByLabelText("푸시 메시지 (선택)")).toBeDisabled();
+  expect(within(dialog).queryByText("직접 변경")).not.toBeInTheDocument();
+  expect(within(dialog).getByText("사유를 선택하면 알림 기본값이 적용됩니다.")).toBeInTheDocument();
+  fireEvent.click(confirm);
+  expect(mockReject).not.toHaveBeenCalled();
+
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("내용을 읽을 수 없음", { selector: ".ant-select-item-option-content" }));
+  expect(confirm).toBeEnabled();
+  expect(notificationSwitch).toHaveAttribute("aria-checked", "true");
+  expect(within(dialog).getByText("사유 기본값")).toBeInTheDocument();
+});
+
 test("반려 사유 네 가지의 알림 기본값을 선택·전송하고 실패 후 다음 사유를 확인한다", async () => {
   for (let index = 0; index < 3; index++) mockReject.mockRejectedValueOnce(conflict("사유를 다시 확인해 주세요."));
   renderReview();
