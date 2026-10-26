@@ -1,8 +1,15 @@
 import "@/test-utils/antd";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { Grid } from "antd";
 import { ContractDocumentSourceImage } from "@/features/contract-ocr/components/ContractDocumentSourceImage";
 
 const file = { fileId: "local-original", fileIndex: 0, contentType: "image/png", url: "https://example.test/original.png", expiresAt: "2026-10-06T00:00:00" };
+
+beforeEach(() => {
+  jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+});
+
+afterEach(() => jest.restoreAllMocks());
 
 function gesture(target: Element, type: string, scale = 1) {
   const event = new Event(type, { bubbles: true, cancelable: true });
@@ -85,6 +92,81 @@ test("Safari 제스처는 시작 시점의 배율을 기준으로 적용하고 �
   gesture(region, "gesturestart");
   gesture(region, "gesturechange", 0.5);
   expect(region.firstElementChild).toHaveStyle({ width: "100%" });
+});
+
+test("좁은 화면은 확대 도구 없이 Safari 핀치로 원본만 확대·축소하고 일반 스크롤을 유지한다", () => {
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: false });
+  render(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={jest.fn()} />);
+  expect(screen.queryByRole("group", { name: "계약서 1페이지 확대 조절" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("계약서 1페이지 확대 비율")).not.toBeInTheDocument();
+  const region = screen.getByRole("region", { name: "계약서 1페이지 확대 원본" });
+  expect(within(region).getByRole("img")).toBeInTheDocument();
+  gesture(region, "gesturestart");
+  gesture(region, "gesturechange", 1.5);
+  gesture(region, "gestureend");
+  expect(region.firstElementChild).toHaveStyle({ width: "150%" });
+  gesture(region, "gesturestart");
+  gesture(region, "gesturechange", 0.5);
+  gesture(region, "gestureend");
+  expect(region.firstElementChild).toHaveStyle({ width: "75%" });
+  const scroll = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 100 });
+  fireEvent(region, scroll);
+  expect(scroll.defaultPrevented).toBe(false);
+  expect(region.firstElementChild).toHaveStyle({ width: "75%" });
+});
+
+test("화면 폭이 바뀌어 확대 도구가 나타나거나 사라져도 현재 원본 배율을 보존한다", () => {
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: false });
+  const view = render(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={jest.fn()} />);
+  const region = screen.getByRole("region", { name: "계약서 1페이지 확대 원본" });
+  gesture(region, "gesturestart");
+  gesture(region, "gesturechange", 2);
+  gesture(region, "gestureend");
+  expect(region.firstElementChild).toHaveStyle({ width: "200%" });
+
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: true });
+  view.rerender(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={jest.fn()} />);
+  expect(screen.getByLabelText("계약서 1페이지 확대 비율")).toHaveTextContent("200%");
+  expect(screen.getByRole("button", { name: "계약서 1페이지 기본 크기" })).toBeEnabled();
+
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: false });
+  view.rerender(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={jest.fn()} />);
+  expect(screen.queryByRole("group", { name: "계약서 1페이지 확대 조절" })).not.toBeInTheDocument();
+  expect(region.firstElementChild).toHaveStyle({ width: "200%" });
+});
+
+test("좁은 화면에서 키보드로 배율을 조절하되 브라우저 확대 단축키는 가로채지 않는다", () => {
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: false });
+  render(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={jest.fn()} />);
+  const region = screen.getByRole("region", { name: "계약서 1페이지 확대 원본" });
+  region.focus();
+  expect(region).toHaveFocus();
+  expect(region).toHaveAccessibleDescription("핀치로 확대·축소하거나 +, -, 0 키를 사용할 수 있습니다.");
+  fireEvent.keyDown(region, { key: "+" });
+  expect(region.firstElementChild).toHaveStyle({ width: "125%" });
+  fireEvent.keyDown(region, { key: "-" });
+  expect(region.firstElementChild).toHaveStyle({ width: "100%" });
+  fireEvent.keyDown(region, { key: "=" });
+  expect(region.firstElementChild).toHaveStyle({ width: "125%" });
+  fireEvent.keyDown(region, { key: "0" });
+  expect(region.firstElementChild).toHaveStyle({ width: "100%" });
+  const browserShortcut = new KeyboardEvent("keydown", { key: "+", ctrlKey: true, bubbles: true, cancelable: true });
+  fireEvent(region, browserShortcut);
+  expect(browserShortcut.defaultPrevented).toBe(false);
+  expect(region.firstElementChild).toHaveStyle({ width: "100%" });
+});
+
+test("좁은 화면에서 원본이 실패해도 새로고침을 제공하고 이전 핀치 이벤트는 정리한다", () => {
+  jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: false });
+  const onRefresh = jest.fn();
+  render(<ContractDocumentSourceImage file={file} isRefreshing={false} onRefresh={onRefresh} />);
+  const region = screen.getByRole("region", { name: "계약서 1페이지 확대 원본" });
+  fireEvent.error(within(region).getByRole("img"));
+  expect(screen.getByText("계약서 1페이지를 표시할 수 없습니다.")).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "계약서 1페이지 확대 조절" })).not.toBeInTheDocument();
+  expect(gesture(region, "gesturestart").defaultPrevented).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "계약서 1페이지 원본 새로고침" }));
+  expect(onRefresh).toHaveBeenCalledTimes(1);
 });
 
 test("핀치 중 커서 아래의 원본 위치를 가로·세로 스크롤에 유지한다", () => {

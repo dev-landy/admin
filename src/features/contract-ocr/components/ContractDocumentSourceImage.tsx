@@ -2,8 +2,8 @@
 
 import { RefreshButton } from "@/components/RefreshButton";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Alert, Button, Image } from "antd";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Alert, Button, Grid, Image } from "antd";
 
 import styles from "./ContractDocumentSourceImage.module.css";
 import type { ContractDocumentFile } from "../types";
@@ -29,6 +29,8 @@ export function ContractDocumentSourceImage({ file, isRefreshing, onRefresh }: {
   isRefreshing: boolean;
   onRefresh: () => void;
 }) {
+  const isSplitView = Grid.useBreakpoint().xl ?? true;
+  const zoomDescriptionId = useId();
   const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState(100);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -120,13 +122,28 @@ export function ContractDocumentSourceImage({ file, isRefreshing, onRefresh }: {
   }
 
   return <div>
-    <div className={styles.toolbar} role="group" aria-label={`계약서 ${page}페이지 확대 조절`}>
+    {isSplitView && <div className={styles.toolbar} role="group" aria-label={`계약서 ${page}페이지 확대 조절`}>
       <Button aria-label={`계약서 ${page}페이지 축소`} disabled={zoom <= 50} onClick={() => setZoom((value) => Math.max(50, value - 25))}>축소</Button>
       <span aria-live="polite" aria-label={`계약서 ${page}페이지 확대 비율`}>{Math.round(zoom)}%</span>
       <Button aria-label={`계약서 ${page}페이지 확대`} disabled={zoom >= 250} onClick={() => setZoom((value) => Math.min(250, value + 25))}>확대</Button>
       <Button aria-label={`계약서 ${page}페이지 기본 크기`} disabled={zoom === 100} onClick={() => setZoom(100)}>기본 크기</Button>
-    </div>
+    </div>}
+    <span id={zoomDescriptionId} className="admin-visually-hidden">핀치로 확대·축소하거나 +, -, 0 키를 사용할 수 있습니다.</span>
     <div ref={viewportRef} className={styles.imageViewport} tabIndex={0} role="region" aria-label={`계약서 ${page}페이지 확대 원본`}
+      aria-describedby={zoomDescriptionId}
+      onKeyDown={(event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key === "+" || event.key === "=") {
+          event.preventDefault();
+          setZoom((value) => Math.min(250, value + 25));
+        } else if (event.key === "-") {
+          event.preventDefault();
+          setZoom((value) => Math.max(50, value - 25));
+        } else if (event.key === "0") {
+          event.preventDefault();
+          setZoom(100);
+        }
+      }}
       onPointerMove={(event) => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; }}>
       <div style={{ width: `${zoom}%` }}><Image preview={false} width="100%" src={file.url} alt={`계약서 ${page}페이지`} onError={() => setFailed(true)} /></div>
     </div>
