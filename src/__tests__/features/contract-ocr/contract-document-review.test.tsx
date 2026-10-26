@@ -124,6 +124,18 @@ test("일시납 초안을 불러오면 총액과 필수 종료일을 보존해 �
   expect(mockRegister.mock.calls[0][1]).not.toHaveProperty("rentBillingCycle");
 });
 
+test.each(["02-234-5678", "031-234-5678"])("지역번호 연락처 %s인 초안을 불러와 같은 번호로 계약을 등록한다", async (phone) => {
+  const values = { ...VALUES, phone };
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values });
+  renderReview();
+  await applyDraft();
+  expect(screen.getByLabelText("연락처")).toHaveValue(phone);
+  const submit = screen.getByRole("button", { name: "계약 등록" });
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, values));
+});
+
 test("작성 중 목록 이동을 취소하면 입력을 보존하고 명시적으로 승인하면 이동한다", async () => {
   renderReview();
   const name = await screen.findByLabelText("세입자 이름");

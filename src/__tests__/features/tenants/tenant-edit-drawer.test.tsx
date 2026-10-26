@@ -69,6 +69,27 @@ test("일반 수정은 한 번 저장하고 중복 확인창 없이 닫는다", 
   expect(screen.queryByRole("button", { name: "겹쳐도 수정" })).not.toBeInTheDocument();
 });
 
+test("기존 서울 지역번호 연락처는 이름만 수정해도 표기와 저장값을 유지한다", async () => {
+  const phone = "02-234-5678";
+  render(<Drawer tenant={{ ...TENANT, phone }} />);
+  expect(await screen.findByLabelText("연락처")).toHaveValue(phone);
+  await submitChangedName();
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  expect(mockUpdate).toHaveBeenCalledWith(TENANT.tenantId, expect.objectContaining({ phone }));
+});
+
+test("지역번호 연락처를 숫자로 바꾸면 하이픈을 붙여 수정 요청을 보낸다", async () => {
+  render(<Drawer tenant={{ ...TENANT, phone: "02-234-5678" }} />);
+  const phone = await screen.findByLabelText("연락처");
+  fireEvent.change(phone, { target: { value: "0312345678" } });
+  expect(phone).toHaveValue("031-234-5678");
+  const submit = screen.getByRole("button", { name: "수정" });
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  expect(mockUpdate).toHaveBeenCalledWith(TENANT.tenantId, expect.objectContaining({ phone: "031-234-5678" }));
+});
+
 test("중복 확인 중에는 입력과 중복 제출을 막고 승인한 요청만 한 번 재시도한다", async () => {
   mockUpdate.mockRejectedValueOnce(overlapError());
   render(<Drawer />);

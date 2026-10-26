@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import {
   TenantInfoFormFields,
   type TenantInfoFormValues,
+  formatPhone,
   fromTenantValues,
   isTenantFormComplete,
   toTenantValues,
@@ -105,6 +106,61 @@ function TestForm({
     </Form>
   );
 }
+
+describe("연락처 입력", () => {
+  test.each([
+    [undefined, undefined],
+    ["", ""],
+    ["02", "02"],
+    ["010", "010"],
+    ["031123", "031-123"],
+    ["01012345678", "010-1234-5678"],
+    ["0311234567", "031-123-4567"],
+    ["05112345678", "051-1234-5678"],
+    ["021234567", "02-123-4567"],
+    ["0212345678", "02-1234-5678"],
+    ["02-123-4567", "02-123-4567"],
+    ["031-1234-5678", "031-1234-5678"],
+    [" 031 123 4567 ", "031-123-4567"],
+    ["010123456789", "010-1234-56789"],
+  ])("%s를 %s로 표시한다", (raw, expected) => {
+    expect(formatPhone(raw)).toBe(expected);
+  });
+
+  test.each([
+    ["01012345678", "010-1234-5678"],
+    ["0311234567", "031-123-4567"],
+    ["05112345678", "051-1234-5678"],
+    ["021234567", "02-123-4567"],
+    ["0212345678", "02-1234-5678"],
+  ])("%s를 자동 포맷하고 저장한다", async (raw, expected) => {
+    const onFinish = jest.fn();
+    render(<TestForm onFinish={onFinish} />);
+    const phone = screen.getByLabelText("연락처");
+    expect(phone).toHaveAttribute("type", "tel");
+    expect(phone).toHaveAttribute("inputmode", "numeric");
+    fireEvent.change(phone, { target: { value: raw } });
+    expect(phone).toHaveValue(expected);
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+    expect(onFinish.mock.calls[0][0].phone).toBe(expected);
+  });
+
+  test.each([
+    "0101234567", "031123456", "02123456789", "010123456789",
+    "07012345678", "01112345678", "0341234567", "12345678",
+  ])("허용하지 않는 번호 %s는 잘라 저장하지 않고 오류를 표시한다", async (raw) => {
+    const onFinish = jest.fn();
+    render(<TestForm onFinish={onFinish} />);
+    const phone = screen.getByLabelText("연락처");
+    fireEvent.change(phone, { target: { value: raw } });
+    expect((phone as HTMLInputElement).value.replace(/\D/g, "")).toBe(raw);
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    expect(await screen.findByText("010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요.")).toBeInTheDocument();
+    expect(phone).toHaveAttribute("aria-invalid", "true");
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+});
 
 const EXACT_MONEY_VALUES = fromTenantValues({
   name: "홍길동", roomNumber: "101", phone: "010-1111-2222",

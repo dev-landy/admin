@@ -137,22 +137,24 @@ const formatMoneyInput: NonNullable<InputNumberProps<number>["formatter"]> = (
   { userTyping, input },
 ) => userTyping ? input : String(amount ?? "");
 
-// 숫자만 입력해도 010-1111-2222 형태로 자동 포맷한다. 서버·기존 데이터 모두 대시 포함 형식을 쓴다.
+// 서버 AdminTenantContactPhone과 같은 010 휴대폰·국내 지역번호 일반전화 규칙.
+const CONTACT_PHONE_PATTERN = /^(?:010-[0-9]{4}|(?:02|0(?:3[1-3]|4[1-4]|5[1-5]|6[1-4]))-[0-9]{3,4})-[0-9]{4}$/;
+
+// 서울(02)은 두 자리, 나머지는 세 자리 지역번호로 구분한다. 서버는 대시 포함 형식을 쓴다.
 export function formatPhone(raw?: string): string | undefined {
   if (raw === undefined) {
     return raw;
   }
-  const digits = raw.replace(/\D/g, "").slice(0, 11);
-  if (digits.length < 4) {
+  const digits = raw.replace(/\D/g, "");
+  const prefixLength = digits.startsWith("02") ? 2 : 3;
+  if (digits.length <= prefixLength) {
     return digits;
   }
-  if (digits.length < 8) {
-    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  if (digits.length < prefixLength + 5) {
+    return `${digits.slice(0, prefixLength)}-${digits.slice(prefixLength)}`;
   }
-  if (digits.length < 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  const middleEnd = prefixLength + (digits.length < prefixLength + 8 ? 3 : 4);
+  return `${digits.slice(0, prefixLength)}-${digits.slice(prefixLength, middleEnd)}-${digits.slice(middleEnd)}`;
 }
 
 export function toTenantValues(form: TenantInfoFormValues): TenantInfoValues {
@@ -541,11 +543,10 @@ export function TenantInfoFormFields({
           normalize={formatPhone}
           rules={[
             { required: true, message: "연락처를 입력해 주세요." },
-            // 서버가 010-XXXX-XXXX(11자리)만 허용한다.
-            { pattern: /^010-\d{4}-\d{4}$/, message: "010-1234-5678 형식(11자리)으로 입력해 주세요." },
+            { pattern: CONTACT_PHONE_PATTERN, message: "010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요." },
           ]}
         >
-          <Input placeholder="010-1111-2222" inputMode="numeric" maxLength={13} />
+          <Input type="tel" placeholder="010-1234-5678 또는 031-123-4567" inputMode="numeric" />
         </Form.Item>
       </Col>
       <Col span={24}>
