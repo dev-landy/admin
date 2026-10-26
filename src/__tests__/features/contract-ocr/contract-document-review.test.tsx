@@ -286,45 +286,43 @@ test("반려 성공 후에는 입력 보호를 해제하고 최신 큐의 다음
   expect(mockReject).toHaveBeenCalledTimes(1);
 });
 
-test("좁은 화면의 원본은 기본으로 접고 열기·새로고침·닫기 중 임차인 입력을 유지한다", async () => {
+test("좁은 화면의 플로팅 원본 Drawer는 열기·새로고침·닫기 중 임차인 입력을 유지한다", async () => {
   renderReview();
   const source = await screen.findByRole("region", { name: "계약서 원본 영역" });
   const sourceView = within(source);
   const toggle = sourceView.getByRole("button", { name: "계약서 원본 펼치기" });
   const input = await screen.findByLabelText("세입자 이름");
-  // 원본 조작은 해당 패널에서 조회한다. 매번 입력 폼 전체의 CSS 가시성을 다시 계산하지 않는다.
   async function openSource() {
     expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
     fireEvent.click(toggle);
-    return sourceView.findByRole("img", { name: "계약서 1페이지" });
+    const drawer = await screen.findByRole("dialog", { name: /계약서 원본/ });
+    await within(drawer).findByRole("img", { name: "계약서 1페이지" });
+    return drawer;
   }
-  await waitFor(() => expect(within(toggle).getByText("1페이지")).toBeInTheDocument());
+  await waitFor(() => expect(toggle).toHaveAttribute("title", "1페이지"));
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(sourceView.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
   fireEvent.change(input, { target: { value: "입력 중인 이름" } });
-  await openSource();
-  expect(toggle).toHaveAccessibleName("계약서 원본 접기");
+  let drawer = await openSource();
   expect(toggle).toHaveAttribute("aria-expanded", "true");
-  const refresh = sourceView.getByRole("button", { name: "원본 새로고침" });
+  const refresh = within(drawer).getByRole("button", { name: "원본 새로고침" });
   fireEvent.click(refresh);
   await waitFor(() => expect(mockFiles).toHaveBeenCalledTimes(2));
-  act(() => source.focus());
-  expect(source).toHaveFocus();
-  const original = sourceView.getByRole("img", { name: "계약서 1페이지" });
+  const original = within(drawer).getByRole("img", { name: "계약서 1페이지" });
   fireEvent.mouseEnter(original);
   fireEvent.click(original);
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  fireEvent.keyDown(source, { key: "Escape" });
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  fireEvent.keyDown(drawer, { key: "Escape", code: "Escape", keyCode: 27 });
   expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
-  expect(toggle).toHaveFocus();
+  await waitFor(() => expect(toggle).toHaveFocus());
   expect(input).toHaveValue("입력 중인 이름");
   expect(sourceView.queryByRole("img", { name: "계약서 1페이지" })).not.toBeInTheDocument();
   const inputPane = screen.getByRole("region", { name: "계약서 입력 영역" });
   act(() => inputPane.focus());
   expect(inputPane).toHaveFocus();
-  await openSource();
+  drawer = await openSource();
   expect(input).toHaveValue("입력 중인 이름");
-  fireEvent.blur(refresh, { relatedTarget: input });
+  fireEvent.click(within(drawer).getByRole("button", { name: "계약서 원본 닫기" }));
   expect(toggle).toHaveAccessibleName("계약서 원본 펼치기");
   expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
@@ -333,7 +331,7 @@ test("원본을 접어도 조회 실패를 헤더에 표시하고 펼치면 다�
   mockFiles.mockRejectedValue(new Error("unavailable"));
   renderReview();
   const toggle = await screen.findByRole("button", { name: "계약서 원본 펼치기" });
-  await waitFor(() => expect(within(toggle).getByText("원본 조회 실패")).toBeInTheDocument());
+  await waitFor(() => expect(toggle).toHaveAttribute("title", "원본 조회 실패"));
   fireEvent.click(toggle);
   expect(screen.getByText("원본을 불러오지 못했습니다. 보관 기간이나 접근 권한을 확인해 주세요.")).toBeInTheDocument();
   mockFiles.mockResolvedValue({ files: [{ fileId: "file-1", fileIndex: 0, contentType: "image/jpeg", url: "https://example.test/contract.jpg", expiresAt: "2026-09-30T10:00:00Z" }] });
