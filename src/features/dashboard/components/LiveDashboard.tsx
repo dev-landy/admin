@@ -1,5 +1,8 @@
 "use client";
 import { RetentionPeriod } from "./RetentionPeriod";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { SignupOverview } from "./SignupOverview";
+import { signupQueryKey } from "../signup-query";
 import type { RetentionRange } from "../retention-range";
 import { useId, useState } from "react";
 import { Alert, Button, Card, Col, Empty, Progress, Row, Segmented, Space, Statistic, Switch, Table, Tag, Typography } from "antd";
@@ -18,13 +21,15 @@ function Status<T>({ title, result, error, loading }: { title: string; result?: 
 }
 export function LiveDashboard({ queries, onSample, range, onRangeChange }: { range?: RetentionRange; onRangeChange: (range?: RetentionRange) => void; queries: ReturnType<typeof useDashboard>; onSample: () => void }) {
   const [series, setSeries] = useState<ActivitySeries>("전체");
+  const queryClient = useQueryClient();
+  const signupsFetching = useIsFetching({ queryKey: signupQueryKey }) > 0;
   const retentionFormId = useId();
   const { posthog, retention, activation, ads } = queries;
   const product = !posthog.error && posthog.data?.status === "success" ? posthog.data.data : undefined;
   const funnel = !activation.error && activation.data?.status === "success" ? activation.data.data : undefined;
   const retained = !retention.error && retention.data?.status === "success" ? retention.data.data : undefined;
   const advertising = !ads.error && ads.data?.status === "success" ? ads.data.data : undefined;
-  const busy = posthog.isFetching || retention.isFetching || activation.isFetching || ads.isFetching;
+  const busy = signupsFetching || posthog.isFetching || retention.isFetching || activation.isFetching || ads.isFetching;
   const cards = [
     { title: "로그인 사용자", value: funnel?.logins, suffix: "명", note: "최근 30일 · 로그인 성공 사용자 · 중복 제외" },
     { title: "로그인 후 계약 등록률", value: funnel?.rate, suffix: "%", note: funnel ? `${funnel.registered} / ${funnel.eligible}명 · 관찰 중 ${funnel.pending}명 제외` : "기간 내 첫 로그인 후 7일 내 계약 등록" },
@@ -36,7 +41,8 @@ export function LiveDashboard({ queries, onSample, range, onRangeChange }: { ran
   const key = series === "정보 관리" ? "info" : series === "수납 관리" ? "rent" : "all";
   const maximum = Math.max(1, ...points.map(point => point[key]));
   return <div className={styles.home}>
-    <PageHeader title="홈" description="임대인이 관리를 시작하고, 다음 주에도 Landy를 사용하는지 확인합니다." extra={<Space wrap><Button loading={busy} onClick={() => { void posthog.refetch(); void retention.refetch(); void activation.refetch(); void ads.refetch(); }}>전체 다시 조회</Button><Text>예시 데이터 보기</Text><Switch aria-label="예시 데이터 보기" checked={false} onChange={onSample} /></Space>} />
+    <PageHeader title="홈" description="임대인이 가입하고 관리를 시작해, 다음 주에도 Landy를 사용하는지 확인합니다." extra={<Space wrap><Button aria-label="전체 다시 조회" loading={busy} onClick={() => { void queryClient.invalidateQueries({ queryKey: signupQueryKey }); void posthog.refetch(); void retention.refetch(); void activation.refetch(); void ads.refetch(); }}>전체 다시 조회</Button><Text>예시 데이터 보기</Text><Switch aria-label="예시 데이터 보기" checked={false} onChange={onSample} /></Space>} />
+    <SignupOverview />
     <div className={styles.sourceStatus} aria-live="polite"><Status title="PostHog" result={posthog.data} error={posthog.error} loading={posthog.isFetching} /><Status title="Google Ads" result={ads.data} error={ads.error} loading={ads.isFetching} /></div>
     <Space wrap><Tag>실제 데이터</Tag><Text>{product ? `${product.start} – ${product.end}` : "최근 30일 · 오늘 제외"}</Text><Text type="secondary">PostHog KST · 집계 결과 최대 5분 재사용 · 리텐션은 월요일–일요일 · 광고는 광고 계정 시간대</Text></Space>
     <Row gutter={[16, 16]}>{cards.map((metric, index) => <Col xs={24} sm={12} xl={6} key={metric.title}><Card className={styles.metric}><Statistic title={metric.title} loading={index === 3 ? retention.isLoading : index === 2 ? posthog.isLoading : activation.isLoading} value={metric.value ?? "—"} suffix={metric.value != null ? metric.suffix : undefined} /><Text type="secondary">{metric.note}</Text></Card></Col>)}</Row>

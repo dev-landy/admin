@@ -1,0 +1,21 @@
+.content { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.period { display: flex; flex-direction: column; gap: 4px; }
+.titleLine { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.titleLine h2 { margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; }
+.range { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 11px; }
+.period strong { font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 500; }
+.metrics { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 24px; padding-bottom: 8px; border-bottom: 1px solid var(--admin-border); }
+.metrics :global(.ant-statistic) { display: flex; align-items: baseline; gap: 8px; }
+.metrics :global(.ant-statistic-title) { margin-bottom: 0; font-size: 11px; }
+.metrics :global(.ant-statistic-content) { font-size: 18px; line-height: 24px; }
+.metrics :global(.ant-statistic-content-suffix) { font-size: 12px; }
+.peak { display: flex; align-items: baseline; gap: 8px; font-size: 11px; }
+.peak strong { font-size: 13px; font-weight: 600; color: var(--admin-text); }
+.note { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 3px 12px; font-size: 10px; }
+.sampleNote { font-size: 11px; }
+@media (max-width: 575px) {
+  .content { gap: 10px; }
+  .metrics { gap: 4px 16px; }
+  .peak { flex-basis: 100%; }
+}

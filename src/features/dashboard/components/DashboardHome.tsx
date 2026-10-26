@@ -6,6 +6,7 @@ import { Alert, Card, Col, Empty, Progress, Row, Segmented, Space, Statistic, Sw
 import { PageHeader } from "@/components/PageHeader";
 import { useDashboard } from "../hooks";
 import { LiveDashboard } from "./LiveDashboard";
+import { SignupOverview } from "./SignupOverview";
 import styles from "./DashboardHome.module.css";
 
 const { Text, Paragraph, Title } = Typography;
@@ -45,6 +46,7 @@ export function DashboardHome() {
   return <div className={styles.home}>
     <PageHeader title="홈" description="임대인이 관리를 시작하고, 다음 주에도 Landy를 사용하는지 확인합니다." extra={<Space><Text>예시 데이터 보기</Text><Switch aria-label="예시 데이터 보기" checked={sample} onChange={setSample} /></Space>} />
     <Alert showIcon type={sample ? "warning" : "info"} title={sample ? "실제 운영 수치가 아닌 예시 데이터입니다." : "데이터 연결 대기"} description={sample ? "화면 구성을 확인하기 위한 고정 예시입니다. PostHog·Google Ads의 실제 집계 결과가 아닙니다." : "PostHog·Google Ads 집계가 아직 연결되지 않았습니다. 연결 전 수치는 0 대신 미집계로 표시합니다."} />
+    <SignupOverview sample />
     <div className={styles.period}><Space wrap><Tag>{sample ? "예시 기간" : "집계 기준"}</Tag><Text>{sample ? "2026.09.13 – 2026.10.12" : "최근 30일 · 오늘 제외"}</Text><Text type="secondary">KST · 주간 유지율은 월요일–일요일, 완료된 두 주 기준</Text></Space></div>
     <Row gutter={[16, 16]}>{metrics.map(metric => <Col xs={24} sm={12} xl={6} key={metric.title}><Card className={styles.metric}><Statistic title={metric.title} value={sample ? metric.value : "—"} suffix={sample ? metric.suffix : undefined} /><Text type="secondary">{sample ? metric.description : "미집계"}</Text></Card></Col>)}</Row>
     <Row gutter={[20, 20]}>
