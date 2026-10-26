@@ -108,6 +108,51 @@ function TestForm({
 }
 
 describe("연락처 입력", () => {
+  test("빈 연락처의 010 칩은 접두번호만 넣고 포커스를 끝에 두며 뒤 8자리 입력 후 저장한다", async () => {
+    const onFinish = jest.fn();
+    render(<TestForm onFinish={onFinish} initialValues={{ phone: "" }} />);
+    const phone = screen.getByLabelText("연락처") as HTMLInputElement;
+    const shortcut = screen.getByRole("button", { name: "010 입력" });
+    expect(shortcut).toBeEnabled();
+    expect(shortcut).toHaveAttribute("type", "button");
+    fireEvent.click(shortcut);
+    expect(phone).toHaveValue("010");
+    expect(phone).toHaveFocus();
+    expect(phone.selectionStart).toBe(3);
+    expect(phone.selectionEnd).toBe(3);
+    expect(onFinish).not.toHaveBeenCalled();
+    await waitFor(() => expect(shortcut).toBeDisabled());
+    fireEvent.click(shortcut);
+    expect(phone).toHaveValue("010");
+
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    expect(await screen.findByText("010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요.")).toBeInTheDocument();
+    expect(onFinish).not.toHaveBeenCalled();
+    for (const digit of "12345678") {
+      fireEvent.change(phone, { target: { value: phone.value + digit } });
+    }
+    expect(phone).toHaveValue("010-1234-5678");
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+    expect(onFinish.mock.calls[0][0].phone).toBe("010-1234-5678");
+  });
+
+  test.each(["031-123-4567", "010-1234-5678"])("기존 연락처 %s가 있으면 010 칩을 비활성화하고 값을 보존한다", (phone) => {
+    render(<TestForm onFinish={jest.fn()} initialValues={{ phone }} />);
+    const shortcut = screen.getByRole("button", { name: "010 입력" });
+    expect(shortcut).toBeDisabled();
+    fireEvent.click(shortcut);
+    expect(screen.getByLabelText("연락처")).toHaveValue(phone);
+  });
+
+  test("폼이 비활성화되면 빈 연락처의 010 칩도 입력을 막는다", () => {
+    render(<TestForm onFinish={jest.fn()} initialValues={{ phone: "" }} disabled />);
+    const shortcut = screen.getByRole("button", { name: "010 입력" });
+    expect(shortcut).toBeDisabled();
+    fireEvent.click(shortcut);
+    expect(screen.getByLabelText("연락처")).toHaveValue("");
+  });
+
   test.each([
     [undefined, undefined],
     ["", ""],

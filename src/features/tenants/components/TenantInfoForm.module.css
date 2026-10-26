@@ -18,11 +18,12 @@
   container-type: inline-size;
 }
 
-.durationShortcuts { padding-top: 4px; }
-.durationShortcuts :global(.ant-btn) { min-height: 32px; height: auto; }
+.shortcuts { padding-top: 4px; }
+.shortcuts :global(.ant-btn) { min-height: 32px; height: auto; }
+.phoneShortcut { min-width: 44px; }
 
 @media (max-width: 767px) {
-  .durationShortcuts :global(.ant-btn) { min-height: 44px; }
+  .shortcuts :global(.ant-btn) { min-height: 44px; }
   .fields > :global(.ant-col-sm-12) {
     flex-basis: 100%;
     max-width: 100%;

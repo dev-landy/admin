@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
@@ -15,7 +15,7 @@ import {
   Space,
   theme,
 } from "antd";
-import type { DatePickerProps, FormInstance, InputNumberProps, InputProps } from "antd";
+import type { DatePickerProps, FormInstance, InputNumberProps, InputProps, InputRef } from "antd";
 import { CalendarOutlined, CloseCircleFilled } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import dayjsGenerateConfig from "@rc-component/picker/generate/dayjs";
@@ -430,7 +430,9 @@ export function TenantInfoFormFields({
   rentChargeFrequencyEditable: boolean;
 }) {
   const endDateInputId = useId();
+  const phoneInputRef = useRef<InputRef>(null);
   const { token } = theme.useToken();
+  const phone: string | undefined = Form.useWatch("phone", form);
   const contractType: ContractType = Form.useWatch("contractType", form) ?? "ROOM";
   const parkingEnabled = Form.useWatch("parkingEnabled", form);
   const isParking = contractType === "PARKING";
@@ -541,12 +543,27 @@ export function TenantInfoFormFields({
           label="연락처"
           name="phone"
           normalize={formatPhone}
+          extra={<div className={styles.shortcuts}><Space size={8} wrap>
+            <Button
+              htmlType="button"
+              size="small"
+              shape="round"
+              className={styles.phoneShortcut}
+              aria-label="010 입력"
+              disabled={phone?.trim() ? true : undefined}
+              onClick={() => {
+                if (form.getFieldValue("phone")?.trim()) return;
+                form.setFieldValue("phone", "010");
+                phoneInputRef.current?.focus({ cursor: "end", preventScroll: true });
+              }}
+            >010</Button>
+          </Space></div>}
           rules={[
             { required: true, message: "연락처를 입력해 주세요." },
             { pattern: CONTACT_PHONE_PATTERN, message: "010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요." },
           ]}
         >
-          <Input type="tel" placeholder="010-1234-5678 또는 031-123-4567" inputMode="numeric" />
+          <Input ref={phoneInputRef} type="tel" placeholder="010-1234-5678 또는 031-123-4567" inputMode="numeric" />
         </Form.Item>
       </Col>
       <Col span={24}>
@@ -602,7 +619,7 @@ export function TenantInfoFormFields({
           htmlFor={endDateInputId}
           name="endDate"
           dependencies={["startDate", "rentChargeFrequency"]}
-          extra={<div className={styles.durationShortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
+          extra={<div className={styles.shortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
             {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
               const nextEndDate = startDate?.isValid() ? extendContractEndDate(startDate, endDate, months) : null;
               return (
