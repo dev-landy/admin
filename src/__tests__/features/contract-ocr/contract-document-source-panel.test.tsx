@@ -75,7 +75,7 @@ test("좁은 화면에서는 원본을 플로팅 버튼으로 열고 별도 Draw
   expect(onRefresh).toHaveBeenCalledTimes(1);
 });
 
-test("화면 하단의 등록 영역만 피해 FAB를 배치하고 영역이 사라지면 하단으로 돌아온다", async () => {
+test("등록 영역이 화면 밖에 있어도 같은 높이를 예약하고 영역이 없어지면 하단으로 돌아온다", async () => {
   const view = setupMeasurements();
   await waitFor(() => expect(view.panel.style.bottom).toContain("162px"));
   const observer = observers.find((candidate) => candidate.targets.has(view.actionBarRef.current!));
@@ -84,11 +84,14 @@ test("화면 하단의 등록 영역만 피해 FAB를 배치하고 영역이 사
   act(() => observer!.notify());
   expect(view.panel.style.bottom).toContain("112px");
 
-  for (const [top, height] of [[850, 66], [-70, 66], [650, 0]]) {
-    view.setActionRect(new DOMRect(0, top, 400, height));
+  for (const top of [850, -70]) {
+    view.setActionRect(new DOMRect(0, top, 400, 100));
     fireEvent.scroll(window);
-    await waitFor(() => expect(view.panel.style.bottom).toContain("16px"));
+    await waitFor(() => expect(view.panel.style.bottom).toContain("112px"));
   }
+  view.setActionRect(new DOMRect(0, 650, 400, 0));
+  act(() => observer!.notify());
+  expect(view.panel.style.bottom).toContain("16px");
 });
 
 test("키보드가 visual viewport를 줄이거나 이동해도 그 높이만큼 FAB를 올리지 않는다", async () => {
@@ -101,18 +104,45 @@ test("키보드가 visual viewport를 줄이거나 이동해도 그 높이만큼
   expect(view.panel.style.bottom).toContain("162px");
 });
 
+test("원본을 여닫을 때 같은 하단 위치와 왼쪽 여백을 유지하고 등록 영역 변화로 복귀 버튼을 내리지 않는다", async () => {
+  const view = setupMeasurements();
+  await waitFor(() => expect(view.panel.style.bottom).toContain("162px"));
+  const originalBottom = view.panel.style.bottom;
+  const originalLeft = view.panel.style.left;
+  expect(originalLeft).toContain("24px");
+  jest.spyOn(view.trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(24, 590, 140, 48));
+  fireEvent.click(view.trigger);
+  const drawer = await screen.findByRole("dialog", { name: /계약서 원본/ });
+  const returnButton = within(drawer).getByRole("button", { name: "입력으로 돌아가기" });
+  expect(returnButton.style.bottom).toBe(originalBottom);
+  expect(returnButton.style.left).toBe(originalLeft);
+  expect(returnButton).toHaveStyle({ height: "48px" });
+  expect(drawer.querySelector(".ant-drawer-body")?.getAttribute("style")).toContain("162px");
+
+  view.setActionRect(new DOMRect(0, 900, 400, 0));
+  fireEvent.scroll(window);
+  fireEvent.resize(window);
+  fireEvent.focusIn(returnButton);
+  expect(returnButton.style.bottom).toBe(originalBottom);
+  view.setActionRect(new DOMRect(0, 650, 400, 150));
+  fireEvent.click(returnButton);
+  await waitFor(() => expect(view.trigger).toHaveFocus());
+  expect(view.panel.style.bottom).toBe(originalBottom);
+  expect(view.panel.style.left).toBe(originalLeft);
+});
+
 test("입력란에서 FAB를 누르는 중 등록 영역이 움직여도 클릭을 유지한다", async () => {
   const view = setupMeasurements(new DOMRect(0, 900, 400, 100));
-  await waitFor(() => expect(view.panel.style.bottom).toContain("16px"));
+  await waitFor(() => expect(view.panel.style.bottom).toContain("112px"));
   await waitFor(() => expect(observers.some((candidate) => candidate.targets.has(view.actionBarRef.current!))).toBe(true));
   act(() => screen.getByLabelText("검수 입력").focus());
   fireEvent.pointerDown(view.trigger);
   view.setActionRect(new DOMRect(0, 650, 400, 150));
   const observer = observers.find((candidate) => candidate.targets.has(view.actionBarRef.current!));
   act(() => observer!.notify());
-  expect(view.panel.style.bottom).toContain("16px");
+  expect(view.panel.style.bottom).toContain("112px");
   fireEvent.pointerUp(view.trigger);
-  expect(view.panel.style.bottom).toContain("16px");
+  expect(view.panel.style.bottom).toContain("112px");
   fireEvent.click(view.trigger);
   expect(await screen.findByRole("dialog", { name: /계약서 원본/ })).toBeVisible();
 });
@@ -154,9 +184,9 @@ test("하단 입력 복귀 버튼은 입력값을 보존하며 닫고 원본 FAB
 test("desktop에서는 원본을 항상 보이고 좁은 화면으로 돌아오면 Drawer를 다시 열지 않는다", async () => {
   const view = setupMeasurements();
   await waitFor(() => expect(observers.some((candidate) => candidate.targets.has(view.actionBarRef.current!))).toBe(true));
+  const observer = observers.find((candidate) => candidate.targets.has(view.actionBarRef.current!));
   fireEvent.click(view.trigger);
   await screen.findByRole("dialog", { name: /계약서 원본/ });
-  const observer = observers.find((candidate) => candidate.targets.has(view.actionBarRef.current!));
   jest.mocked(Grid.useBreakpoint).mockReturnValue({ xl: true });
   view.rerender(sourceExample(view.actionBarRef, view.onRefresh));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

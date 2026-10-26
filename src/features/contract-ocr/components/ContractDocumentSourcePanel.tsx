@@ -17,21 +17,36 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
   actionBarRef?: RefObject<HTMLDivElement | null>;
 }) {
   const isSplitView = Grid.useBreakpoint().xl ?? true;
-  const [reader, setReader] = useState(() => ({ isSplitView, open: false }));
-  if (reader.isSplitView !== isSplitView) setReader({ isSplitView, open: false });
+  const [reader, setReader] = useState<{ isSplitView: boolean; open: boolean; anchorBottom: number | null }>(
+    () => ({ isSplitView, open: false, anchorBottom: null }),
+  );
+  if (reader.isSplitView !== isSplitView) setReader({ isSplitView, open: false, anchorBottom: null });
   const open = reader.isSplitView === isSplitView && reader.open;
-  const setOpen = (nextOpen: boolean) => setReader({ isSplitView, open: nextOpen });
   const [bottom, setBottom] = useState(16);
+  const anchorBottom = reader.isSplitView === isSplitView ? reader.anchorBottom : null;
   const contentId = useId();
   const toggleRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
   const triggerPointerDown = useRef(false);
+  const setOpen = (nextOpen: boolean) => {
+    if (nextOpen) {
+      const bounds = toggleRef.current?.getBoundingClientRect();
+      setReader({ isSplitView, open: true, anchorBottom: bounds && bounds.height > 0 ? Math.max(16, window.innerHeight - bounds.bottom) : bottom });
+    } else {
+      setReader((current) => ({ ...current, open: false }));
+    }
+  };
+  const floatingPosition = {
+    left: "calc(24px + env(safe-area-inset-left, 0px))",
+    bottom: `clamp(16px, max(${anchorBottom ?? bottom}px, env(safe-area-inset-bottom, 0px)), max(16px, calc(100dvh - 64px)))`,
+  };
   const status = isLoading ? "불러오는 중" : hasError ? "원본 조회 실패" : pageCount === undefined ? "" : `${pageCount}페이지`;
   const refresh = onRefresh && <RefreshButton aria-label="원본 새로고침" title="원본 새로고침"
     className={isSplitView ? undefined : styles.sourceRefreshIcon}
     loading={isRefreshing} disabled={isRefreshing} onClick={onRefresh}>{isSplitView ? "원본 새로고침" : null}</RefreshButton>;
 
   useLayoutEffect(() => {
-    if (isSplitView) return;
+    // 열기 전 위치를 닫힘 애니메이션이 끝날 때까지 유지한다.
+    if (isSplitView || anchorBottom !== null) return;
     let observedActions: HTMLElement | null = null;
     const updatePosition = () => {
       if (triggerPointerDown.current) return;
@@ -42,9 +57,9 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
         if (observedActions) observer.observe(observedActions);
       }
       const actions = actionBarRef?.current?.getBoundingClientRect();
-      // 실제 화면 하단에 보이는 등록 영역만 피한다. 키보드 높이를 더해 끌어올리지 않는다.
-      const overlaps = actions && actions.height > 0 && actions.top < window.innerHeight && actions.bottom > window.innerHeight - 76;
-      setBottom(overlaps ? Math.max(16, window.innerHeight - actions.top + 12) : 16);
+      // 입력 중 등록 영역이 화면 밖으로 이동해도 같은 높이의 자리를 예약한다.
+      // 키보드 높이는 더하지 않으므로 열기·복귀 버튼이 화면을 따라 움직이지 않는다.
+      setBottom(actions && actions.height > 0 ? Math.max(16, actions.height + 12) : 16);
     };
     let frame: number | undefined;
     let releaseTimer: ReturnType<typeof setTimeout> | undefined;
@@ -82,7 +97,7 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
       document.removeEventListener("pointerup", releasePointer);
       document.removeEventListener("pointercancel", releasePointer);
     };
-  }, [actionBarRef, isSplitView]);
+  }, [actionBarRef, isSplitView, anchorBottom]);
 
   if (isSplitView) return <section className={`${styles.pane} ${styles.sourcePane}`} aria-label="계약서 원본 영역" tabIndex={0}>
     <Card title="계약서 원본" extra={refresh}>
@@ -93,8 +108,9 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
   </section>;
 
   return <section className={`${styles.pane} ${styles.sourcePane}`} aria-label="계약서 원본 영역"
-    style={{ bottom: `max(${bottom}px, env(safe-area-inset-bottom, 0px))` }}>
+    style={floatingPosition}>
     <Button ref={toggleRef} type="primary" size="large" shape="round" className={styles.sourceTrigger}
+      style={{ height: 48 }}
       icon={<FileImageOutlined aria-hidden="true" />} aria-label="계약서 원본 펼치기" aria-expanded={open} aria-controls={contentId}
       aria-busy={isLoading || undefined} title={status || undefined} danger={hasError}
       onPointerDownCapture={() => { triggerPointerDown.current = true; }}
@@ -107,12 +123,16 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
       closable={{ "aria-label": "계약서 원본 닫기" }}
       extra={refresh} forceRender focusable={{ focusTriggerAfterClose: false }}
       footer={<Button type="primary" size="large" shape="round" icon={<FormOutlined aria-hidden="true" />} className={styles.sourceReturnButton}
-        style={{ position: "absolute" }}
+        style={{ position: "absolute", height: 48, ...floatingPosition }}
         onClick={() => setOpen(false)}>입력으로 돌아가기</Button>}
       classNames={{ header: styles.sourceDrawerHeader, body: styles.sourceDrawerBody }}
-      styles={{ header: { padding: "8px 12px" }, body: { padding: "12px 16px", paddingBottom: "calc(88px + env(safe-area-inset-bottom, 0px))" },
+      styles={{ header: { padding: "8px 12px" }, body: { padding: "12px 16px", paddingBottom: `calc(${floatingPosition.bottom} + 72px)` },
         close: { width: 44, height: 44, margin: 0 }, footer: { position: "relative", height: 0, padding: 0, border: 0 } }}
-      afterOpenChange={(visible) => { if (!visible) toggleRef.current?.focus({ preventScroll: true }); }}>
+      afterOpenChange={(visible) => {
+        if (visible) return;
+        setReader((current) => current.isSplitView === isSplitView && !current.open ? { ...current, anchorBottom: null } : current);
+        toggleRef.current?.focus({ preventScroll: true });
+      }}>
       <div id={contentId} aria-label="계약서 원본 내용">{children}</div>
     </Drawer>
   </section>;

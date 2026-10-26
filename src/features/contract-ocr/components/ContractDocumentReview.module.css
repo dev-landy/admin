@@ -36,8 +36,6 @@
 .sourceRefreshIcon { min-width: 44px; min-height: 44px; }
 .sourceTrigger { min-height: 48px; box-shadow: var(--admin-floating-shadow); }
 .sourceReturnButton {
-  left: max(16px, env(safe-area-inset-left, 0px));
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
   min-height: 48px;
   box-shadow: var(--admin-floating-shadow);
 }
@@ -134,4 +132,3 @@
 }
 
 @media (min-width: 1600px) { .workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    left: max(16px, env(safe-area-inset-left, 0px));
