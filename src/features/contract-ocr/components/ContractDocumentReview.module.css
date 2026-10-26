@@ -94,6 +94,24 @@
 
 .actions :global(.admin-row-actions:first-child) { width: 100%; }
 
+.rejectionSettingsNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--admin-text-secondary);
+  line-height: 1.5;
+}
+
+.rejectionSettings[aria-disabled="true"] {
+  background: var(--admin-surface-subtle);
+  border-color: color-mix(in srgb, var(--admin-border) 60%, transparent);
+}
+
+.rejectionSettings[aria-disabled="true"] :global(.ant-card-body) {
+  opacity: 0.5;
+}
+
 .buildingRow { display: flex; align-items: center; gap: 8px; }
 .buildingLabel { flex: 0 0 40px; font-weight: 600; white-space: nowrap; }
 .requiredMark { color: var(--admin-danger-text); font-weight: 400; }

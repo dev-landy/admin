@@ -643,6 +643,33 @@ test("반려 사유 선택 항목을 드롭다운 첫 번째에 표시하고 미
   expect(mockReject).not.toHaveBeenCalled();
 });
 
+test("반려 사유 미선택 시 알림 설정을 잠그고 알림이 기본 OFF인 사유도 선택하면 영역 잠금을 푼다", async () => {
+  renderReview();
+  fireEvent.click(await screen.findByRole("button", { name: "반려" }));
+  const dialog = await screen.findByRole("dialog");
+  const settings = within(dialog).getByRole("group", { name: "반려 결과 알림 설정" });
+  const notificationSwitch = within(settings).getByRole("switch", { name: "사용자에게 결과 알림 보내기" });
+  expect(settings).toHaveAttribute("aria-disabled", "true");
+  expect(settings).toHaveAccessibleDescription("반려 사유를 먼저 선택해 주세요.");
+  expect(within(dialog).getByText("반려 사유를 먼저 선택해 주세요.")).toBeInTheDocument();
+  expect(notificationSwitch).toBeDisabled();
+
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("중복 제출", { selector: ".ant-select-item-option-content" }));
+  expect(settings).toHaveAttribute("aria-disabled", "false");
+  expect(within(dialog).queryByText("반려 사유를 먼저 선택해 주세요.")).not.toBeInTheDocument();
+  expect(notificationSwitch).toBeEnabled();
+  expect(notificationSwitch).toHaveAttribute("aria-checked", "false");
+  expect(within(settings).getByLabelText("푸시 메시지")).toBeDisabled();
+
+  fireEvent.mouseDown(within(dialog).getByLabelText("반려 사유"));
+  fireEvent.click(await screen.findByText("반려 사유 선택", { selector: ".ant-select-item-option-content" }));
+  expect(settings).toHaveAttribute("aria-disabled", "true");
+  expect(within(dialog).getByText("반려 사유를 먼저 선택해 주세요.")).toBeInTheDocument();
+  expect(notificationSwitch).toBeDisabled();
+  expect(within(dialog).getByRole("button", { name: "반려 확정" })).toBeDisabled();
+});
+
 test("반려 사유를 선택한 뒤 첫 항목으로 돌아오면 확정과 알림 설정을 다시 비활성화한다", async () => {
   renderReview();
   fireEvent.click(await screen.findByRole("button", { name: "반려" }));

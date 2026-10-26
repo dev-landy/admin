@@ -3,7 +3,7 @@
 import { type RefObject, useCallback, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, Card, Flex, Form, Input, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, LockOutlined } from "@ant-design/icons";
 
 import {
   isContractOcrAnalysisRunning, useContractDocument, useContractDocumentDraft, useContractDocumentFiles,
@@ -80,6 +80,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
   const [rejectionNotificationOverridden, setRejectionNotificationOverridden] = useState(false);
   const [rejectionMessage, setRejectionMessage] = useState("");
   const rejectionMessageId = useId();
+  const rejectionSettingsHintId = useId();
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [rejectionError, setRejectionError] = useState<string>();
   const actionInProgress = useRef(false);
@@ -359,7 +360,12 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
               <Select<ContractDocumentRejectionReason | ""> id="contract-rejection-reason" aria-label="반려 사유" options={REJECTION_OPTIONS}
                 value={rejectionReason ?? ""} onChange={selectRejectionReason} disabled={isBusy} style={{ width: "100%" }} />
             </Form.Item>
-            <Card size="small">
+            {!rejectionReason && <p id={rejectionSettingsHintId} className={styles.rejectionSettingsNotice} role="status">
+              <LockOutlined aria-hidden="true" />
+              <span>반려 사유를 먼저 선택해 주세요.</span>
+            </p>}
+            <Card size="small" className={styles.rejectionSettings} role="group" aria-label="반려 결과 알림 설정"
+              aria-disabled={!rejectionReason} aria-describedby={!rejectionReason ? rejectionSettingsHintId : undefined}>
               <Space orientation="vertical" size={8} style={{ width: "100%" }}>
                 <Flex align="center" justify="space-between" gap={12}>
                   <Text id="contract-rejection-notification-label">사용자에게 결과 알림 보내기</Text>
