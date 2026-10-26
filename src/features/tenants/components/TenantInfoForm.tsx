@@ -566,29 +566,6 @@ export function TenantInfoFormFields({
           <Input ref={phoneInputRef} type="tel" placeholder="010-1234-5678 또는 031-123-4567" inputMode="numeric" />
         </Form.Item>
       </Col>
-      <Col span={24}>
-        <Form.Item
-          label="임대료 납부 유형"
-          name="rentChargeFrequency"
-          rules={[{ required: true, message: "임대료 납부 유형을 선택해 주세요." }]}
-          extra={oneTime
-            ? "계약기간 전체 임대료를 시작월에 한 번만 청구합니다. 12개월이 지나도 다시 청구하지 않으며 관리비는 별도 월별 청구입니다."
-            : "계약 기간 동안 매월 임대료와 관리비를 청구합니다."}
-        >
-          <Radio.Group
-            aria-label="임대료 납부 유형"
-            block
-            optionType="button"
-            buttonStyle="solid"
-            options={RENT_CHARGE_FREQUENCY_OPTIONS}
-            disabled={!rentChargeFrequencyEditable}
-            onChange={(event) => {
-              if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
-              void form.validateFields(["endDate"]).catch(() => undefined);
-            }}
-          />
-        </Form.Item>
-      </Col>
       <Col xs={24} sm={12}>
         <Form.Item
           label="계약 시작일"
@@ -666,6 +643,29 @@ export function TenantInfoFormFields({
               .add(2, "year")
               .subtract(1, "day")
               .format("YYYY-MM-DD")}
+          />
+        </Form.Item>
+      </Col>
+      <Col span={24}>
+        <Form.Item
+          label="임대료 납부 유형"
+          name="rentChargeFrequency"
+          rules={[{ required: true, message: "임대료 납부 유형을 선택해 주세요." }]}
+          extra={oneTime
+            ? "계약기간 전체 임대료를 시작월에 한 번만 청구합니다. 12개월이 지나도 다시 청구하지 않으며 관리비는 별도 월별 청구입니다."
+            : "계약 기간 동안 매월 임대료와 관리비를 청구합니다."}
+        >
+          <Radio.Group
+            aria-label="임대료 납부 유형"
+            block
+            optionType="button"
+            buttonStyle="solid"
+            options={RENT_CHARGE_FREQUENCY_OPTIONS}
+            disabled={!rentChargeFrequencyEditable}
+            onChange={(event) => {
+              if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
+              void form.validateFields(["endDate"]).catch(() => undefined);
+            }}
           />
         </Form.Item>
       </Col>
