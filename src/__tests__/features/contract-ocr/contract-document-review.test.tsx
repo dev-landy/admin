@@ -972,6 +972,20 @@ test("OCR 요청 409는 서버 오류 내용을 표시하고 입력값을 보존
   expect(onBack).not.toHaveBeenCalled();
 });
 
+test("등록된 임차인 수정도 원본 버튼에 액션 높이를 예약하고 입력 중 고정을 해제한다", async () => {
+  jest.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: false });
+  mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
+  renderReview();
+  const name = await screen.findByLabelText("세입자 이름");
+  const update = screen.getByRole("button", { name: "수정" });
+  const actions = update.parentElement!;
+  jest.spyOn(actions, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 700, 390, 80));
+  fireEvent.scroll(window);
+  await waitFor(() => expect(screen.getByRole("region", { name: "계약서 원본 영역" }).style.bottom).toContain("92px"));
+  act(() => name.focus());
+  expect(actions).toHaveStyle({ position: "static" });
+});
+
 test("등록된 임차인 refetch는 편집값을 덮지 않고 수정 요청에서 납부 방식을 제외한다", async () => {
   mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
   mockUpdateTenant.mockResolvedValue(undefined);

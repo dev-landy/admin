@@ -59,7 +59,13 @@ export function ContractDocumentSourcePanel({ children, pageCount, isLoading, ha
       const actions = actionBarRef?.current?.getBoundingClientRect();
       // 입력 중 등록 영역이 화면 밖으로 이동해도 같은 높이의 자리를 예약한다.
       // 키보드 높이는 더하지 않으므로 열기·복귀 버튼이 화면을 따라 움직이지 않는다.
-      setBottom(actions && actions.height > 0 ? Math.max(16, actions.height + 12) : 16);
+      const reservedBottom = actions && actions.height > 0 ? Math.max(16, actions.height + 12) : 16;
+      // 카드의 아래 여백 때문에 액션이 화면 바닥보다 위에 있어도 버튼을 가리지 않는다.
+      // 높이 48px인 원본 버튼과 간격 12px, 화면 상단 여백 16px이 확보되는 경우만 올린다.
+      const visibleActionsTop = actions && actions.height > 0 && actions.top >= 76 && actions.top < window.innerHeight
+        ? window.innerHeight - actions.top + 12
+        : 16;
+      setBottom(Math.max(reservedBottom, visibleActionsTop));
     };
     let frame: number | undefined;
     let releaseTimer: ReturnType<typeof setTimeout> | undefined;

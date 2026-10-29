@@ -298,8 +298,10 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
                 aria-describedby={submitDisabledReason ? submitReasonId : undefined} disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>} items={[]} />
               <RowActions subject="계약서 반려" primary={<Button danger htmlType="button" disabled={isBusy} onClick={openRejectionModal}>반려</Button>} items={[]} />
               {submitDisabledReason && <p id={submitReasonId} style={{ gridColumn: "1 / -1", margin: 0, color: "var(--admin-text-muted)", fontSize: 12 }}>{submitDisabledReason}</p>}
-            </ContractDocumentActions> : <Button type="primary" htmlType="submit" block loading={updateTenantMutation.isPending}
-              disabled={isBusy || savedTenantState !== "idle" || !canSubmit || !isDirty}>수정</Button>}
+            </ContractDocumentActions> : <ContractDocumentActions ref={actionBarRef}>
+              <Button type="primary" htmlType="submit" block loading={updateTenantMutation.isPending}
+                disabled={isBusy || savedTenantState !== "idle" || !canSubmit || !isDirty}>수정</Button>
+            </ContractDocumentActions>}
           </Form>
         </Space>
       </Card>

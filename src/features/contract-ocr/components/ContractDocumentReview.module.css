@@ -76,6 +76,7 @@
 }
 
 .actions :global(.admin-row-actions:first-child) { width: 100%; }
+.actions > :only-child { grid-column: 1 / -1; }
 
 .rejectionSettingsNotice {
   display: flex;

@@ -104,6 +104,17 @@ test("키보드가 visual viewport를 줄이거나 이동해도 그 높이만큼
   expect(view.panel.style.bottom).toContain("162px");
 });
 
+test("카드 여백으로 액션이 화면 바닥보다 위에 있으면 실제 상단과 12px 간격을 둔다", async () => {
+  const view = setupMeasurements(new DOMRect(0, 610, 400, 100));
+  await waitFor(() => expect(view.panel.style.bottom).toContain("202px"));
+  view.setActionRect(new DOMRect(0, 850, 400, 100));
+  fireEvent.scroll(window);
+  await waitFor(() => expect(view.panel.style.bottom).toContain("112px"));
+  view.setActionRect(new DOMRect(0, 50, 400, 100));
+  fireEvent.scroll(window);
+  await waitFor(() => expect(view.panel.style.bottom).toContain("112px"));
+});
+
 test("원본을 여닫을 때 같은 하단 위치와 왼쪽 여백을 유지하고 등록 영역 변화로 복귀 버튼을 내리지 않는다", async () => {
   const view = setupMeasurements();
   await waitFor(() => expect(view.panel.style.bottom).toContain("162px"));
