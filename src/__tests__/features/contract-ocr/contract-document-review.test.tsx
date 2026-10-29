@@ -124,6 +124,25 @@ test("일시납 초안을 불러오면 총액과 필수 종료일을 보존해 �
   expect(mockRegister.mock.calls[0][1]).not.toHaveProperty("rentBillingCycle");
 });
 
+test("매월 초안도 종료일이 없으면 등록을 막고 입력 후에만 활성화한다", async () => {
+  mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values: { ...VALUES, endDate: null } });
+  renderReview();
+  await applyDraft();
+  const submit = screen.getByRole("button", { name: "계약 등록" });
+  const end = screen.getByLabelText("계약 종료일");
+  expect(end).toHaveAttribute("aria-required", "true");
+  expect(submit).toBeDisabled();
+  expect(await screen.findByText(/필수 입력: 계약 종료일/)).toBeInTheDocument();
+  fireEvent.submit(end.closest("form")!);
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
+  expect(mockRegister).not.toHaveBeenCalled();
+  fireEvent.change(end, { target: { value: "2027-08-31" } });
+  fireEvent.blur(end);
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
+  await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, VALUES));
+});
+
 test.each(["02-234-5678", "031-234-5678"])("지역번호 연락처 %s인 초안을 불러와 같은 번호로 계약을 등록한다", async (phone) => {
   const values = { ...VALUES, phone };
   mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values });
@@ -139,7 +158,9 @@ test.each(["02-234-5678", "031-234-5678"])("지역번호 연락처 %s인 초안�
 test("작성 중 목록 이동을 취소하면 입력을 보존하고 명시적으로 승인하면 이동한다", async () => {
   renderReview();
   const name = await screen.findByLabelText("세입자 이름");
-  fireEvent.change(name, { target: { value: "입력 중인 임차인" } });
+  await act(async () => {
+    fireEvent.change(name, { target: { value: "입력 중인 임차인" } });
+  });
   fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
   expect(window.confirm).toHaveBeenCalledTimes(1);
   expect(onBack).not.toHaveBeenCalled();
@@ -1002,7 +1023,7 @@ test("최초 진입 시 낡은 임차인 캐시 대신 이번 조회 결과로 �
   expect(screen.getByLabelText("월 임대료")).toHaveValue("90");
 });
 
-test("수정 성공 후 생략된 종료일을 서버가 유지하면 실제 저장된 날짜를 다시 표시한다", async () => {
+test("등록된 매월 계약의 종료일을 지우면 수정을 막고 다시 입력한 날짜로 저장한다", async () => {
   mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REGISTERED", tenantId: TENANT.tenantId });
   mockTenant.mockResolvedValue({ ...TENANT, endDate: "2027-08-31" });
   mockUpdateTenant.mockResolvedValue(undefined);
@@ -1011,12 +1032,20 @@ test("수정 성공 후 생략된 종료일을 서버가 유지하면 실제 저
   const endDatePicker = screen.getByLabelText("계약 종료일").closest(".ant-picker")!;
   fireEvent.click(endDatePicker.querySelector(".ant-picker-clear")!);
   fireEvent.change(screen.getByLabelText("세입자 이름"), { target: { value: "수정" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeDisabled());
+  const end = screen.getByLabelText("계약 종료일");
+  fireEvent.submit(end.closest("form")!);
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
+  expect(mockUpdateTenant).not.toHaveBeenCalled();
+  fireEvent.change(end, { target: { value: "2028-08-31" } });
+  fireEvent.blur(end);
   await waitFor(() => expect(screen.getByRole("button", { name: "수정" })).toBeEnabled());
+  mockTenant.mockResolvedValue({ ...TENANT, name: "수정", endDate: "2028-08-31" });
   fireEvent.click(screen.getByRole("button", { name: "수정" }));
   await waitFor(() => expect(mockUpdateTenant).toHaveBeenCalledTimes(1));
-  expect(mockUpdateTenant.mock.calls[0][1].endDate).toBeUndefined();
+  expect(mockUpdateTenant.mock.calls[0][1].endDate).toBe("2028-08-31");
   expect(await screen.findByText("임차인 정보가 수정되었습니다.")).toBeInTheDocument();
-  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-08-31");
+  expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-08-31");
 });
 
 test("저장 후 조회 실패는 저장 실패와 구분하고 PATCH 재요청 없이 조회로 복구한다", async () => {
@@ -1196,6 +1225,8 @@ test("실제 필수 값을 직접 입력하면 누락 안내가 사라지고 등
     fireEvent.change(screen.getByLabelText("연락처"), { target: { value: "010-1234-5678" } });
     const start = screen.getByLabelText("계약 시작일");
     fireEvent.focus(start); fireEvent.change(start, { target: { value: "2026-10-05" } }); fireEvent.blur(start);
+    const end = screen.getByLabelText("계약 종료일");
+    fireEvent.focus(end); fireEvent.change(end, { target: { value: "2027-10-04" } }); fireEvent.blur(end);
     fireEvent.change(screen.getByLabelText("납부일"), { target: { value: "25" } });
   });
   await waitFor(() => expect(registration).toBeEnabled());
@@ -1207,6 +1238,6 @@ test("실제 필수 값을 직접 입력하면 누락 안내가 사라지고 등
   await waitFor(() => expect(registration).toBeEnabled());
   fireEvent.click(registration);
   await waitFor(() => expect(mockRegister).toHaveBeenCalledWith(DOCUMENT.documentId, expect.objectContaining({
-    name: "직접 입력한 임차인", roomNumber: "123", phone: "010-1234-5678", startDate: "2026-10-05", paymentDay: 25,
+    name: "직접 입력한 임차인", roomNumber: "123", phone: "010-1234-5678", startDate: "2026-10-05", endDate: "2027-10-04", paymentDay: 25,
   })));
 });

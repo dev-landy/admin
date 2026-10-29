@@ -15,6 +15,7 @@ import {
   TenantInfoFormFields,
   type TenantInfoFormValues,
   fromTenantDetail,
+  isTenantFormComplete,
   toTenantValues,
   toUpdateTenantRequest,
 } from "./TenantInfoForm";
@@ -100,7 +101,7 @@ export function TenantEditDrawer({ tenant, open, onClose, queryError }: Props) {
           billingTimingEditable={false}
           rentChargeFrequencyEditable={false}
         />
-        <div className={styles.actions}><Button onClick={handleClose} disabled={busy}>취소</Button><Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || isSubmitting || isPending} block>
+        <div className={styles.actions}><Button onClick={handleClose} disabled={busy}>취소</Button><Button type="primary" htmlType="submit" loading={isSubmitting || isPending} disabled={!isDirty || !isTenantFormComplete(watched) || isSubmitting || isPending} block>
           수정
         </Button></div>
       </Form></div>

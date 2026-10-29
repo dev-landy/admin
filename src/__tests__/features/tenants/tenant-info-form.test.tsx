@@ -82,6 +82,7 @@ function TestForm({
         name: "홍길동",
         phone: "010-1111-2222",
         startDate: dayjs("2026-09-01"),
+        endDate: dayjs("2027-08-31"),
         paymentDay: 25,
         billingTiming: "PREPAID",
         rentChargeFrequency: initialRentChargeFrequency,
@@ -210,23 +211,38 @@ describe("연락처 입력", () => {
 const EXACT_MONEY_VALUES = fromTenantValues({
   name: "홍길동", roomNumber: "101", phone: "010-1111-2222",
   rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 1_234_567,
-  paymentDay: 25, startDate: "2026-09-01", endDate: null,
+  paymentDay: 25, startDate: "2026-09-01", endDate: "2027-08-31",
 });
 
-test("일시납은 종료일이 없으면 등록할 수 없고 매월로 바꾸면 종료일은 선택값이다", async () => {
+test.each(["MONTHLY", "ONE_TIME"] as const)("%s 계약도 종료일을 필수로 입력해야 등록할 수 있다", async (frequency) => {
   const onFinish = jest.fn();
   const onFormReady = jest.fn();
-  render(<TestForm onFinish={onFinish} onFormReady={onFormReady} initialRentChargeFrequency="ONE_TIME" />);
+  render(<TestForm onFinish={onFinish} onFormReady={onFormReady} initialRentChargeFrequency={frequency} initialValues={{ endDate: null }} />);
   const form: FormInstance<TenantInfoFormValues> = onFormReady.mock.calls[0][0];
-  fireEvent.click(screen.getByRole("button", { name: "저장" }));
-  expect(await screen.findByText("계약기간 일시납은 계약 종료일이 필요합니다.")).toBeInTheDocument();
+  const end = screen.getByLabelText("계약 종료일");
+  expect(end).toHaveAttribute("aria-required", "true");
   expect(isTenantFormComplete(form.getFieldsValue())).toBe(false);
+  expect(isTenantFormComplete({ ...form.getFieldsValue(), endDate: undefined })).toBe(false);
+  expect(isTenantFormComplete({ ...form.getFieldsValue(), endDate: dayjs("invalid") })).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
   expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.change(end, { target: { value: "2027-08-31" } });
+  fireEvent.blur(end);
+  await waitFor(() => expect(isTenantFormComplete(form.getFieldsValue())).toBe(true));
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0]).endDate).toBe("2027-08-31");
+});
+
+test("일시납에서 매월로 바꿔도 종료일 필수 검증을 유지한다", async () => {
+  const onFinish = jest.fn();
+  render(<TestForm onFinish={onFinish} initialRentChargeFrequency="ONE_TIME" initialValues={{ endDate: null }} />);
   fireEvent.click(screen.getByRole("radio", { name: "매월" }));
   await screen.findByLabelText("월 임대료");
   fireEvent.click(screen.getByRole("button", { name: "저장" }));
-  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
-  expect(isTenantFormComplete(form.getFieldsValue())).toBe(true);
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
+  expect(onFinish).not.toHaveBeenCalled();
 });
 
 test("일시납 기간을 8개월에서 13개월로 바꿔도 입력 총액을 환산하지 않는다", async () => {
@@ -254,7 +270,7 @@ test("등록된 일시납의 종료일을 지워도 필수 검증을 우회할 �
   fireEvent.change(end, { target: { value: "" } });
   fireEvent.blur(end);
   fireEvent.click(screen.getByRole("button", { name: "저장" }));
-  expect(await screen.findByText("계약기간 일시납은 계약 종료일이 필요합니다.")).toBeInTheDocument();
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
   expect(onFinish).not.toHaveBeenCalled();
 });
 
@@ -748,10 +764,11 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     expect(onFinish).not.toHaveBeenCalled();
   });
 
-  test("달력 선택과 종료일 지우기는 숫자 날짜 입력 지원 이후에도 Dayjs와 null을 저장한다", async () => {
+  test("달력 선택은 Dayjs를 유지하고 종료일을 지우면 null로 보존하며 저장을 막는다", async () => {
     const onFinish = jest.fn();
     const onValuesChange = jest.fn();
-    render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={{ endDate: dayjs("2027-08-31") }} />);
+    const onFormReady = jest.fn();
+    render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} onFormReady={onFormReady} initialValues={{ endDate: dayjs("2027-08-31") }} />);
     fireEvent.click(screen.getAllByRole("button", { name: "날짜 선택" })[0]);
     fireEvent.click(await screen.findByTitle("2026-09-20"));
     await waitFor(() => expect(onValuesChange).toHaveBeenCalledWith(
@@ -763,11 +780,15 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     fireEvent.click(within(endPicker as HTMLElement).getByRole("button"));
     await waitFor(() => expect(screen.getByLabelText("계약 종료일")).toHaveValue(""));
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
-    await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
-    const values = onFinish.mock.calls[0][0];
+    expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
+    expect(onFinish).not.toHaveBeenCalled();
+    const form: FormInstance<TenantInfoFormValues> = onFormReady.mock.calls[0][0];
+    const values = form.getFieldsValue();
     expect(dayjs.isDayjs(values.startDate)).toBe(true);
     expect(values.endDate).toBeNull();
+    expect(isTenantFormComplete(values)).toBe(false);
     expect(toTenantValues(values)).toMatchObject({ startDate: "2026-09-20", endDate: null });
+    expect(toUpdateTenantRequest(values).endDate).toBeUndefined();
   });
 
   test("필수 시작일을 지우면 기간 칩을 비활성화하고 저장을 막는다", async () => {
@@ -808,7 +829,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
   test("시작일 값 적용 직후 기간 칩을 눌러도 최신 날짜로 종료일을 계산한다", async () => {
     const onFinish = jest.fn();
     const onFormReady = jest.fn();
-    render(<TestForm onFinish={onFinish} onFormReady={onFormReady} appliedValues={{ startDate: dayjs("2026-10-17") }} />);
+    render(<TestForm onFinish={onFinish} onFormReady={onFormReady} initialValues={{ endDate: null }} appliedValues={{ startDate: dayjs("2026-10-17") }} />);
     const startInput = screen.getByLabelText("계약 시작일");
     const chip = screen.getByRole("button", { name: "6개월 연장" });
     const applyValues = screen.getByRole("button", { name: "서버 값 적용" });
@@ -861,7 +882,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
 
   test("시작일을 바꾸면 기존 납부일은 유지하고 기간 칩은 새 시작일을 기준으로 계산한다", async () => {
     const onFinish = jest.fn();
-    render(<TestForm onFinish={onFinish} />);
+    render(<TestForm onFinish={onFinish} initialValues={{ endDate: null }} />);
     const startInput = screen.getByLabelText("계약 시작일");
     await commitDateEvent(() => {
       fireEvent.change(startInput, { target: { value: "2026-10-17" } });
@@ -1057,7 +1078,7 @@ test("존재하지 않는 축약 날짜는 반영하지 않고 2000년과 2099�
 });
 
 test("축약 시작일 blur 직후 기간 칩을 누르면 최신 입력 날짜에서 계산한다", async () => {
-  render(<TestForm onFinish={jest.fn()} />);
+  render(<TestForm onFinish={jest.fn()} initialValues={{ endDate: null }} />);
   const input = screen.getByLabelText("계약 시작일");
   await commitDateEvent(() => {
     fireEvent.change(input, { target: { value: "261106" } });

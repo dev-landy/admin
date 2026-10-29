@@ -249,7 +249,7 @@ export function isTenantFormComplete(values?: TenantInfoFormValues): boolean {
       values?.billingTiming != null &&
       values?.rentChargeFrequency != null &&
       !(values.rentChargeFrequency === "ONE_TIME" && values.billingTiming === "POSTPAID") &&
-      (values.rentChargeFrequency !== "ONE_TIME" || values.endDate?.isValid()) &&
+      values.endDate?.isValid() &&
       (values.rentManwon ?? 0) >= 0,
   );
 }
@@ -636,7 +636,6 @@ export function TenantInfoFormFields({
         <div data-field="endDate">
           <Form.Item
             label="계약 종료일"
-            required={oneTime}
             htmlFor={endDateInputId}
             name="endDate"
             dependencies={["startDate", "rentChargeFrequency"]}
@@ -665,10 +664,11 @@ export function TenantInfoFormFields({
               })}
             </Space></div>}
             rules={[
+              { required: true, message: "계약 종료일을 선택해 주세요." },
               ({ getFieldValue }) => ({
                 validator(_, value: Dayjs | null | undefined) {
-                  if (getFieldValue("rentChargeFrequency") === "ONE_TIME" && !value) {
-                    return Promise.reject(new Error("계약기간 일시납은 계약 종료일이 필요합니다."));
+                  if (value && !value.isValid()) {
+                    return Promise.reject(new Error("유효한 계약 종료일을 입력해 주세요."));
                   }
                   const start: Dayjs | null | undefined = getFieldValue("startDate");
                   if (!value || !start || !value.isBefore(start, "day")) {

@@ -8,7 +8,7 @@ export const DOCUMENT: ContractDocument = {
 export const VALUES: RegisterContractDocumentRequest = {
   contractType: "ROOM", parkingEnabled: false, vehicleNumber: null, name: "홍길동", roomNumber: "101",
   phone: "010-1234-5678", rentPrice: 500000, maintenanceFee: 50000, depositAmount: 10000000,
-  paymentDay: 25, billingTiming: "POSTPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-09-01", endDate: null,
+  paymentDay: 25, billingTiming: "POSTPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-09-01", endDate: "2027-08-31",
 };
 export const ANALYSIS: ContractOcrAnalysis = {
   analysisId: "analysis-1", documentId: DOCUMENT.documentId, status: "QUEUED", deadlineAt: "2026-09-30T10:00:00Z",
@@ -17,6 +17,6 @@ export const ANALYSIS: ContractOcrAnalysis = {
 export const TENANT: TenantDetail = {
   tenantId: 9, userId: 1, name: "홍길동", roomNumber: "101", phone: "010-1234-5678", contractType: "ROOM",
   parkingEnabled: false, vehicleNumber: null, rentPrice: 500000, maintenanceFee: 50000, depositAmount: 10000000,
-  paymentDay: 25, billingTiming: "POSTPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-09-01", endDate: null,
+  paymentDay: 25, billingTiming: "POSTPAID", rentChargeFrequency: "MONTHLY", startDate: "2026-09-01", endDate: "2027-08-31",
   notifyEnabled: true, dueAlimtalkEnabled: true, createdAt: "2026-09-30T09:00:00", updatedAt: "2026-09-30T09:00:00",
 };

@@ -121,7 +121,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
     !watchedValues?.name?.trim() ? "세입자 이름" : undefined,
     !watchedValues?.phone?.trim() ? "연락처" : undefined,
     !watchedValues?.startDate ? "계약 시작일" : undefined,
-    watchedValues?.rentChargeFrequency === "ONE_TIME" && !watchedValues.endDate ? "계약 종료일" : undefined,
+    !watchedValues?.endDate?.isValid() ? "계약 종료일" : undefined,
     watchedValues?.paymentDay == null ? "납부일" : undefined,
     watchedValues?.billingTiming == null ? "납부 방식" : undefined,
     watchedValues?.rentChargeFrequency == null ? "임대료 납부 유형" : undefined,

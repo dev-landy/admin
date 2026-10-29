@@ -69,6 +69,32 @@ test("일반 수정은 한 번 저장하고 중복 확인창 없이 닫는다", 
   expect(screen.queryByRole("button", { name: "겹쳐도 수정" })).not.toBeInTheDocument();
 });
 
+test("매월 계약도 종료일이 없으면 수정을 막고 종료일을 입력하면 보존한 초안과 함께 저장한다", async () => {
+  render(<Drawer tenant={{ ...TENANT, rentChargeFrequency: "MONTHLY", endDate: null }} />);
+  const name = await screen.findByLabelText("세입자 이름");
+  const endDate = screen.getByLabelText("계약 종료일");
+  const submit = screen.getByRole("button", { name: "수정" });
+  fireEvent.change(name, { target: { value: "기간 확인 임차인" } });
+  await waitFor(() => expect(submit).toBeDisabled());
+  expect(endDate).toHaveValue("");
+
+  fireEvent.submit(name.closest("form")!);
+  expect(await screen.findByText("계약 종료일을 선택해 주세요.")).toBeInTheDocument();
+  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(name).toHaveValue("기간 확인 임차인");
+
+  fireEvent.change(endDate, { target: { value: "2027-08-31" } });
+  fireEvent.blur(endDate);
+  await waitFor(() => expect(endDate).toHaveValue("2027-08-31"));
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
+  await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith(TENANT.tenantId, expect.objectContaining({
+    name: "기간 확인 임차인", endDate: "2027-08-31",
+  })));
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+});
+
 test("기존 서울 지역번호 연락처는 이름만 수정해도 표기와 저장값을 유지한다", async () => {
   const phone = "02-234-5678";
   render(<Drawer tenant={{ ...TENANT, phone }} />);
