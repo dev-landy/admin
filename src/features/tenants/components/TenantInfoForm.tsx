@@ -4,13 +4,11 @@ import { useId, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
-  Col,
   DatePicker,
   Form,
   Input,
   InputNumber,
   Radio,
-  Row,
   Select,
   Space,
   theme,
@@ -74,7 +72,7 @@ function extendContractEndDate(startDate: Dayjs, endDate: Dayjs | null | undefin
   return getContractEndDate(endDate.add(1, "day"), months);
 }
 
-// 모바일 앱의 "세입자 추가" 폼과 같은 구조·순서를 공유하는 임차인 정보 폼.
+// 계약서 원본을 따라 금액 → 기간 → 세입자 순서로 확인하는 공용 임차인 정보 폼.
 // 계약서 검수(입력·수정)와 임차인 수정 드로어가 함께 사용한다.
 // 폼 값은 만원 단위를 유지하고 금액 입력의 표시 단위만 원/만원으로 바꾼다.
 export type TenantInfoFormValues = {
@@ -448,304 +446,309 @@ export function TenantInfoFormFields({
   const oneTimeStartDateImmutable =
     rentChargeFrequency === "ONE_TIME" && !rentChargeFrequencyEditable;
   return (
-    <Row gutter={12} className={styles.fields}>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="카테고리"
-          name="contractType"
-          rules={[{ required: true, message: "카테고리를 선택해 주세요." }]}
-        >
-          <Select<ContractType>
-            options={CONTRACT_TYPE_OPTIONS}
-            disabled={!contractTypeEditable || undefined}
-            onChange={(nextType) => {
-              form.setFieldsValue({ room: undefined, basement: false });
-              if (nextType === "PARKING" || isParking) {
-                form.setFieldsValue({
-                  parkingEnabled: nextType === "PARKING",
-                  vehicleNumber: undefined,
-                });
-              }
-            }}
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        {isParking ? (
-          <Form.Item label="차량 번호" name="vehicleNumber">
-            <Input maxLength={32} placeholder="예: 12가3456" />
-          </Form.Item>
-        ) : (
-          <Row gutter={12} wrap={false}>
-            <Col flex="1" style={{ minWidth: 0 }}>
-              <Form.Item
-                label={roomLabel}
-                name="room"
-                rules={[{
-                  required: true,
-                  whitespace: true,
-                  message: `${roomLabel}을 입력해 주세요.`,
-                }, ({ getFieldValue }) => ({
-                  validator(_, value: string | undefined) {
-                    const limit = (getFieldValue("contractType") ?? "ROOM") === "ROOM" && getFieldValue("basement") ? 254 : 255;
-                    return !value || value.length <= limit
-                      ? Promise.resolve()
-                      : Promise.reject(new Error(`${roomLabel}은 ${limit}자 이내로 입력해 주세요.`));
-                  },
-                })]}
-              >
-                {isRoom ? (
-                  <TextInputWithAddon
-                    maxLength={basement ? 254 : 255}
-                    placeholder="예: 101, A동 101"
-                    addon="호"
-                    prefix={
-                      <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
-                    }
-                  />
-                ) : (
-                  <Input
-                    maxLength={255}
-                    placeholder={contractType === "COMMERCIAL" ? "예: 101, 1층 상가" : "예: 창고 A"}
-                  />
-                )}
-              </Form.Item>
-            </Col>
-            {isRoom && (
-              <Col flex="72px">
-                <Form.Item label=" " name="basement" valuePropName="checked">
-                  <Checkbox
-                    styles={({ props }) => ({
-                      label: {
-                        color: props.checked || props.disabled ? undefined : token.colorTextTertiary,
-                      },
-                    })}
-                  >
-                    지하
-                  </Checkbox>
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
-        )}
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="세입자 이름"
-          name="name"
-          rules={[{ required: true, whitespace: true, message: "세입자 이름을 입력해 주세요." }]}
-        >
-          <Input maxLength={100} placeholder="홍길동" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="연락처"
-          name="phone"
-          normalize={formatPhone}
-          extra={<div className={styles.shortcuts}><Space size={8} wrap>
-            <Button
-              htmlType="button"
-              size="small"
-              shape="round"
-              className={styles.phoneShortcut}
-              aria-label="010 입력"
-              disabled={phone?.trim() ? true : undefined}
-              onClick={() => {
-                if (form.getFieldValue("phone")?.trim()) return;
-                form.setFieldValue("phone", "010");
-                phoneInputRef.current?.focus({ cursor: "end", preventScroll: true });
+    <div className={styles.fields}>
+      <div className={styles.fieldGrid}>
+        <div data-field="contractType">
+          <Form.Item
+            label="카테고리"
+            name="contractType"
+            rules={[{ required: true, message: "카테고리를 선택해 주세요." }]}
+          >
+            <Select<ContractType>
+              options={CONTRACT_TYPE_OPTIONS}
+              disabled={!contractTypeEditable || undefined}
+              onChange={(nextType) => {
+                form.setFieldsValue({ room: undefined, basement: false });
+                if (nextType === "PARKING" || isParking) {
+                  form.setFieldsValue({
+                    parkingEnabled: nextType === "PARKING",
+                    vehicleNumber: undefined,
+                  });
+                }
               }}
-            >010</Button>
-          </Space></div>}
-          rules={[
-            { required: true, message: "연락처를 입력해 주세요." },
-            { pattern: CONTACT_PHONE_PATTERN, message: "010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요." },
-          ]}
-        >
-          <Input ref={phoneInputRef} type="tel" placeholder="010-1234-5678 또는 031-123-4567" inputMode="numeric" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="계약 시작일"
-          name="startDate"
-          extra={
-            oneTimeStartDateImmutable
-              ? "계약기간 일시납의 시작일은 등록 후 수정할 수 없습니다."
-              : undefined
-          }
-          rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
-        >
-          <DateAddonPicker
-            field="startDate"
-            placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
-            disabled={oneTimeStartDateImmutable || undefined}
-            onChange={(nextDate) => {
-              if (nextDate && form.getFieldValue("paymentDay") == null) {
-                form.setFieldValue("paymentDay", nextDate.date());
-              }
-            }}
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="계약 종료일"
-          required={oneTime}
-          htmlFor={endDateInputId}
-          name="endDate"
-          dependencies={["startDate", "rentChargeFrequency"]}
-          extra={<div className={styles.shortcuts} role="group" aria-label="계약 기간 빠른 선택"><Space size={4} wrap>
-            {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
-              const nextEndDate = startDate?.isValid() ? extendContractEndDate(startDate, endDate, months) : null;
-              return (
-                <Button
-                  key={months}
-                  size="small"
-                  shape="round"
-                  htmlType="button"
-                  disabled={!nextEndDate || undefined}
-                  title={nextEndDate ? `${nextEndDate.format("YYYY-MM-DD")}까지` : "계약 시작일을 먼저 선택해 주세요."}
-                  onClick={(event) => {
-                    // 날짜 blur 확정과 연속 클릭하면 useWatch보다 Form 값이 먼저 갱신된다.
-                    const currentStart: Dayjs | null | undefined = form.getFieldValue("startDate");
-                    if (event.currentTarget.hasAttribute("disabled") || !dayjs.isDayjs(currentStart) || !currentStart.isValid()) return;
-                    form.setFieldValue("endDate", extendContractEndDate(currentStart, form.getFieldValue("endDate"), months));
-                  }}
+            />
+          </Form.Item>
+        </div>
+        <div data-field="room">
+          {isParking ? (
+            <Form.Item label="차량 번호" name="vehicleNumber">
+              <Input maxLength={32} placeholder="예: 12가3456" />
+            </Form.Item>
+          ) : (
+            <div className={styles.roomGroup}>
+              <div>
+                <Form.Item
+                  label={roomLabel}
+                  name="room"
+                  rules={[{
+                    required: true,
+                    whitespace: true,
+                    message: `${roomLabel}을 입력해 주세요.`,
+                  }, ({ getFieldValue }) => ({
+                    validator(_, value: string | undefined) {
+                      const limit = (getFieldValue("contractType") ?? "ROOM") === "ROOM" && getFieldValue("basement") ? 254 : 255;
+                      return !value || value.length <= limit
+                        ? Promise.resolve()
+                        : Promise.reject(new Error(`${roomLabel}은 ${limit}자 이내로 입력해 주세요.`));
+                    },
+                  })]}
                 >
-                  {label}
-                </Button>
-              );
-            })}
-          </Space></div>}
-          rules={[
-            ({ getFieldValue }) => ({
-              validator(_, value: Dayjs | null | undefined) {
-                if (getFieldValue("rentChargeFrequency") === "ONE_TIME" && !value) {
-                  return Promise.reject(new Error("계약기간 일시납은 계약 종료일이 필요합니다."));
-                }
-                const start: Dayjs | null | undefined = getFieldValue("startDate");
-                if (!value || !start || !value.isBefore(start, "day")) {
-                  return Promise.resolve();
-                }
-                return Promise.reject(new Error("종료일은 시작일보다 빠를 수 없습니다."));
-              },
-            }),
-          ]}
-        >
-          <DateAddonPicker
-            field="endDate"
-            id={endDateInputId}
-            placeholder={dayjs()
-              .add(1, "month")
-              .startOf("month")
-              .add(2, "year")
-              .subtract(1, "day")
-              .format("YYYY-MM-DD")}
-          />
-        </Form.Item>
-      </Col>
-      <Col span={24}>
-        <Form.Item
-          label="임대료 납부 유형"
-          name="rentChargeFrequency"
-          rules={[{ required: true, message: "임대료 납부 유형을 선택해 주세요." }]}
-          extra={oneTime
-            ? "계약기간 전체 임대료를 시작월에 한 번만 청구합니다. 12개월이 지나도 다시 청구하지 않으며 관리비는 별도 월별 청구입니다."
-            : "계약 기간 동안 매월 임대료와 관리비를 청구합니다."}
-        >
-          <Radio.Group
-            aria-label="임대료 납부 유형"
-            block
-            optionType="button"
-            buttonStyle="solid"
-            options={RENT_CHARGE_FREQUENCY_OPTIONS}
-            disabled={!rentChargeFrequencyEditable}
-            onChange={(event) => {
-              if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
-              void form.validateFields(["endDate"]).catch(() => undefined);
-            }}
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="납부일"
-          name="paymentDay"
-          extra={oneTime
-            ? "첫 납기는 시작월의 이 날짜이며 시작일보다 이르면 시작일에 납부합니다. 관리비는 이후 월별로 청구합니다."
-            : "1~31 사이의 날짜를 입력하세요."}
-          rules={[
-            { required: true, message: "납부일을 입력해 주세요." },
-            { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
-          ]}
-        >
-          <BillingScheduleInput
-            min={1}
-            max={31}
-            placeholder="25"
-            billingTimingEditable={billingTimingEditable}
-            oneTime={oneTime}
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label={rentLabel}
-          name="rentManwon"
-          extra={oneTime ? (rentChargeFrequencyEditable
-            ? "계약 기간 전체의 합의 금액입니다. 기간을 바꿔도 자동 환산하지 않습니다."
-            : "총액은 최초 납기 전이며 시작월에 납부 기록이 없을 때만 정정할 수 있습니다.") : undefined}
-          rules={[{ type: "number", min: 0, message: "임대료는 0 이상이어야 합니다." }]}
-        >
-          <MoneyInputWithUnit
+                  {isRoom ? (
+                    <TextInputWithAddon
+                      maxLength={basement ? 254 : 255}
+                      placeholder="101"
+                      addon="호"
+                      prefix={
+                        <span style={{ fontWeight: 600, display: basement ? "inline" : "none" }}>B</span>
+                      }
+                    />
+                  ) : (
+                    <Input
+                      maxLength={255}
+                      placeholder={contractType === "COMMERCIAL" ? "예: 101, 1층 상가" : "예: 창고 A"}
+                    />
+                  )}
+                </Form.Item>
+              </div>
+              {isRoom && (
+                <div className={styles.basementField}>
+                  <Form.Item label=" " name="basement" valuePropName="checked" style={{ marginBottom: 0 }}>
+                    <Checkbox
+                      style={{ minHeight: token.controlHeight }}
+                      styles={({ props }) => ({
+                        label: {
+                          color: props.checked || props.disabled ? undefined : token.colorTextTertiary,
+                          fontSize: 14,
+                          paddingInline: 4,
+                        },
+                      })}
+                    >
+                      지하
+                    </Checkbox>
+                  </Form.Item>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <p className={styles.moneyHint}>금액을 비워 두면 0원으로 저장됩니다. 원본에서 금액 유무를 확인해 주세요.</p>
+        <div data-field="deposit" className={styles.fullField}>
+          <Form.Item
+            label="보증금"
+            name="depositManwon"
+            rules={[{ type: "number", min: 0, message: "보증금은 0 이상이어야 합니다." }]}
+          >
+            <MoneyInputWithUnit min={0} label="보증금" placeholder="0" />
+          </Form.Item>
+        </div>
+        <div data-field="rent" className={styles.fullField}>
+          <Form.Item
             label={rentLabel}
-            min={0}
-            placeholder="50"
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="월 관리비"
-          name="maintenanceFeeManwon"
-          rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
-        >
-          <MoneyInputWithUnit min={0} label="월 관리비" placeholder="0" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          label="보증금"
-          name="depositManwon"
-          rules={[{ type: "number", min: 0, message: "보증금은 0 이상이어야 합니다." }]}
-        >
-          <MoneyInputWithUnit min={0} label="보증금" placeholder="0" />
-        </Form.Item>
-      </Col>
-      {!isParking && (
-        <Col span={24}>
-          <Form.Item name="parkingEnabled" valuePropName="checked">
-            <Checkbox
+            name="rentManwon"
+            extra={oneTime ? (rentChargeFrequencyEditable
+              ? `계약 기간 전체의 ${isParking ? "주차비" : "임대료"} 합계입니다.`
+              : "총액은 최초 납기 전이며 시작월에 납부 기록이 없을 때만 정정할 수 있습니다.") : undefined}
+            rules={[{ type: "number", min: 0, message: "임대료는 0 이상이어야 합니다." }]}
+          >
+            <MoneyInputWithUnit
+              label={rentLabel}
+              min={0}
+              placeholder="50"
+            />
+          </Form.Item>
+        </div>
+        <div data-field="frequency" className={styles.fullField}>
+          <Form.Item
+            label="임대료 납부 유형"
+            name="rentChargeFrequency"
+            rules={[{ required: true, message: "임대료 납부 유형을 선택해 주세요." }]}
+            extra={oneTime
+              ? "위 금액은 계약기간 전체 총액입니다. 금액은 자동 환산하지 않으며, 관리비는 매월 별도로 청구합니다."
+              : "계약 기간 동안 매월 임대료와 관리비를 청구합니다."}
+          >
+            <Radio.Group
+              aria-label="임대료 납부 유형"
+              block
+              optionType="button"
+              buttonStyle="solid"
+              options={RENT_CHARGE_FREQUENCY_OPTIONS}
+              disabled={!rentChargeFrequencyEditable}
               onChange={(event) => {
-                if (!event.target.checked) {
-                  form.setFieldValue("vehicleNumber", undefined);
+                if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
+                void form.validateFields(["endDate"]).catch(() => undefined);
+              }}
+            />
+          </Form.Item>
+        </div>
+        <div data-field="maintenance">
+          <Form.Item
+            label="월 관리비"
+            name="maintenanceFeeManwon"
+            rules={[{ type: "number", min: 0, message: "관리비는 0 이상이어야 합니다." }]}
+          >
+            <MoneyInputWithUnit min={0} label="월 관리비" placeholder="0" />
+          </Form.Item>
+        </div>
+        <div data-field="paymentDay">
+          <Form.Item
+            label="납부일"
+            name="paymentDay"
+            extra={oneTime
+              ? "시작월에 납부하며, 시작일보다 이르면 시작일로 맞춥니다."
+              : "비워두면 계약 시작일과 같은 날짜로 채웁니다."}
+            rules={[
+              { required: true, message: "납부일을 입력해 주세요." },
+              { type: "number", min: 1, max: 31, message: "1~31 사이의 날짜만 가능합니다." },
+            ]}
+          >
+            <BillingScheduleInput
+              min={1}
+              max={31}
+              placeholder="25"
+              billingTimingEditable={billingTimingEditable}
+              oneTime={oneTime}
+            />
+          </Form.Item>
+        </div>
+        <div data-field="startDate">
+          <Form.Item
+            label="계약 시작일"
+            name="startDate"
+            extra={
+              oneTimeStartDateImmutable
+                ? "계약기간 일시납의 시작일은 등록 후 수정할 수 없습니다."
+                : undefined
+            }
+            rules={[{ required: true, message: "계약 시작일을 선택해 주세요." }]}
+          >
+            <DateAddonPicker
+              field="startDate"
+              placeholder={dayjs().add(1, "month").startOf("month").format("YYYY-MM-DD")}
+              disabled={oneTimeStartDateImmutable || undefined}
+              onChange={(nextDate) => {
+                if (nextDate && form.getFieldValue("paymentDay") == null) {
+                  form.setFieldValue("paymentDay", nextDate.date());
                 }
               }}
-            >
-              주차 이용
-            </Checkbox>
+            />
           </Form.Item>
-        </Col>
-      )}
-      {!isParking && parkingEnabled && (
-        <Col span={24}>
-          <Form.Item label="차량 번호 (선택)" name="vehicleNumber">
-            <Input maxLength={32} placeholder="예: 12가3456" />
+        </div>
+        <div data-field="endDate">
+          <Form.Item
+            label="계약 종료일"
+            required={oneTime}
+            htmlFor={endDateInputId}
+            name="endDate"
+            dependencies={["startDate", "rentChargeFrequency"]}
+            extra={<div className={styles.shortcuts} role="group" aria-label="계약 종료일 연장"><Space size={4} wrap>
+              {CONTRACT_DURATION_OPTIONS.map(({ label, months }) => {
+                const nextEndDate = startDate?.isValid() ? extendContractEndDate(startDate, endDate, months) : null;
+                return (
+                  <Button
+                    key={months}
+                    aria-label={`${label} 연장`}
+                    size="small"
+                    shape="round"
+                    htmlType="button"
+                    disabled={!nextEndDate || undefined}
+                    title={nextEndDate ? `${nextEndDate.format("YYYY-MM-DD")}까지` : "계약 시작일을 먼저 선택해 주세요."}
+                    onClick={(event) => {
+                      // 날짜 blur 확정과 연속 클릭하면 useWatch보다 Form 값이 먼저 갱신된다.
+                      const currentStart: Dayjs | null | undefined = form.getFieldValue("startDate");
+                      if (event.currentTarget.hasAttribute("disabled") || !dayjs.isDayjs(currentStart) || !currentStart.isValid()) return;
+                      form.setFieldValue("endDate", extendContractEndDate(currentStart, form.getFieldValue("endDate"), months));
+                    }}
+                  >
+                    +{label}
+                  </Button>
+                );
+              })}
+            </Space></div>}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value: Dayjs | null | undefined) {
+                  if (getFieldValue("rentChargeFrequency") === "ONE_TIME" && !value) {
+                    return Promise.reject(new Error("계약기간 일시납은 계약 종료일이 필요합니다."));
+                  }
+                  const start: Dayjs | null | undefined = getFieldValue("startDate");
+                  if (!value || !start || !value.isBefore(start, "day")) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("종료일은 시작일보다 빠를 수 없습니다."));
+                },
+              }),
+            ]}
+          >
+            <DateAddonPicker
+              field="endDate"
+              id={endDateInputId}
+              placeholder={dayjs()
+                .add(1, "month")
+                .startOf("month")
+                .add(2, "year")
+                .subtract(1, "day")
+                .format("YYYY-MM-DD")}
+            />
           </Form.Item>
-        </Col>
-      )}
-    </Row>
+        </div>
+        <div data-field="name">
+          <Form.Item
+            label="세입자 이름"
+            name="name"
+            rules={[{ required: true, whitespace: true, message: "세입자 이름을 입력해 주세요." }]}
+          >
+            <Input maxLength={100} placeholder="홍길동" />
+          </Form.Item>
+        </div>
+        <div data-field="phone">
+          <Form.Item
+            label="연락처"
+            name="phone"
+            normalize={formatPhone}
+            extra={<div className={styles.shortcuts}><Space size={8} wrap>
+              <Button
+                htmlType="button"
+                size="small"
+                shape="round"
+                className={styles.phoneShortcut}
+                aria-label="010 입력"
+                disabled={phone?.trim() ? true : undefined}
+                onClick={() => {
+                  if (form.getFieldValue("phone")?.trim()) return;
+                  form.setFieldValue("phone", "010");
+                  phoneInputRef.current?.focus({ cursor: "end", preventScroll: true });
+                }}
+              >010</Button>
+            </Space></div>}
+            rules={[
+              { required: true, message: "연락처를 입력해 주세요." },
+              { pattern: CONTACT_PHONE_PATTERN, message: "010 휴대폰 또는 지역번호를 포함한 일반전화 번호를 입력해 주세요." },
+            ]}
+          >
+            <Input ref={phoneInputRef} type="tel" placeholder="010-0000-0000" inputMode="numeric" />
+          </Form.Item>
+        </div>
+        {!isParking && (
+          <div data-field="parking" className={styles.fullField}>
+            <Form.Item name="parkingEnabled" valuePropName="checked">
+              <Checkbox
+                onChange={(event) => {
+                  if (!event.target.checked) form.setFieldValue("vehicleNumber", undefined);
+                }}
+              >
+                주차 이용
+              </Checkbox>
+            </Form.Item>
+          </div>
+        )}
+        {!isParking && parkingEnabled && (
+          <div data-field="vehicleNumber" className={styles.fullField}>
+            <Form.Item label="차량 번호 (선택)" name="vehicleNumber">
+              <Input maxLength={32} placeholder="예: 12가3456" />
+            </Form.Item>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

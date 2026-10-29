@@ -8,14 +8,68 @@
   order: 2;
 }
 
+.fields {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  align-items: start;
+}
+
+.fieldGrid > div {
+  grid-column: span 1;
+  min-width: 0;
+}
+
+.fieldGrid > .fullField,
+.moneyHint {
+  grid-column: 1 / -1;
+}
+
+.fieldGrid > [data-field="startDate"],
+.fieldGrid > [data-field="name"] {
+  border-top: 1px solid var(--admin-border, #f0f0f0);
+  padding-top: 16px;
+}
+
+.fieldGrid > [data-field="endDate"],
+.fieldGrid > [data-field="phone"] {
+  border-top: 1px solid var(--admin-border, #f0f0f0);
+  padding-top: 16px;
+}
+
+.moneyHint {
+  color: var(--admin-text-muted, #666);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.roomGroup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: start;
+}
+
+.roomGroup > div {
+  min-width: 0;
+}
+
+.basementField :global(.ant-checkbox-wrapper) {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
 .moneyUnitButton {
   min-width: 48px;
   flex-shrink: 0;
   padding-inline: 8px;
-}
-
-.fields {
-  container-type: inline-size;
 }
 
 .shortcuts { padding-top: 4px; }
@@ -24,15 +78,23 @@
 
 @media (max-width: 767px) {
   .shortcuts :global(.ant-btn) { min-height: 44px; }
-  .fields > :global(.ant-col-sm-12) {
-    flex-basis: 100%;
-    max-width: 100%;
+  .fieldGrid :global(.ant-input),
+  .fieldGrid :global(.ant-input-number-input),
+  .fieldGrid :global(.ant-picker-input > input) { font-size: 16px; }
+}
+
+@container (max-width: 319px) {
+  .fieldGrid > [data-field] { grid-column: 1 / -1; }
+  .fieldGrid > [data-field="endDate"],
+  .fieldGrid > [data-field="phone"] {
+    border-top: 0;
+    padding-top: 0;
   }
 }
 
-@container (max-width: 575px) {
-  .fields > :global(.ant-col-sm-12) {
-    flex-basis: 100%;
-    max-width: 100%;
-  }
+/* 날짜 10자리와 지우기 아이콘이 함께 보여도 서로 겹치지 않게 한다. */
+@container (min-width: 320px) and (max-width: 400px) {
+  .fieldGrid :global(.ant-picker) { padding-inline: 4px; }
+  .roomGroup { column-gap: 6px; }
+  .roomGroup :global(.ant-input-affix-wrapper) { padding-inline: 6px; }
 }

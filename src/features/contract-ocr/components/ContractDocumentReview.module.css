@@ -126,6 +126,7 @@
 }
 
 @media (max-width: 767px) {
+  .pane :global(.ant-card .ant-card-body) { padding-inline: 16px; }
   .actions { margin-inline: -16px; padding-inline: 16px; }
   .pendingBuilding { flex-wrap: wrap; }
   .buildingRow { flex-wrap: wrap; }

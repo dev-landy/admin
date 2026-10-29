@@ -234,6 +234,8 @@ test("일시납 기간을 8개월에서 13개월로 바꿔도 입력 총액을 �
   render(<TestForm onFinish={onFinish} initialRentChargeFrequency="ONE_TIME" initialValues={{
     startDate: dayjs("2026-03-20"), endDate: dayjs("2026-11-19"), rentManwon: 800.0001,
   }} />);
+  expect(screen.getByText("계약 기간 전체의 임대료 합계입니다.")).toBeInTheDocument();
+  expect(screen.getByText("시작월에 납부하며, 시작일보다 이르면 시작일로 맞춥니다.")).toBeInTheDocument();
   const end = screen.getByLabelText("계약 종료일");
   fireEvent.change(end, { target: { value: "2027-04-19" } });
   fireEvent.blur(end);
@@ -552,6 +554,17 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(await screen.findByLabelText("차량 번호 (선택)")).toHaveValue("");
   });
 
+  test("저장된 주차 이용값을 체크박스에 표시하고 폼이 잠기면 차량번호와 함께 변경을 막는다", () => {
+    render(<TestForm onFinish={jest.fn()} disabled initialValues={{ parkingEnabled: true, vehicleNumber: "12가3456" }} />);
+    const parking = screen.getByRole("checkbox", { name: "주차 이용" });
+    expect(parking).toBeChecked();
+    expect(parking).toBeDisabled();
+    expect(screen.getByLabelText("차량 번호 (선택)")).toBeDisabled();
+    fireEvent.click(parking);
+    expect(parking).toBeChecked();
+    expect(screen.getByLabelText("차량 번호 (선택)")).toHaveValue("12가3456");
+  });
+
   test("상가와 기타 계약은 공간 이름의 한글을 그대로 등록한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} />);
@@ -707,13 +720,13 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     fireEvent.change(startInput, { target: { value: "202802" } });
     fireEvent.blur(startInput);
     await waitFor(() => expect(startInput).toHaveValue(""));
-    expect(screen.getByRole("button", { name: "1년" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "1년 연장" })).toBeDisabled();
     fireEvent.focus(startInput);
     fireEvent.change(startInput, { target: { value: "20280229" } });
     fireEvent.keyDown(startInput, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(startInput).toHaveValue("2028-02-29"));
-    await waitFor(() => expect(screen.getByRole("button", { name: "1년" })).toHaveAttribute("title", "2029-02-28까지"));
-    fireEvent.click(screen.getByRole("button", { name: "1년" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "1년 연장" })).toHaveAttribute("title", "2029-02-28까지"));
+    fireEvent.click(screen.getByRole("button", { name: "1년 연장" }));
     await waitFor(() => expect(screen.getByLabelText("계약 종료일")).toHaveValue("2029-02-28"));
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
@@ -765,7 +778,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     await commitDateEvent(() => {
       fireEvent.click(within(startPicker as HTMLElement).getByRole("button"));
     });
-    await waitFor(() => expect(screen.getByRole("button", { name: "1년" })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "1년 연장" })).toBeDisabled());
     expect(screen.getByLabelText("계약 시작일")).toHaveValue("");
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     expect(await screen.findByText("계약 시작일을 선택해 주세요.")).toBeInTheDocument();
@@ -797,7 +810,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     const onFormReady = jest.fn();
     render(<TestForm onFinish={onFinish} onFormReady={onFormReady} appliedValues={{ startDate: dayjs("2026-10-17") }} />);
     const startInput = screen.getByLabelText("계약 시작일");
-    const chip = screen.getByRole("button", { name: "6개월" });
+    const chip = screen.getByRole("button", { name: "6개월 연장" });
     const applyValues = screen.getByRole("button", { name: "서버 값 적용" });
     const form: FormInstance<TenantInfoFormValues> = onFormReady.mock.calls[0][0];
     // Form의 최신 값과 useWatch의 이전 미리보기를 같은 이벤트에서 명시적으로 재현한다.
@@ -820,7 +833,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
 
   test("시작일이 제거된 직후 이전 기간 칩을 눌러도 저장된 종료일을 바꾸지 않는다", async () => {
     render(<TestForm onFinish={jest.fn()} initialValues={{ endDate: dayjs("2029-12-31") }} appliedValues={{ startDate: null }} />);
-    const chip = screen.getByRole("button", { name: "1년" });
+    const chip = screen.getByRole("button", { name: "1년 연장" });
     const applyValues = screen.getByRole("button", { name: "서버 값 적용" });
     await commitDateEvent(() => {
       fireEvent.click(applyValues);
@@ -854,11 +867,11 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
       fireEvent.change(startInput, { target: { value: "2026-10-17" } });
       fireEvent.blur(startInput);
     });
-    await waitFor(() => expect(screen.getByRole("button", { name: "6개월" })).toHaveAttribute(
+    await waitFor(() => expect(screen.getByRole("button", { name: "6개월 연장" })).toHaveAttribute(
       "title", "2027-04-16까지",
     ));
     await commitDateEvent(() => {
-      fireEvent.click(screen.getByRole("button", { name: "6개월" }));
+      fireEvent.click(screen.getByRole("button", { name: "6개월 연장" }));
     });
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
 
@@ -885,12 +898,12 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
     await commitDateEvent(() => form.setFieldsValue({ startDate: dayjs(start), endDate: null }));
     // rc-form의 useWatch 알림은 macro task로 배치되므로 기간 선택 상태까지 flush한다.
     await commitDateEvent(() => {
-      fireEvent.click(screen.getByRole("button", { name: label }));
+      fireEvent.click(screen.getByRole("button", { name: `${label} 연장` }));
     });
 
     await waitFor(() => {
       expect(screen.getByLabelText("계약 종료일")).toHaveValue(end);
-      expect(screen.getByRole("button", { name: label })).toBeEnabled();
+      expect(screen.getByRole("button", { name: `${label} 연장` })).toBeEnabled();
     });
     expect(onFinish).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
@@ -901,13 +914,14 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
 
 test("시작일이 없거나 폼이 비활성화되어 있으면 기간 칩을 누를 수 없다", () => {
   const { unmount } = render(<TestForm onFinish={jest.fn()} initialValues={{ startDate: null }} />);
+  expect(screen.getByRole("group", { name: "계약 종료일 연장" })).toBeInTheDocument();
   for (const label of ["2년", "1년", "6개월"]) {
-    expect(screen.getByRole("button", { name: label })).toBeDisabled();
+    expect(screen.getByRole("button", { name: `${label} 연장` })).toBeDisabled();
   }
   unmount();
   render(<TestForm onFinish={jest.fn()} disabled />);
   for (const label of ["2년", "1년", "6개월"]) {
-    expect(screen.getByRole("button", { name: label })).toBeDisabled();
+    expect(screen.getByRole("button", { name: `${label} 연장` })).toBeDisabled();
   }
   expect(screen.getByLabelText("계약 시작일")).toBeDisabled();
 });
@@ -1048,7 +1062,7 @@ test("축약 시작일 blur 직후 기간 칩을 누르면 최신 입력 날짜�
   await commitDateEvent(() => {
     fireEvent.change(input, { target: { value: "261106" } });
     fireEvent.blur(input);
-    fireEvent.click(screen.getByRole("button", { name: "2년" }));
+    fireEvent.click(screen.getByRole("button", { name: "2년 연장" }));
   });
   expect(input).toHaveValue("2026-11-06");
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-11-05");
@@ -1062,7 +1076,7 @@ test.each([
   const onFinish = jest.fn();
   render(<TestForm onFinish={onFinish} initialValues={{ startDate: dayjs(start), endDate: null }} />);
   await commitDateEvent(() => {
-    for (const label of chips) fireEvent.click(screen.getByRole("button", { name: label }));
+    for (const label of chips) fireEvent.click(screen.getByRole("button", { name: `${label} 연장` }));
   });
   expect(screen.getByLabelText("계약 종료일")).toHaveValue(expected);
   fireEvent.click(screen.getByRole("button", { name: "저장" }));
@@ -1072,20 +1086,20 @@ test.each([
 
 test("기존 종료일과 직접 입력한 종료일에서 연장하고 시작일이 바뀌면 새 기준으로 계산한다", async () => {
   render(<TestForm onFinish={jest.fn()} initialValues={{ startDate: dayjs("2021-11-06"), endDate: dayjs("2023-11-05") }} />);
-  await commitDateEvent(() => fireEvent.click(screen.getByRole("button", { name: "2년" })));
+  await commitDateEvent(() => fireEvent.click(screen.getByRole("button", { name: "2년 연장" })));
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2025-11-05");
   await commitDateEvent(() => {
     const input = screen.getByLabelText("계약 종료일");
     fireEvent.change(input, { target: { value: "261231" } });
     fireEvent.blur(input);
-    fireEvent.click(screen.getByRole("button", { name: "6개월" }));
+    fireEvent.click(screen.getByRole("button", { name: "6개월 연장" }));
   });
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-06-30");
   await commitDateEvent(() => {
     const input = screen.getByLabelText("계약 시작일");
     fireEvent.change(input, { target: { value: "280101" } });
     fireEvent.blur(input);
-    fireEvent.click(screen.getByRole("button", { name: "1년" }));
+    fireEvent.click(screen.getByRole("button", { name: "1년 연장" }));
   });
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2028-12-31");
 });
