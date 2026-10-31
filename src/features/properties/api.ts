@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import type {
   PropertiesListParams,
   PropertiesListResponse,
+  PropertyGeocodingResponse,
   PropertyTenantsResponse,
   PropertyTenantsParams,
   UpdatePropertyRequest,
@@ -11,6 +12,15 @@ import type {
 
 export async function fetchProperties(params: PropertiesListParams): Promise<PropertiesListResponse> {
   const { data } = await apiClient.get<PropertiesListResponse>("/v1/admin/properties", { params });
+  return data;
+}
+
+export async function geocodeProperties(): Promise<PropertyGeocodingResponse> {
+  const { data } = await apiClient.post<PropertyGeocodingResponse>(
+    "/v1/admin/properties/geocoding",
+    undefined,
+    { timeout: 0 },
+  );
   return data;
 }
 

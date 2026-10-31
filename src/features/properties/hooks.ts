@@ -4,6 +4,7 @@ import {
   fetchProperties,
   fetchPropertyTenants,
   fetchUserProperties,
+  geocodeProperties,
   updateProperty,
 } from "./api";
 import type { PropertiesListParams, PropertyTenantsParams, UpdatePropertyRequest } from "./types";
@@ -46,5 +47,15 @@ export function useDeleteProperty() {
   return useMutation({
     mutationFn: deleteProperty,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: propertyKeys.all }),
+  });
+}
+
+export function useGeocodeProperties() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: geocodeProperties,
+    retry: false,
+    // 오류 응답 전에도 일부 건물의 좌표가 저장되었을 수 있다.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: propertyKeys.all }),
   });
 }

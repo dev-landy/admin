@@ -34,6 +34,16 @@ export type PropertiesListParams = {
   keyword?: string;
 };
 
+export type PropertyGeocodingResponse = {
+  targetCount: number;
+  attemptedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  stopReason: "EXHAUSTED" | "EXTERNAL_ERROR";
+  failures: { propertyId: number; reason: string }[];
+};
+
 export type UpdatePropertyRequest = {
   name: string;
   address?: string | null;

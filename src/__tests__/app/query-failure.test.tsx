@@ -11,7 +11,10 @@ const mockQuery = jest.fn();
 const mockRetry = jest.fn();
 jest.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push: jest.fn() }) }));
 jest.mock("@/features/users/hooks", () => ({ useUsers: () => mockQuery() }));
-jest.mock("@/features/properties/hooks", () => ({ useProperties: () => mockQuery() }));
+jest.mock("@/features/properties/hooks", () => ({
+  useProperties: () => mockQuery(),
+  useGeocodeProperties: () => ({ isPending: false, isError: false, reset: jest.fn(), mutate: jest.fn() }),
+}));
 jest.mock("@/features/tenants/hooks", () => ({ useTenants: () => mockQuery() }));
 jest.mock("@/features/payments/hooks", () => ({ usePayments: () => mockQuery(), useDuplicates: () => mockQuery() }));
 jest.mock("@/features/batch/hooks", () => ({ useBatchSchedules: () => mockQuery() }));

@@ -17,6 +17,7 @@ import { detailReturnPath } from "@/lib/navigation/listReturn";
 import { optionalPositiveInteger, positiveInteger } from "@/lib/navigation/listParams";
 import { useProperties } from "@/features/properties/hooks";
 import { PropertyTable } from "@/features/properties/components/PropertyTable";
+import { PropertyGeocodingButton } from "@/features/properties/components/PropertyGeocodingButton";
 
 
 function PropertiesPageContent() {
@@ -68,7 +69,10 @@ function PropertiesPageContent() {
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-      <PageHeader title="건물 관리" description="건물 이름이나 주소로 찾고 임대인·소속 임차인 정보를 확인합니다." extra={returnPath && <ClientLinkButton href={returnPath}>이전 화면</ClientLinkButton>} />
+      <PageHeader title="건물 관리" description="건물 이름이나 주소로 찾고 임대인·소속 임차인 정보를 확인합니다." extra={<Space wrap>
+        <PropertyGeocodingButton />
+        {returnPath && <ClientLinkButton href={returnPath}>이전 화면</ClientLinkButton>}
+      </Space>} />
       <section aria-label="검색 조건과 조회 결과">
         <FilterSection><Form form={filterForm} name="properties-filters" layout="vertical" className="admin-filter-bar" onFinish={applyFilters}>
         <Form.Item name="keyword" label="건물명 또는 주소" className="admin-filter-keyword admin-filter-field"><Input allowClear placeholder="검색어 입력" /></Form.Item>

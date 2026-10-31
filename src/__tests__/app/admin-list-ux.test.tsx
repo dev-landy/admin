@@ -17,7 +17,10 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 jest.mock("@/features/users/hooks", () => ({ useUsers: (params: unknown) => { mockParams(params); return mockResult(); } }));
-jest.mock("@/features/properties/hooks", () => ({ useProperties: (params: unknown) => { mockParams(params); return mockResult(); } }));
+jest.mock("@/features/properties/hooks", () => ({
+  useProperties: (params: unknown) => { mockParams(params); return mockResult(); },
+  useGeocodeProperties: () => ({ isPending: false, isError: false, reset: jest.fn(), mutate: jest.fn() }),
+}));
 jest.mock("@/features/tenants/hooks", () => ({ useTenants: (params: unknown) => { mockParams(params); return mockResult(); } }));
 jest.mock("@/features/payments/hooks", () => ({ usePayments: (params: unknown) => { mockParams(params); return mockResult(); }, useDuplicates: (params: unknown) => { mockParams(params); return mockResult(); } }));
 jest.mock("@/components/EntityLookupSelect", () => {
@@ -39,6 +42,7 @@ beforeEach(() => {
 
 test("초기 조건이 없는 건물 검색도 미적용 입력을 초기화한다", async () => {
   render(<PropertiesPage />);
+  expect(screen.getByRole("button", { name: "건물 주소 일괄 처리" })).toBeEnabled();
   const input = screen.getByLabelText("건물명 또는 주소");
   fireEvent.change(input, { target: { value: "아직 조회하지 않은 건물" } });
   expect(input).toHaveValue("아직 조회하지 않은 건물");
