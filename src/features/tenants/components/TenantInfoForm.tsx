@@ -387,10 +387,11 @@ function MoneyInputWithUnit({
 
 function BillingScheduleInput({
   billingTimingEditable,
+  billingTimingTabIndex,
   oneTime,
   style,
   ...paymentDayProps
-}: InputNumberProps<number> & { billingTimingEditable: boolean; oneTime: boolean }) {
+}: InputNumberProps<number> & { billingTimingEditable: boolean; billingTimingTabIndex?: number; oneTime: boolean }) {
   const { status } = Form.Item.useStatus();
   const addonStatus = status === "error" || status === "warning" ? status : undefined;
 
@@ -399,6 +400,7 @@ function BillingScheduleInput({
       <Form.Item name="billingTiming" noStyle>
         <Select<BillingTiming>
           aria-label="납부 방식"
+          tabIndex={billingTimingTabIndex}
           disabled={!billingTimingEditable}
           options={BILLING_TIMING_OPTIONS.map((option) => ({
             ...option,
@@ -421,12 +423,15 @@ export function TenantInfoFormFields({
   contractTypeEditable = false,
   billingTimingEditable,
   rentChargeFrequencyEditable,
+  skipAuxiliaryTabStops = false,
 }: {
   form: FormInstance<TenantInfoFormValues>;
   contractTypeEditable?: boolean;
   billingTimingEditable: boolean;
   rentChargeFrequencyEditable: boolean;
+  skipAuxiliaryTabStops?: boolean;
 }) {
+  const auxiliaryTabIndex = skipAuxiliaryTabStops ? -1 : undefined;
   const endDateInputId = useId();
   const phoneInputRef = useRef<InputRef>(null);
   const { token } = theme.useToken();
@@ -514,6 +519,7 @@ export function TenantInfoFormFields({
                 <div className={styles.basementField}>
                   <Form.Item label=" " name="basement" valuePropName="checked" style={{ marginBottom: 0 }}>
                     <Checkbox
+                      tabIndex={auxiliaryTabIndex}
                       style={{ minHeight: token.controlHeight }}
                       styles={({ props }) => ({
                         label: {
@@ -571,13 +577,18 @@ export function TenantInfoFormFields({
               block
               optionType="button"
               buttonStyle="solid"
-              options={RENT_CHARGE_FREQUENCY_OPTIONS}
               disabled={!rentChargeFrequencyEditable}
               onChange={(event) => {
                 if (event.target.value === "ONE_TIME") form.setFieldValue("billingTiming", "PREPAID");
                 void form.validateFields(["endDate"]).catch(() => undefined);
               }}
-            />
+            >
+              {RENT_CHARGE_FREQUENCY_OPTIONS.map((option) => (
+                <Radio.Button key={option.value} value={option.value} tabIndex={auxiliaryTabIndex}>
+                  {option.label}
+                </Radio.Button>
+              ))}
+            </Radio.Group>
           </Form.Item>
         </div>
         <div data-field="maintenance">
@@ -606,6 +617,7 @@ export function TenantInfoFormFields({
               max={31}
               placeholder="25"
               billingTimingEditable={billingTimingEditable}
+              billingTimingTabIndex={auxiliaryTabIndex}
               oneTime={oneTime}
             />
           </Form.Item>
@@ -646,6 +658,7 @@ export function TenantInfoFormFields({
                   <Button
                     key={months}
                     aria-label={`${label} 연장`}
+                    tabIndex={auxiliaryTabIndex}
                     size="small"
                     shape="round"
                     htmlType="button"
@@ -712,6 +725,7 @@ export function TenantInfoFormFields({
                 shape="round"
                 className={styles.phoneShortcut}
                 aria-label="010 입력"
+                tabIndex={auxiliaryTabIndex}
                 disabled={phone?.trim() ? true : undefined}
                 onClick={() => {
                   if (form.getFieldValue("phone")?.trim()) return;

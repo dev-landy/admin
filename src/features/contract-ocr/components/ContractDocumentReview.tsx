@@ -292,7 +292,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
               const field = input.closest("[data-tenant-date-field]")?.getAttribute("data-tenant-date-field");
               if (field === "startDate" || field === "endDate") dateInputs.current.set(field, input);
             }}>
-            <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentChargeFrequencyEditable={isPendingReview} />
+            <TenantInfoFormFields form={form} contractTypeEditable={isPendingReview} billingTimingEditable={isPendingReview} rentChargeFrequencyEditable={isPendingReview} skipAuxiliaryTabStops />
             {isPendingReview ? <ContractDocumentActions ref={actionBarRef}>
               <RowActions subject="계약서 등록" primary={<Button type="primary" htmlType="submit" block loading={registerMutation.isPending || updateTenantMutation.isPending}
                 aria-describedby={submitDisabledReason ? submitReasonId : undefined} disabled={isBusy || savedTenantState !== "idle" || !canSubmit}>계약 등록</Button>} items={[]} />
