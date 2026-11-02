@@ -658,6 +658,52 @@ test("등록된 계약은 유형을 잠그고 차량번호를 비우면 PATCH에
   expect(payload).not.toHaveProperty("contractType");
 });
 
+test.each([
+  ["계약 시작일", "startDate"],
+  ["계약 종료일", "endDate"],
+] as const)("빈 %s은 클릭하거나 달력 위를 지나가도 날짜와 납부일을 채우지 않는다", async (label, field) => {
+  const onValuesChange = jest.fn();
+  let form!: FormInstance<TenantInfoFormValues>;
+  render(<TestForm onFinish={jest.fn()} onValuesChange={onValuesChange} onFormReady={(instance) => { form = instance; }}
+    initialValues={{ startDate: null, endDate: null, paymentDay: null }} />);
+  const input = screen.getByLabelText(label);
+  expect(input).toHaveValue("");
+  expect(input).toHaveAttribute("placeholder");
+  fireEvent.focus(input);
+  fireEvent.click(input);
+  expect(input).toHaveValue("");
+  const cell = await screen.findByTitle(dayjs().date(15).format("YYYY-MM-DD"));
+  fireEvent.mouseEnter(cell);
+  expect(input).toHaveValue("");
+  fireEvent.keyDown(input, { key: "Tab", code: "Tab" });
+  fireEvent.blur(input);
+  expect(form.getFieldValue(field)).toBeNull();
+  expect(form.getFieldValue("paymentDay")).toBeNull();
+  expect(onValuesChange).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "1년 연장" })).toBeDisabled();
+});
+
+test.each([
+  ["계약 시작일", "startDate", "2026-09-01", "2026-09-20"],
+  ["계약 종료일", "endDate", "2027-08-31", "2027-08-20"],
+] as const)("기존 %s은 달력 hover로 바뀌지 않고 날짜를 클릭했을 때만 변경한다", async (label, field, original, selected) => {
+  const onValuesChange = jest.fn();
+  let form!: FormInstance<TenantInfoFormValues>;
+  render(<TestForm onFinish={jest.fn()} onValuesChange={onValuesChange} onFormReady={(instance) => { form = instance; }} />);
+  const input = screen.getByLabelText(label);
+  fireEvent.focus(input);
+  fireEvent.click(input);
+  const cell = await screen.findByTitle(selected);
+  fireEvent.mouseEnter(cell);
+  expect(input).toHaveValue(original);
+  expect(form.getFieldValue(field).format("YYYY-MM-DD")).toBe(original);
+  expect(onValuesChange).not.toHaveBeenCalled();
+  fireEvent.click(cell);
+  await waitFor(() => expect(form.getFieldValue(field).format("YYYY-MM-DD")).toBe(selected));
+  expect(input).toHaveValue(selected);
+  expect(form.getFieldValue("paymentDay")).toBe(25);
+});
+
 test.each(["Enter", "blur"] as const)("연도를 남긴 시작일과 기간 칩으로 설정한 종료일의 월일을 %s로 수정한다", async (commit) => {
   const onFinish = jest.fn();
   const onValuesChange = jest.fn();

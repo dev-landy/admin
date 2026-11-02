@@ -297,6 +297,8 @@ function DateAddonPicker({
         value={value ?? null}
         onChange={commitDate}
         format={TENANT_DATE_INPUT_FORMATS}
+        // 달력 hover의 임시 표시값이 blur에서 실제 입력으로 확정되지 않도록 한다.
+        previewValue={false}
         onBlur={(event, ...args) => {
           commitTypedInput(event.target);
           pickerProps.onBlur?.(event, ...args);
