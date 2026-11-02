@@ -658,6 +658,39 @@ test("등록된 계약은 유형을 잠그고 차량번호를 비우면 PATCH에
   expect(payload).not.toHaveProperty("contractType");
 });
 
+test.each(["Enter", "blur"] as const)("연도를 남긴 시작일과 기간 칩으로 설정한 종료일의 월일을 %s로 수정한다", async (commit) => {
+  const onFinish = jest.fn();
+  const onValuesChange = jest.fn();
+  render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange}
+    initialValues={{ startDate: dayjs("2026-05-31"), endDate: null, paymentDay: null }} />);
+
+  for (const [label, expected] of [["계약 시작일", "2026-06-01"], ["계약 종료일", "2027-06-01"]]) {
+    const input = screen.getByLabelText<HTMLInputElement>(label);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: `${input.value.slice(0, 5)}0601` } });
+    if (commit === "Enter") {
+      expect(fireEvent.keyDown(input, { key: "Enter", code: "Enter" })).toBe(false);
+    } else fireEvent.blur(input);
+    await waitFor(() => expect(input).toHaveValue(expected));
+
+    if (label === "계약 시작일") {
+      await waitFor(() => expect(screen.getByRole("button", { name: "1년 연장" })).toHaveAttribute("title", "2027-05-31까지"));
+      fireEvent.click(screen.getByRole("button", { name: "1년 연장" }));
+      await waitFor(() => expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-05-31"));
+    }
+  }
+
+  await waitFor(() => expect(toTenantValues(onValuesChange.mock.calls.at(-1)?.[1])).toMatchObject({
+    startDate: "2026-06-01", endDate: "2027-06-01", paymentDay: 1,
+  }));
+  expect(onFinish).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "저장" }));
+  await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
+  expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
+    startDate: "2026-06-01", endDate: "2027-06-01", paymentDay: 1,
+  });
+});
+
 test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s로 확정하면 표준 날짜와 Dayjs 폼값으로 유지한다", async (commit) => {
   const onFinish = jest.fn();
   const onValuesChange = jest.fn();
@@ -710,7 +743,7 @@ test.each(["Enter", "blur"] as const)("숫자 8자리 시작일·종료일을 %s
   test("존재하지 않는 날짜와 범위 밖 입력은 양쪽 날짜를 바꾸지 않고 기존 계약으로 저장한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} initialValues={{ endDate: dayjs("2027-08-31") }} />);
-    for (const text of ["20260230", "20260229", "20260431", "20261301", "2026-02-30"]) {
+    for (const text of ["20260230", "20260229", "20260431", "20261301", "2026-02-30", "2026-0230", "2026-0229", "2026-1301", "2026-060"]) {
       onFinish.mockClear();
       for (const label of ["계약 시작일", "계약 종료일"]) {
         const input = screen.getByLabelText(label);

@@ -3,7 +3,8 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 
 dayjs.extend(customParseFormat);
 
-export const TENANT_DATE_INPUT_FORMATS = ["YYYY-MM-DD", "YYYYMMDD", "YYMMDD"];
+// 연도를 남기고 월일만 다시 입력한 2027-0601도 허용하되, 표시는 첫 형식으로 통일한다.
+export const TENANT_DATE_INPUT_FORMATS = ["YYYY-MM-DD", "YYYYMMDD", "YYMMDD", "YYYY-MMDD"];
 
 /** 계약의 두 자리 연도는 항상 2000~2099년으로 해석한다. */
 export function parseDateInput(text: string, formats: readonly string[]): Dayjs {
