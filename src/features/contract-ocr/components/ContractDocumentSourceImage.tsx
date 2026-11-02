@@ -4,6 +4,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Alert, Button, Grid, Image } from "antd";
+import { RotateRightOutlined } from "@ant-design/icons";
 
 import styles from "./ContractDocumentSourceImage.module.css";
 import type { ContractDocumentFile } from "../types";
@@ -33,12 +34,15 @@ export function ContractDocumentSourceImage({ file, isRefreshing, onRefresh }: {
   const zoomDescriptionId = useId();
   const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState(100);
+  const [rotation, setRotation] = useState(0);
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(100);
   const renderedZoomRef = useRef(100);
   const anchorRef = useRef<ZoomAnchor | null>(null);
   const pointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
   const page = file.fileIndex + 1;
+  const isSideways = rotation % 180 !== 0;
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -122,12 +126,17 @@ export function ContractDocumentSourceImage({ file, isRefreshing, onRefresh }: {
   }
 
   return <div>
-    {isSplitView && <div className={styles.toolbar} role="group" aria-label={`계약서 ${page}페이지 확대 조절`}>
-      <Button aria-label={`계약서 ${page}페이지 축소`} disabled={zoom <= 50} onClick={() => setZoom((value) => Math.max(50, value - 25))}>축소</Button>
-      <span aria-live="polite" aria-label={`계약서 ${page}페이지 확대 비율`}>{Math.round(zoom)}%</span>
-      <Button aria-label={`계약서 ${page}페이지 확대`} disabled={zoom >= 250} onClick={() => setZoom((value) => Math.min(250, value + 25))}>확대</Button>
-      <Button aria-label={`계약서 ${page}페이지 기본 크기`} disabled={zoom === 100} onClick={() => setZoom(100)}>기본 크기</Button>
-    </div>}
+    <div className={styles.toolbar}>
+      {isSplitView && <div className={styles.zoomControls} role="group" aria-label={`계약서 ${page}페이지 확대 조절`}>
+        <Button aria-label={`계약서 ${page}페이지 축소`} disabled={zoom <= 50} onClick={() => setZoom((value) => Math.max(50, value - 25))}>축소</Button>
+        <span aria-live="polite" aria-label={`계약서 ${page}페이지 확대 비율`}>{Math.round(zoom)}%</span>
+        <Button aria-label={`계약서 ${page}페이지 확대`} disabled={zoom >= 250} onClick={() => setZoom((value) => Math.min(250, value + 25))}>확대</Button>
+        <Button aria-label={`계약서 ${page}페이지 기본 크기`} disabled={zoom === 100} onClick={() => setZoom(100)}>기본 크기</Button>
+      </div>}
+      <Button icon={<RotateRightOutlined />} aria-label={`계약서 ${page}페이지 시계 방향으로 90도 회전`}
+        disabled={aspectRatio === null} onClick={() => setRotation((value) => (value + 90) % 360)}>90° 회전</Button>
+      <span className="admin-visually-hidden" role="status">계약서 {page}페이지 회전 {rotation}도</span>
+    </div>
     <span id={zoomDescriptionId} className="admin-visually-hidden">핀치로 확대·축소하거나 +, -, 0 키를 사용할 수 있습니다.</span>
     <div ref={viewportRef} className={styles.imageViewport} tabIndex={0} role="region" aria-label={`계약서 ${page}페이지 확대 원본`}
       aria-describedby={zoomDescriptionId}
@@ -145,7 +154,25 @@ export function ContractDocumentSourceImage({ file, isRefreshing, onRefresh }: {
         }
       }}
       onPointerMove={(event) => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; }}>
-      <div style={{ width: `${zoom}%` }}><Image preview={false} width="100%" src={file.url} alt={`계약서 ${page}페이지`} onError={() => setFailed(true)} /></div>
+      {/* 회전된 외곽 크기를 레이아웃에 반영하고, 원본 비율을 유지한 채 가운데에서 돌린다. */}
+      <div className={styles.imageCanvas} style={{ width: `${zoom}%`, aspectRatio: aspectRatio === null ? undefined : isSideways ? 1 / aspectRatio : aspectRatio }}>
+        <Image preview={false} width={`${isSideways && aspectRatio !== null ? aspectRatio * 100 : 100}%`}
+          src={file.url} alt={`계약서 ${page}페이지`}
+          styles={{
+            root: aspectRatio === null ? undefined : {
+              position: "absolute", left: "50%", top: "50%",
+              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+            },
+            image: { display: "block" },
+          }}
+          onLoad={(event) => {
+            // antd Image는 load 이벤트를 래퍼에서 받으므로 실제 img를 읽는다.
+            if (!(event.target instanceof HTMLImageElement)) return;
+            const { naturalWidth, naturalHeight } = event.target;
+            if (naturalWidth > 0 && naturalHeight > 0) setAspectRatio(naturalWidth / naturalHeight);
+          }}
+          onError={() => setFailed(true)} />
+      </div>
     </div>
   </div>;
 }
