@@ -28,6 +28,20 @@ function completion(onNavigate = jest.fn()) {
 }
 beforeEach(() => jest.clearAllMocks());
 
+test("반려 완료에서는 상태 필터로 다시 열람하는 방법을 안내하고 기존 목록으로 돌아간다", () => {
+  const navigate = jest.fn();
+  const onBack = jest.fn();
+  render(<ContractDocumentCompletion status="REJECTED" documentId={DOCUMENT.documentId}
+    returnPath={returnPath} position={1} onNavigate={navigate} onBack={onBack} />);
+
+  expect(screen.getByText(/완료 목록의 상태 필터에서 반려를 선택해 다시 열람/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "반려 목록 보기" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "목록으로" }));
+  expect(onBack).toHaveBeenCalledTimes(1);
+  expect(navigate).not.toHaveBeenCalled();
+  expect(mockFindNext).not.toHaveBeenCalled();
+});
+
 test("다음 계약서 조회는 한 번만 실행하고 현재 검수 화면의 완료에서만 이동한다", async () => {
   const request = deferred<NextContract>();
   mockFindNext.mockReturnValue(request.promise);

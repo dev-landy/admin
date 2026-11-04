@@ -1,11 +1,12 @@
 import "@/test-utils/antd";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ContractOcrPage from "@/app/(admin)/contract-documents/page";
 import { useContractDocuments } from "@/features/contract-ocr/hooks";
 import { DOCUMENT } from "@/test-utils/contractDocumentFixtures";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fetchTenants } from "@/features/tenants/api";
+import { useAdminViewport } from "@/components/useAdminViewport";
 
 let mockQuery = "page=2&size=50";
 const mockPush = jest.fn();
@@ -15,6 +16,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => mockRouter, useSearchPara
 jest.mock("@/features/contract-ocr/hooks", () => ({ useContractDocuments: jest.fn() }));
 jest.mock("@/features/contract-ocr/components/ContractStorageRetriesButton", () => ({ ContractStorageRetriesButton: () => null }));
 jest.mock("@/features/contract-ocr/api", () => ({ fetchContractDocuments: jest.fn() }));
+jest.mock("@/components/useAdminViewport", () => ({ useAdminViewport: jest.fn() }));
 jest.mock("@/features/users/api", () => ({ fetchUser: jest.fn(async (userId: number) => ({ userId, email: `user${userId}@example.com` })), fetchUsers: jest.fn(async ({ keyword, userId }: { keyword?: string; userId?: number }) => ({ users: [7, 12, 19].filter((id) => userId !== undefined ? id === userId : !keyword || String(id) === keyword).map((userId) => ({ userId, email: `user${userId}@example.com`, phone: "010-****-1234" })) })) }));
 jest.mock("@/features/tenants/api", () => ({ fetchTenant: jest.fn(async (tenantId: number) => ({ tenantId, name: "임차인", roomNumber: "101" })), fetchTenants: jest.fn(async () => ({ tenants: [] })) }));
 jest.mock("@/features/properties/api", () => ({ fetchProperties: jest.fn(async ({ propertyId, userId }: { propertyId?: number; userId?: number }) => ({ properties: propertyId ? [{ propertyId, userId, name: "신관", address: null }] : [] })) }));
@@ -26,8 +28,53 @@ function renderPage() {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(useAdminViewport).mockReturnValue("wide");
   mockQuery = "page=2&size=50";
   useDocuments.mockReturnValue({ data: { documents: [DOCUMENT], page: 1, size: 50, totalElements: 51 }, isLoading: false, error: null, refetch: jest.fn(), isRefetching: false } as unknown as ReturnType<typeof useContractDocuments>);
+});
+
+test.each(["wide", "compact"] as const)("%s 상태 열에서 전체·등록 완료·반려를 서버 필터로 적용하고 검색 범위를 보존한다", async (viewport) => {
+  jest.mocked(useAdminViewport).mockReturnValue(viewport);
+  mockQuery = "status=completed&page=2&size=50&userId=12&propertyId=8&sort=createdAt%2Cdesc&updatedFrom=2026-10-01";
+  const view = renderPage();
+  for (const [label, documentStatus] of [["반려", "REJECTED"], ["등록 완료", "REGISTERED"], ["전체", undefined]] as const) {
+    fireEvent.click(within(screen.getByRole("columnheader", { name: /상태/ })).getByLabelText("계약서 상태 필터 열기"));
+    const select = await screen.findByRole("combobox", { name: "계약서 상태 필터" });
+    fireEvent.mouseDown(select);
+    fireEvent.click(await screen.findByText(label, { selector: ".ant-select-item-option-content" }));
+    const params = new URLSearchParams(mockPush.mock.calls.at(-1)[0]);
+    expect(Object.fromEntries(params)).toEqual({
+      status: "completed", page: "1", size: "50", userId: "12", propertyId: "8",
+      sort: "createdAt,desc", updatedFrom: "2026-10-01", ...(documentStatus ? { documentStatus } : {}),
+    });
+    mockQuery = params.toString();
+    view.rerender(<ContractOcrPage />);
+    expect(useDocuments).toHaveBeenLastCalledWith("COMPLETED", 1, 50, {
+      ...emptyFilters, userId: 12, propertyId: 8, sort: "createdAt,desc", updatedFrom: "2026-10-01", documentStatus,
+    });
+  }
+});
+
+test("작은 화면의 상세 조건도 전체·등록 완료·반려를 제공하고 전체 선택은 상태 조건을 해제한다", async () => {
+  jest.mocked(useAdminViewport).mockReturnValue("mobile");
+  mockQuery = "status=completed&page=2&size=50&documentStatus=REGISTERED";
+  const view = renderPage();
+  expect(screen.queryByLabelText("계약서 상태 필터 열기")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("상세 조건 펼치기"));
+  const select = screen.getByRole("combobox", { name: "상태" });
+  expect(select.closest(".ant-select")).toHaveTextContent("등록 완료");
+  fireEvent.mouseDown(select);
+  fireEvent.click(await screen.findByText("반려", { selector: ".ant-select-item-option-content" }));
+  fireEvent.click(screen.getByRole("button", { name: "조회" }));
+  await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1));
+  expect(new URLSearchParams(mockPush.mock.calls.at(-1)[0]).get("documentStatus")).toBe("REJECTED");
+  mockQuery = mockPush.mock.calls.at(-1)[0].slice(1);
+  view.rerender(<ContractOcrPage />);
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "상태" }));
+  fireEvent.click(await screen.findByText("전체", { selector: ".ant-select-item-option-content" }));
+  fireEvent.click(screen.getByRole("button", { name: "조회" }));
+  await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(2));
+  expect(Object.fromEntries(new URLSearchParams(mockPush.mock.calls.at(-1)[0]))).toEqual({ status: "completed", page: "1", size: "50" });
 });
 
 test("검수 링크에 원래 목록 페이지와 행 수를 전달한다", () => {

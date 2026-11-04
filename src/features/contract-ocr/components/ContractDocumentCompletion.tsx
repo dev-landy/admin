@@ -41,7 +41,9 @@ export function ContractDocumentCompletion({ status, documentId, returnPath, pos
   return <Card title="계약서 처리 완료">
     <Space orientation="vertical" size={16} style={{ width: "100%" }}>
       <Alert type="success" showIcon title={status === "REGISTERED" ? "임차인 등록이 완료되었습니다." : "계약서를 반려했습니다."}
-        description="대기 목록을 다시 확인해 남은 계약서를 검수할 수 있습니다. 대기 계약서가 없으면 목록으로 돌아갑니다." />
+        description={status === "REJECTED"
+          ? "반려한 계약서는 완료 목록의 상태 필터에서 반려를 선택해 다시 열람할 수 있습니다. 남은 대기 계약서의 검수도 계속할 수 있습니다."
+          : "대기 목록을 다시 확인해 남은 계약서를 검수할 수 있습니다. 대기 계약서가 없으면 목록으로 돌아갑니다."} />
       {error && <Alert type="warning" showIcon title="처리는 완료되었습니다 · 다음 계약서 조회 실패" description={error} />}
       <Space wrap>
         <Button type="primary" autoFocus loading={loading} onClick={continueReview}>{error ? "다음 계약서 다시 조회" : "다음 계약서 검수"}</Button>

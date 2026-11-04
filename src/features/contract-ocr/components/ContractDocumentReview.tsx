@@ -357,6 +357,7 @@ function ContractDocumentEditor({ document, initialValues, onCompleted, actionBa
         closable={!isBusy} mask={{ closable: !isBusy }} keyboard={!isBusy} destroyOnHidden>
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
           <Text>사유를 선택한 뒤 반려를 확정해 주세요.</Text>
+          <Text type="secondary">반려한 계약서 원본은 보존되며 완료 목록에서 다시 열람할 수 있습니다.</Text>
           <Form layout="vertical">
             <Form.Item label="반려 사유" htmlFor="contract-rejection-reason" required>
               <Select<ContractDocumentRejectionReason | ""> id="contract-rejection-reason" aria-label="반려 사유" options={REJECTION_OPTIONS}
@@ -411,7 +412,8 @@ function ContractDocumentForm({ document, onCompleted, actionBarRef }: { documen
     queryKey: tenantKeys.detail(document.tenantId ?? 0),
     queryFn: () => fetchTenant(document.tenantId!), enabled: isRegistered, refetchOnMount: "always",
   });
-  if (document.status === "REJECTED") return <Alert type="info" showIcon title="반려된 계약서입니다." />;
+  if (document.status === "REJECTED") return <Alert type="info" showIcon title="반려된 계약서입니다."
+    description="보존된 계약서 원본을 이 화면에서 확인할 수 있습니다." />;
   // 최초 진입에서는 캐시보다 이번 조회 결과를 기준으로 폼을 만든다. 이후 조회는 편집 중인 폼을 유지한다.
   if (isRegistered && initialTenantValues === null && tenantQuery.isFetchedAfterMount && tenantQuery.isSuccess && !tenantQuery.isFetching) {
     setInitialTenantValues(fromTenantDetail(tenantQuery.data));

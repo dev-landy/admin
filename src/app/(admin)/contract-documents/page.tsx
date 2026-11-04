@@ -13,6 +13,7 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Collapse, Descriptions, Form, Input, Select, Segmented, Space, Spin, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
+import { FilterFilled } from "@ant-design/icons";
 import Link from "next/link";
 
 import dayjs, { type Dayjs } from "dayjs";
@@ -44,6 +45,11 @@ const STATUS_META = {
   REGISTERED: { color: "green", label: "등록 완료" },
   REJECTED: { color: "red", label: "반려" },
 };
+const STATUS_FILTER_OPTIONS = [
+  { label: "전체", value: "ALL" },
+  { label: "등록 완료", value: "REGISTERED" },
+  { label: "반려", value: "REJECTED" },
+];
 
 function statusTag(record: ContractDocument) {
   const meta = STATUS_META[record.status];
@@ -111,6 +117,17 @@ function ContractOcrPageContent() {
       { key: "updated", label: "마지막 처리", children: formatDateTime(record.updatedAt) },
     ]} />;
   }
+  const statusColumnFilter = listStatus === "COMPLETED" ? {
+    filteredValue: documentStatus ? [documentStatus] : null,
+    filterIcon: <FilterFilled aria-label="계약서 상태 필터 열기" />,
+    filterDropdown: ({ close }: { close: () => void }) => <div style={{ padding: 8 }}>
+      <Select aria-label="계약서 상태 필터" value={documentStatus ?? "ALL"} options={STATUS_FILTER_OPTIONS}
+        style={{ width: 140 }} onChange={(value) => {
+          navigate({ page: "1", documentStatus: value === "ALL" ? undefined : value });
+          close();
+        }} />
+    </div>,
+  } : {};
   const columns: TableColumnsType<ContractDocument> = [
     {
       title: "계약서",
@@ -127,6 +144,7 @@ function ContractOcrPageContent() {
       key: "status",
       width: 110,
       align: "center",
+      ...statusColumnFilter,
       render: (_, record) => statusTag(record),
     },
     {
@@ -147,7 +165,7 @@ function ContractOcrPageContent() {
 
   const compactColumns: TableColumnsType<ContractDocument> = [
     { title: "등록 대상 · 계약서", key: "target", width: 310, render: (_, record) => <>{renderTarget(record)}<div className="admin-entity-meta">문서 {record.documentId.slice(0, 8)}…{record.documentId.slice(-6)}</div></> },
-    { title: "진행 상태 · 요청", key: "status", width: 180, render: (_, record) => <EntityCell primary={statusTag(record)} secondary={formatDateTime(listStatus === "COMPLETED" ? record.updatedAt : record.createdAt)} /> },
+    { title: "진행 상태 · 요청", key: "status", width: 180, ...statusColumnFilter, render: (_, record) => <EntityCell primary={statusTag(record)} secondary={formatDateTime(listStatus === "COMPLETED" ? record.updatedAt : record.createdAt)} /> },
     { title: "작업", key: "action", width: 112, align: "right", render: (_, record, index) => renderAction(record, index) },
   ];
 
@@ -182,7 +200,7 @@ function ContractOcrPageContent() {
         <Text type="secondary">
           {listStatus === "PENDING"
             ? "원본을 확인해 직접 등록하거나 반려할 수 있습니다. OCR은 검수 화면에서 필요한 경우에만 요청합니다."
-            : "등록 또는 반려 결정이 완료된 계약서 목록입니다(최신순). 보관 기간이 지난 원본은 열람할 수 없을 수 있습니다."}
+            : "등록 또는 반려 결정이 완료된 계약서 목록입니다(최신순). 반려한 계약서도 열람할 수 있습니다. 이전에 삭제된 원본은 표시되지 않을 수 있습니다."}
         </Text>
         <FilterSection><Form form={filterForm} name="contract-list-filters" onValuesChange={(changes) => { if ("userId" in changes) filterForm.setFieldsValue({ propertyId: undefined, tenantId: undefined }); else if ("propertyId" in changes) filterForm.setFieldValue("tenantId", undefined); }} layout="vertical" className="admin-filter-bar"
           onFinish={(values: typeof filters & { createdRange?: [Dayjs | null, Dayjs | null]; updatedRange?: [Dayjs | null, Dayjs | null] }) => {
@@ -197,7 +215,10 @@ function ContractOcrPageContent() {
           <FilterMore><Form.Item name="uploadId" label="업로드 ID" rules={[{ pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, message: "UUID 형식의 업로드 ID를 입력하세요." }]}><Input allowClear placeholder="동일 업로드의 문서 조회" /></Form.Item>
           <Form.Item name="createdRange" label="요청일"><FilterDateRange form={filterForm} name="createdRange" /></Form.Item>
           {listStatus === "COMPLETED" && <>
-            <Form.Item name="documentStatus" label="처리 결과"><Select allowClear options={[{ label: "등록 완료", value: "REGISTERED" }, { label: "반려", value: "REJECTED" }]} style={{ minWidth: 120 }} /></Form.Item>
+            <Form.Item name="documentStatus" label="상태" getValueProps={(value) => ({ value: value ?? "ALL" })}
+              normalize={(value) => value === "ALL" ? undefined : value}>
+              <Select options={STATUS_FILTER_OPTIONS} style={{ minWidth: 120 }} />
+            </Form.Item>
             <Form.Item name="updatedRange" label="처리 완료일"><FilterDateRange form={filterForm} name="updatedRange" /></Form.Item>
           </>}
           </FilterMore>
@@ -208,7 +229,7 @@ function ContractOcrPageContent() {
           <FilterActions><Button htmlType="submit">문서 열기</Button></FilterActions>
         </Form></details>
         <FilterSummary filters={Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => ({
-          label: ({ userId: "유저", propertyId: "건물", tenantId: "임차인", uploadId: "업로드 ID", documentStatus: "처리 결과", createdFrom: "요청 시작일", createdTo: "요청 종료일", updatedFrom: "완료 시작일", updatedTo: "완료 종료일" } as Record<string, string>)[key],
+          label: ({ userId: "유저", propertyId: "건물", tenantId: "임차인", uploadId: "업로드 ID", documentStatus: "상태", createdFrom: "요청 시작일", createdTo: "요청 종료일", updatedFrom: "완료 시작일", updatedTo: "완료 종료일" } as Record<string, string>)[key],
           value: key === "documentStatus" ? value === "REGISTERED" ? "등록 완료" : "반려" : ["userId", "propertyId", "tenantId"].includes(key) ? `#${value}` : String(value), onRemove: () => navigate({ page: "1", [key]: undefined }),
         }))} onReset={() => navigate({ page: "1", ...Object.fromEntries(Object.keys(filters).map((key) => [key, undefined])) })} />
         <QueryErrorAlert error={error} title="계약서 목록을 불러오지 못했습니다." onRetry={refetch} isRetrying={isRefetching} hasData={data !== undefined} />

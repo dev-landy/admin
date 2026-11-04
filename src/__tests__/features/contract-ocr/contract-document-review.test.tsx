@@ -1017,6 +1017,9 @@ test("반려 문서는 읽기 전용이며 OCR 요청과 등록을 제공하지 
   mockDocument.mockResolvedValue({ ...DOCUMENT, status: "REJECTED" });
   renderReview();
   expect(await screen.findByText("반려된 계약서입니다.")).toBeInTheDocument();
+  expect(screen.getByText("보존된 계약서 원본을 이 화면에서 확인할 수 있습니다.")).toBeInTheDocument();
+  expect(await openOriginal()).toHaveAttribute("src", "https://example.test/contract.jpg");
+  expect(mockFiles).toHaveBeenCalledWith(DOCUMENT.documentId);
   expect(screen.queryByRole("button", { name: "계약 등록" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /OCR.*분석/ })).not.toBeInTheDocument();
   expect(mockLatest).not.toHaveBeenCalled();
