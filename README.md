@@ -30,6 +30,15 @@ ESLint 등 컴파일러 API를 사용하는 도구를 위해 공식 TypeScript 6
 - 화면: `src/app/(admin)/*` · 도메인 로직: `src/features/*`
 - 상세 구조/컨벤션/커맨드는 [CLAUDE.md](CLAUDE.md) 참고
 
+## Pro 구독 운영
+
+사용자 상세의 **Pro 구독** 탭에서 실효 혜택, 운영·Sandbox 스토어 구독, 서버 지급 및 동기화 이력을 확인한다.
+기간제·영구 지급과 선택한 지급의 회수에는 사유가 필요하며, 종료 시각은 한국 시간으로 입력·표시한다.
+지급 요청이 통신 오류로 끝나면 같은 내용과 멱등 키로 재확인한다. 스토어 재확인은 큐 접수 후 상태를 다시 조회하며,
+스토어 자동 갱신이나 환불을 변경하지 않는다. 탈퇴 계정과 조회 오류 상태에서는 변경 동작을 막는다.
+백엔드 `GET /v1/admin/users/{userId}/subscription` 및 하위 `/grants`, `/grants/{grantId}/revoke`, `/reconcile` API가 필요하다.
+무료 제공 횟수의 직접 조정 기능은 포함하지 않는다.
+
 ## 배포
 
 Vercel의 `admin-prod` / `admin-dev` 두 프로젝트가 같은 `main` 브랜치를 배포하며,

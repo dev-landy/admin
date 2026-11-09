@@ -25,6 +25,7 @@ function TabLoading() {
 
 const UserTenantsTab = dynamic(() => import("@/features/users/components/UserTenantsTab").then((module) => module.UserTenantsTab), { loading: TabLoading });
 const UserFcmTab = dynamic(() => import("@/features/users/components/UserFcmTab").then((module) => module.UserFcmTab), { loading: TabLoading });
+const UserSubscriptionTab = dynamic(() => import("@/features/subscriptions/components/UserSubscriptionTab").then((module) => module.UserSubscriptionTab), { loading: TabLoading });
 
 const USER_DETAIL_DESCRIPTION = "계정과 소속 건물·임차인·기기를 확인하고 알림·권한을 관리합니다.";
 
@@ -36,7 +37,7 @@ function UserDetailPageContent({ params }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnPath = detailReturnPath(searchParams.get("returnTo"), "/users");
-  const activeTab = ["properties", "tenants", "fcm"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "properties";
+  const activeTab = ["properties", "tenants", "fcm", "subscription"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "properties";
   const currentPath = `/users/${userId}?${searchParams}`;
   function navigate(changes: Record<string, string | undefined>, replace = false) {
     const query = new URLSearchParams(searchParams.toString());
@@ -97,6 +98,7 @@ function UserDetailPageContent({ params }: Props) {
           { key: "properties", label: readOnly ? "보관 건물" : "건물 목록", children: <UserPropertiesTab key={userId} userId={userId} navigation={listNavigation} readOnly={readOnly} /> },
           { key: "tenants", label: readOnly ? "보관 임차인" : "임차인 목록", children: <DeferredContentBoundary key={userId} fallback={<DeferredContentError />}><UserTenantsTab userId={userId} navigation={listNavigation} readOnly={readOnly} /></DeferredContentBoundary> },
           { key: "fcm", label: "FCM 토큰", children: <DeferredContentBoundary key={userId} fallback={<DeferredContentError />}><UserFcmTab userId={userId} navigation={listNavigation} readOnly={readOnly} /></DeferredContentBoundary> },
+          { key: "subscription", label: "Pro 구독", children: <DeferredContentBoundary key={userId} fallback={<DeferredContentError />}><UserSubscriptionTab key={`${userId}-${readOnly}`} userId={userId} email={user.email} readOnly={readOnly} /></DeferredContentBoundary> },
         ]}
       />
       </UserDetailCard>
