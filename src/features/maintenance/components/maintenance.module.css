@@ -6,5 +6,11 @@
 .metric { border: 1px solid var(--admin-border); background: var(--admin-surface); border-radius: 12px; padding: 16px; }
 .metric strong { display: block; font-size: 24px; margin-top: 4px; }
 .quoteHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.photo { max-width: 100%; max-height: 65vh; object-fit: contain; }
-@media (max-width: 640px) { .twoColumns { grid-template-columns: 1fr; gap: 0; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.photoToolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.photoGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.photoTile { margin: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.photoTile :global(.ant-image), .photoTile :global(.ant-skeleton-image) { width: 100% !important; aspect-ratio: 1; }
+.photoThumb { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--admin-border); }
+.photoCaption { display: flex; justify-content: space-between; align-items: center; font-size: 12px; opacity: 0.75; }
+.message { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 16px; border-radius: 12px; background: var(--admin-surface-subtle); border: 1px solid var(--admin-border); line-height: 1.7; }
+@media (max-width: 640px) { .photoToolbar { flex-direction: column; } .twoColumns { grid-template-columns: 1fr; gap: 0; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

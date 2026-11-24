@@ -5,7 +5,8 @@ import { isAxiosError } from 'axios';
 import { useUnsavedChanges } from '@/components/NavigationGuard';
 import { parseProblemDetail } from '@/lib/api/problem';
 import { useMaintenanceMutation, type MaintenanceAction } from '../hooks';
-export function useEditor(requestId: number, onClose: () => void) {
+import type { AdminDetail } from '../types';
+export function useEditor(requestId: number, onClose: () => void, onSaved?: (detail: AdminDetail, action: MaintenanceAction) => void) {
   const mutation = useMaintenanceMutation(requestId);
   const { message, modal } = App.useApp();
   const [dirty, setDirty] = useState(false);
@@ -25,10 +26,11 @@ export function useEditor(requestId: number, onClose: () => void) {
     setError(undefined);
     try {
       const action = build();
-      await mutation.mutateAsync(action);
+      const saved = await mutation.mutateAsync(action);
       clearGuard?.();
       message.success('저장했습니다. 임대인 앱 조회에 반영됩니다.');
       onClose();
+      onSaved?.(saved, action);
     } catch (err) {
       const problem = parseProblemDetail(err);
       const status = isAxiosError(err) ? err.response?.status : undefined;

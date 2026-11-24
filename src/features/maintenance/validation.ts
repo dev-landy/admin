@@ -1,6 +1,8 @@
 import type { ResponseFormValues, Quote, RequestInfo, ResponseInput, ProcessingInput, DeliveryInput, FeeMode } from './types';
 import { actionsFor, canProcessRequest } from './state';
 import { compareTime, normalizeTime, seoulNow, validDate } from './time';
+import { formatTechnicalDateTime } from '@/lib/format/date';
+const at = (value: string) => formatTechnicalDateTime(value.split('.')[0]);
 export type { ResponseFormValues } from './types';
 const clean = (value?: string | null) => value?.trim() || null;
 function range(min: number | null | undefined, max: number | null | undefined, label: string): [number, number] {
@@ -16,9 +18,12 @@ export function buildResponse(values: ResponseFormValues, quote: Quote, request:
   const actions = actionsFor(request, quote, now);
   if (!actions.respond && !actions.correct) throw new Error('현재 상태에서는 회신을 등록하거나 정정할 수 없습니다.');
   const respondedAt = normalizeTime(values.respondedAt);
-  if (!quote.sentAt || compareTime(respondedAt, quote.sentAt) < 0 || compareTime(respondedAt, now) > 0) throw new Error('실제 회신 시각은 전달 시각 이후, 현재 이전이어야 합니다.');
+  if (!quote.sentAt) throw new Error('전달 기록이 없어 회신을 등록할 수 없습니다.');
+  if (compareTime(respondedAt, quote.sentAt) < 0) throw new Error(`실제 회신 시각(${at(respondedAt)})이 전달 시각(${at(quote.sentAt)})보다 앞섭니다.`);
+  if (compareTime(respondedAt, now) > 0) throw new Error(`실제 회신 시각(${at(respondedAt)})이 현재(${at(now)})보다 늦습니다.`);
   const limits = [request.closesAt, request.closedAt, actions.correct ? quote.recordedAt : null].filter((v): v is string => !!v);
-  if (limits.some(limit => compareTime(respondedAt, limit) > 0)) throw new Error('실제 회신은 모집 마감과 최초 등록 시각 이전이어야 합니다.');
+  const limit = limits.find(value => compareTime(respondedAt, value) > 0);
+  if (limit) throw new Error(`실제 회신 시각(${at(respondedAt)})은 모집 마감·최초 등록 시각(${at(limit)}) 이전이어야 합니다.`);
   const declined = values.kind === 'DECLINED';
   const declineReason = declined ? clean(values.declineReason) : null;
   if (declined && !declineReason) throw new Error('작업 불가 사유를 입력하세요.');

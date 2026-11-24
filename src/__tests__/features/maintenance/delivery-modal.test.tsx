@@ -35,13 +35,13 @@ test('전달 저장 중에는 중복 제출과 취소를 막고 완료 후 닫�
   open();
   const dialog = await screen.findByRole('dialog');
   const time = within(dialog).getByLabelText('실제 전달 시각 (서울)');
-  fireEvent.change(time, { target: { value: '2026-10-05T11:00:00.123456' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: '지금' }));
   const save = within(dialog).getByRole('button', { name: '전달 기록 저장' });
   fireEvent.click(save);
   fireEvent.click(save);
   await waitFor(() => expect(mockPut).toHaveBeenCalledTimes(1));
   expect(mockPut).toHaveBeenCalledWith('/v1/admin/maintenance-quotes/101/delivery', {
-    deliveryChannel: 'PHONE', sentAt: '2026-10-05T11:00:00.123456',
+    deliveryChannel: 'PHONE', sentAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/),
   });
   expect(within(dialog).getByRole('button', { name: '취소' })).toBeDisabled();
   expect(time).toBeDisabled();

@@ -8,7 +8,12 @@ import type { SendCustomNotificationResponse } from "../types";
 
 const { Text } = Typography;
 
-type Props = { open: boolean; onClose: () => void; recipient?: { userId: number; label: string }; defaults?: { title: string; body: string } };
+type Props = {
+  open: boolean; onClose: () => void; recipient?: { userId: number; label: string }; defaults?: { title: string; body: string };
+  /** 다른 작업 직후 이어서 열 때 보여줄 안내. 있으면 취소 대신 “나중에”로 표시한다. */
+  prompt?: string;
+  maintenanceRequestId?: number;
+};
 
 type FormValues = { userId: number; title: string; body: string };
 
@@ -70,7 +75,7 @@ function toFeedback(result: SendCustomNotificationResponse): SendFeedback {
   };
 }
 
-export function SendNotificationModal({ open, onClose, recipient, defaults }: Props) {
+export function SendNotificationModal({ open, onClose, recipient, defaults, prompt, maintenanceRequestId }: Props) {
   const { notification } = App.useApp();
   const { mutate: send, isPending } = useSendCustomNotification();
   const [form] = Form.useForm<FormValues>();
@@ -78,7 +83,9 @@ export function SendNotificationModal({ open, onClose, recipient, defaults }: Pr
   function handleOk() {
     if (isPending) return;
     form.validateFields().then((values) => {
-      send({ ...values, userId: recipient?.userId ?? values.userId }, {
+      send({ ...values, userId: recipient?.userId ?? values.userId,
+        ...(maintenanceRequestId !== undefined ? { maintenanceRequestId } : {}),
+      }, {
         onSuccess: (res: SendCustomNotificationResponse) => {
           const { level, ...args } = toFeedback(res);
           notification[level](args);
@@ -101,12 +108,13 @@ export function SendNotificationModal({ open, onClose, recipient, defaults }: Pr
 
   return (
     <Modal
-      title="커스텀 알림 발송"
+      title={recipient ? "임대인에게 알림" : "커스텀 알림 발송"}
+      classNames={{ root: "admin-sheet-modal" }}
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
       okText="발송"
-      cancelText="취소"
+      cancelText={prompt ? "나중에" : "취소"}
       confirmLoading={isPending}
       okButtonProps={{ disabled: isPending }}
       cancelButtonProps={{ disabled: isPending }}
@@ -114,12 +122,13 @@ export function SendNotificationModal({ open, onClose, recipient, defaults }: Pr
       mask={{ closable: !isPending }}
       keyboard={!isPending}
     >
-      <Typography.Paragraph type="secondary">입력한 유저에게 인앱 알림을 저장하고 활성 기기로 푸시를 발송합니다.</Typography.Paragraph>
-      {recipient && <Typography.Paragraph>수신자: {recipient.label} · 유저 #{recipient.userId}</Typography.Paragraph>}
+      {prompt && <Typography.Paragraph strong>{prompt}</Typography.Paragraph>}
+      <Typography.Paragraph type="secondary">{recipient ? `수신자: ${recipient.label} · 유저 #${recipient.userId} · ` : "입력한 유저에게 "}인앱 알림을 저장하고 활성 기기로 푸시를 발송합니다.</Typography.Paragraph>
       <Form name="send-custom-notification" form={form} layout="vertical" initialValues={{ userId: recipient?.userId, ...defaults }} disabled={isPending} style={{ marginTop: 16 }}>
         <Form.Item
           label="유저 ID"
           name="userId"
+          hidden={!!recipient}
           rules={[{ required: true, message: "유저 ID를 입력하세요." }, { type: "integer", min: 1, message: "1 이상의 정수 ID를 입력하세요." }]}
         >
           <InputNumber min={1} precision={0} readOnly={!!recipient} disabled={!!recipient || isPending} style={{ width: "100%" }} placeholder="12" />

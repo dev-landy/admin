@@ -96,6 +96,7 @@ export type OutboxListParams = { sort?: string;
 };
 
 export type SendCustomNotificationRequest = {
+  maintenanceRequestId?: number;
   userId: number;
   title: string;
   body: string;

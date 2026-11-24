@@ -375,3 +375,12 @@ html:root .ant-tag.ant-tag-orange:not(.ant-tag-disabled) { color: var(--admin-or
   .admin-page-size-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ant-card .admin-pagination-bar { background: var(--admin-surface); margin-inline: -16px; padding-inline: 16px; }
 }
+
+/* 모바일에서는 엄지가 닿는 하단 시트로 띄우고 발송 버튼을 크게 둔다. */
+@media (max-width: 767px) {
+  .admin-sheet-modal .ant-modal { position: fixed; inset: auto 0 0 0; top: auto; margin: 0; padding: 0; width: 100vw !important; max-width: 100vw; }
+  .admin-sheet-modal .ant-modal-container { border-radius: 16px 16px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); max-height: 90dvh; overflow-y: auto; }
+  .admin-sheet-modal .ant-modal-footer { flex-direction: column-reverse; }
+  .admin-sheet-modal .ant-modal-footer > .ant-btn { width: 100%; min-height: 48px; font-size: 16px; }
+  .admin-sheet-modal .ant-form textarea.ant-input { font-size: 16px; }
+}

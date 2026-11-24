@@ -63,7 +63,15 @@ export function MaintenanceList() {
     {(!query.error || query.data) && <PagedTable rowKey="requestId" ariaLabel="수리 견적 요청 목록" columns={columns} compactColumns={[columns[0],columns[2],columns[3]]}
       dataSource={query.data?.requests??[]} loading={query.isLoading} page={params.page} pageSize={params.size} total={query.data?.totalElements??0}
       emptyText="조건에 맞는 수리 견적 요청이 없습니다." onPageChange={(page,size)=>navigate({page,size})}
-      renderCompactDetails={row=><div>{row.category?categoryLabels[row.category]:'-'} · {row.areaName || '-'} · 접수 {formatDateTime(row.submittedAt)} · 마감 {row.closesAt?formatDateTime(row.closesAt):'첫 전달 전 · 마감 미정'}</div>}
+      onRow={row=>({
+        className:'admin-table-clickable-row', tabIndex:0,
+        onClick:event=>{
+          if(event.target instanceof Element && event.target.closest('a, button')) return;
+          if(!window.getSelection()?.isCollapsed) return;
+          router.push(href(row.requestId));
+        },
+        onKeyDown:event=>{if(event.target===event.currentTarget && event.key==='Enter'){event.preventDefault();router.push(href(row.requestId));}},
+      })}
       renderCard={row=><article className="admin-record-card"><Link href={href(row.requestId)}>{row.title || `요청 #${row.requestId}`}</Link><div>{row.landlordLabel} · {row.areaName}</div><div>{status(row)}</div><p>{counts(row)}</p><div>접수 {formatDateTime(row.submittedAt)}</div><div>마감 {row.closesAt?formatDateTime(row.closesAt):'첫 전달 전 · 마감 미정'}</div></article>} />}
   </>;
 }

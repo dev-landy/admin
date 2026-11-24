@@ -11,6 +11,8 @@ import { formatDateTime, formatTechnicalDateTime } from '@/lib/format/date';
 import { useRequest } from '../hooks';
 import { actionsFor, canProcessRequest } from '../state';
 import { categoryLabels, processingLabels, quoteLabels, requestLabels, timingLabels } from '../presentation';
+import { buildDeliveryMessage } from '../deliveryMessage';
+import { buildQuoteNotification } from '../quoteNotification';
 import type { AdminQuote, Counts } from '../types';
 import { QuoteResponseModal } from './QuoteResponseModal';
 import { ProcessingModal } from './ProcessingModal';
@@ -19,7 +21,7 @@ import { CorrectionHistoryModal } from './CorrectionHistoryModal';
 import { RequestPhotos } from './RequestPhotos';
 import { ResponseSummary } from './ResponseSummary';
 import styles from './maintenance.module.css';
-type Dialog = { type:'delivery'|'response'|'processing'; entry:AdminQuote } | { type:'requestProcessing' } | { type:'history';quoteId:number } | {type:'notification'};
+type Dialog = { type:'delivery'|'response'|'processing'; entry:AdminQuote } | { type:'requestProcessing' } | { type:'history';quoteId:number } | {type:'notification';draft?:{title:string;body:string}};
 const countLabels: [keyof Counts,string][]=[['targetCount','대상 업체'],['receivedCount','견적 도착'],['pendingDispatchCount','전달 전'],['waitingCount','회신 대기'],['pricedQuoteCount','금액 견적'],['declinedCount','작업 불가'],['delayedCount','시간 소요'],['rejectedCount','반려']];
 export function MaintenanceDetail({requestId}:{requestId:number}) {
   const query=useRequest(requestId); const search=useSearchParams(); const {message}=App.useApp(); const [dialog,setDialog]=useState<Dialog>();
@@ -28,8 +30,7 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
   if(!data) return <><PageHeader title="수리 견적 상세" extra={back}/><QueryErrorAlert error={query.error} onRetry={query.refetch} isRetrying={query.isFetching}/>{query.isLoading&&<Spin aria-label="수리 요청을 불러오는 중" />}</>;
   const r=data.request;
   const editable=!query.error && !query.isFetching;
-  const content=data.deliveryContent;
-  const deliveryText=[content.title,`분야: ${categoryLabels[content.category]}`,`동네: ${content.areaName}`,`희망 시기: ${timingLabels[content.preferredTiming]}`,content.description].join('\n');
+  const deliveryText=buildDeliveryMessage(data.deliveryContent,data.photos.length);
   async function copy(){try{await navigator.clipboard.writeText(deliveryText);message.success('업체 전달 내용을 복사했습니다.');}catch{message.error('복사하지 못했습니다. 아래 내용을 선택해 복사하세요.');}}
   const reasonLabel=r.closeReason==='REJECTED'?'관리자 반려':r.closeReason==='MANUAL'?'임대인 수동 마감':r.closeReason==='DEADLINE'?'모집 기한 종료':'-';
   return <div className={styles.stack}>
@@ -49,14 +50,14 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
         {key:'closed',label:'종료 사유',children:reasonLabel},
         {key:'counts',label:'미회신 합계',children:`${data.counts.pendingCount}곳 (시간 소요 포함)`},
         {key:'updated',label:'처리 변경',children:formatDateTime(r.processingUpdatedAt)},
-        {key:'reason',label:'처리 사유 · 임대인 공개',children:<span className={styles.pre}>{r.processingReason || '-'}</span>,span:3},
-        {key:'address',label:'요청 주소',children:r.addressSnapshot || '-',span:3},
-        {key:'location',label:'위치 설명',children:<span className={styles.pre}>{r.locationDetail || '-'}</span>,span:3},
-        {key:'description',label:'문제 설명',children:<span className={styles.pre}>{r.description || '-'}</span>,span:3},
+        {key:'reason',label:'처리 사유 · 임대인 공개',children:<span className={styles.pre}>{r.processingReason || '-'}</span>,span:'filled'},
+        {key:'address',label:'요청 주소',children:r.addressSnapshot || '-',span:'filled'},
+        {key:'location',label:'위치 설명',children:<span className={styles.pre}>{r.locationDetail || '-'}</span>,span:'filled'},
+        {key:'description',label:'문제 설명',children:<span className={styles.pre}>{r.description || '-'}</span>,span:'filled'},
       ]}/>
     </Card>
     <div className={styles.twoColumns}>
-      <Card title="업체 전달 내용" extra={<Button onClick={()=>void copy()}>내용 복사</Button>}><Typography.Paragraph type="secondary">상세주소와 운영 메모는 포함하지 않습니다. 자유 입력 내용의 개인정보는 전달 전에 직접 확인하세요.</Typography.Paragraph><p className={styles.pre}>{deliveryText}</p></Card>
+      <Card title="업체 전달 내용" extra={<Button type="primary" onClick={()=>void copy()}>메시지 복사</Button>}><Typography.Paragraph type="secondary">문자·메신저에 그대로 붙여넣을 수 있는 문안입니다. 상세주소와 운영 메모는 포함하지 않으니, 자유 입력 내용의 개인정보는 전달 전에 직접 확인하세요.</Typography.Paragraph><p className={styles.message}>{deliveryText}</p></Card>
       <Card title={`요청 사진 · ${data.photos.length}장`}><RequestPhotos requestId={requestId} photos={data.photos}/></Card>
     </div>
     <section className={styles.stack} aria-label="업체별 견적">
@@ -70,7 +71,7 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
               {key:'phone',label:'업체 연락처',children:entry.vendorPhone||'등록된 연락처 없음'},
               {key:'sent',label:'실제 전달',children:formatTechnicalDateTime(q.sentAt)},
               {key:'channel',label:'전달 채널',children:({PHONE:'전화',SMS:'문자',MESSENGER:'메신저',OTHER:'기타'} as Record<string,string>)[entry.deliveryChannel??'']??'-'},
-              {key:'reason',label:'처리 사유 · 임대인 공개',children:<span className={styles.pre}>{q.processingReason||'-'}</span>,span:3},
+              {key:'reason',label:'처리 사유 · 임대인 공개',children:<span className={styles.pre}>{q.processingReason||'-'}</span>,span:'filled'},
             ]}/>
             {replied ? <ResponseSummary response={q} operatorNote={entry.operatorNote} showTotals/> : <Typography.Text type="secondary">아직 등록된 업체 회신이 없습니다.</Typography.Text>}
             {q.correctedAt&&<Typography.Text type="secondary">정정 {q.revision}회 · {formatTechnicalDateTime(q.correctedAt)}</Typography.Text>}
@@ -87,10 +88,12 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
     </section>
     <Alert type="info" showIcon title="견적과 처리 사유를 저장하면 임대인 앱에 즉시 반영됩니다." description="저장만으로 알림이 발송되지는 않습니다. 필요한 경우 ‘임대인에게 알림’에서 내용을 검토한 뒤 발송하세요."/>
     {dialog?.type==='delivery'&&<DeliveryModal detail={data} entry={dialog.entry} onClose={close}/>}
-    {dialog?.type==='response'&&<QuoteResponseModal detail={data} entry={dialog.entry} onClose={close}/>}
+    {dialog?.type==='response'&&<QuoteResponseModal detail={data} entry={dialog.entry} onClose={close}
+      onResponded={(saved,quoteId)=>{const draft=buildQuoteNotification(saved,quoteId);if(draft)setDialog({type:'notification',draft});}}/>}
     {(dialog?.type==='processing'||dialog?.type==='requestProcessing')&&<ProcessingModal detail={data} entry={dialog.type==='processing'?dialog.entry:undefined} onClose={close}/>}
     {dialog?.type==='history'&&<CorrectionHistoryModal quoteId={dialog.quoteId} onClose={close}/>}
-    {dialog?.type==='notification'&&<SendNotificationModal open onClose={close} recipient={{userId:data.userId,label:data.landlordLabel}}
-      defaults={{title:'수리 견적 안내',body:`요청 #${requestId} · ${r.title || '수리 요청'}\n${r.processingReason || '수리 견적 진행 상황과 등록된 견적을 앱에서 확인해 주세요.'}`}}/>}
+    {dialog?.type==='notification'&&<SendNotificationModal open onClose={close} maintenanceRequestId={requestId} recipient={{userId:data.userId,label:data.landlordLabel}}
+      prompt={dialog.draft?'회신을 저장했어요. 임대인에게 바로 알릴까요?':undefined}
+      defaults={dialog.draft ?? {title:'수리 견적 안내',body:`요청 #${requestId} · ${r.title || '수리 요청'}\n${r.processingReason || '수리 견적 진행 상황과 등록된 견적을 앱에서 확인해 주세요.'}`}}/>}
   </div>;
 }

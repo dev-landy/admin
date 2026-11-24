@@ -106,3 +106,9 @@ test('서버 허용 한도 5000자와 방문 가능일 30개까지 허용한다'
     availableDates: Array.from({ length: 30 }, (_, i) => `2026-12-${String(i + 1).padStart(2, '0')}`).join(','),
   }, quote, request, now)).not.toThrow();
 });
+test('회신 시각 오류는 어떤 기준 시각을 벗어났는지 함께 알려준다', () => {
+  expect(() => buildResponse({ ...values, respondedAt: '2026-10-05T10:59:00' }, quote, request, now))
+    .toThrow('실제 회신 시각(2026-10-05 10:59:00)이 전달 시각(2026-10-05 11:00:00)보다 앞섭니다.');
+  expect(() => buildResponse({ ...values, respondedAt: '2026-10-06T12:30:00' }, quote, request, now))
+    .toThrow('실제 회신 시각(2026-10-06 12:30:00)이 현재(2026-10-06 12:00:00)보다 늦습니다.');
+});

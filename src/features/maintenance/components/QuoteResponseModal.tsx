@@ -5,15 +5,17 @@ import type { AdminDetail, AdminQuote, FeeMode, ResponseFormValues } from '../ty
 import { buildResponse } from '../validation';
 import { seoulNow } from '../time';
 import { useEditor } from './useEditor';
+import { SeoulDateTimePicker } from './SeoulDateTimePicker';
 import styles from './maintenance.module.css';
 const feeMode = (value?: boolean | null): FeeMode => value === true ? 'INCLUDED' : value === false ? 'SEPARATE' : 'UNKNOWN';
-export function QuoteResponseModal({ detail, entry, onClose }: { detail: AdminDetail; entry: AdminQuote; onClose: () => void }) {
+export function QuoteResponseModal({ detail, entry, onClose, onResponded }: { detail: AdminDetail; entry: AdminQuote; onClose: () => void; onResponded?: (saved: AdminDetail, quoteId: number) => void }) {
   // Keep the opened revision and original values even if the background query updates.
   const [snapshot] = useState(entry);
   const q = snapshot.quote;
   const correcting = q.status === 'RECEIVED' || q.status === 'DECLINED';
   const [form] = Form.useForm<ResponseFormValues>();
-  const editor = useEditor(detail.request.requestId, onClose);
+  // 정정은 알림 없이 닫고, 최초 회신 등록만 알림 발송으로 이어간다.
+  const editor = useEditor(detail.request.requestId, onClose, (saved, action) => { if (action.type === 'response') onResponded?.(saved, action.quoteId); });
   const kind = Form.useWatch('kind', form) ?? (q.status === 'DECLINED' ? 'DECLINED' : q.quoteType ?? 'RANGE');
   const travel = Form.useWatch('travelFeeMode', form) ?? feeMode(q.travelFeeIncluded);
   const materials = Form.useWatch('materialsFeeMode', form) ?? feeMode(q.materialsFeeIncluded);
@@ -41,13 +43,13 @@ export function QuoteResponseModal({ detail, entry, onClose }: { detail: AdminDe
     <Typography.Paragraph type="secondary">저장하면 임대인 앱에서 바로 조회됩니다. 방문 가능일은 제안 날짜이며 예약 확정이 아닙니다. 알림은 상세 화면에서 별도로 발송합니다.</Typography.Paragraph>
     {editor.error && <Alert type="error" showIcon title="저장 결과 확인" description={editor.error} />}
     <Form name="maintenance-response" form={form} layout="vertical" disabled={editor.pending} onValuesChange={editor.changed} initialValues={{
-      kind:q.status === 'DECLINED' ? 'DECLINED' : q.quoteType ?? 'RANGE', respondedAt:q.respondedAt ?? seoulNow(), minAmount:q.minAmount, maxAmount:q.maxAmount,
+      kind:q.status === 'DECLINED' ? 'DECLINED' : q.quoteType ?? 'RANGE', respondedAt:q.respondedAt ?? seoulNow().slice(0,19), minAmount:q.minAmount, maxAmount:q.maxAmount,
       travelFeeMode:feeMode(q.travelFeeIncluded),travelFeeMin:q.travelFeeMin,travelFeeMax:q.travelFeeMax,
       materialsFeeMode:feeMode(q.materialsFeeIncluded),materialsFeeMin:q.materialsFeeMin,materialsFeeMax:q.materialsFeeMax,
       availableDates:q.availableDates.join(', '),conditions:q.conditions,declineReason:q.declineReason,operatorNote:snapshot.operatorNote,
     }}>
       <Form.Item name="kind" label="회신 유형" rules={[{required:true}]}><Select options={[{value:'RANGE',label:'범위 견적'},{value:'SITE_VISIT_REQUIRED',label:'현장 확인 필요'},{value:'DECLINED',label:'작업 불가'}]} /></Form.Item>
-      <Form.Item name="respondedAt" label="실제 회신 시각 (서울)" rules={[{required:true,message:'실제 회신 시각을 입력하세요.'}]} extra="YYYY-MM-DDTHH:mm:ss · 서버의 정밀 시각도 그대로 유지됩니다."><Input placeholder="2026-10-06T14:30:00" /></Form.Item>
+      <Form.Item name="respondedAt" label="실제 회신 시각 (서울)" rules={[{required:true,message:'실제 회신 시각을 입력하세요.'}]} extra="방금 회신받았다면 ‘지금’을 누르세요. 바꾸지 않으면 기존 정밀 시각이 유지됩니다."><SeoulDateTimePicker /></Form.Item>
       {kind === 'RANGE' && <div className={styles.twoColumns}>
         <Form.Item name="minAmount" label="작업비 최소 (원)" rules={[{required:true,message:'최소 금액을 입력하세요.'}]}><InputNumber min={0} max={1e12} precision={0} className={styles.full} /></Form.Item>
         <Form.Item name="maxAmount" label="작업비 최대 (원)" rules={[{required:true,message:'최대 금액을 입력하세요.'}]}><InputNumber min={0} max={1e12} precision={0} className={styles.full} /></Form.Item>

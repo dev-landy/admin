@@ -1,10 +1,11 @@
 'use client';
-import { Alert, Form, Input, Modal, Select, Typography } from 'antd';
+import { Alert, Form, Modal, Select, Typography } from 'antd';
 import type { AdminDetail, AdminQuote, DeliveryInput } from '../types';
 import { buildDelivery } from '../validation';
 import { actionsFor } from '../state';
 import { seoulNow } from '../time';
 import { useEditor } from './useEditor';
+import { SeoulDateTimePicker } from './SeoulDateTimePicker';
 export function DeliveryModal({ detail, entry, onClose }: { detail: AdminDetail; entry: AdminQuote; onClose: () => void }) {
   const [form] = Form.useForm<DeliveryInput>();
   const editor = useEditor(detail.request.requestId, onClose);
@@ -23,9 +24,9 @@ export function DeliveryModal({ detail, entry, onClose }: { detail: AdminDetail;
     closable={!editor.pending} keyboard={!editor.pending} mask={{closable:false}}>
     <Typography.Paragraph>이미 업체에 연락한 사실을 기록합니다. 이 버튼은 문자나 메시지를 발송하지 않습니다.</Typography.Paragraph>
     {editor.error && <Alert type="error" title="저장 결과 확인" description={editor.error} showIcon />}
-    <Form name="maintenance-delivery" form={form} layout="vertical" initialValues={{sentAt:seoulNow(),deliveryChannel:'PHONE'}} disabled={editor.pending} onValuesChange={editor.changed}>
+    <Form name="maintenance-delivery" form={form} layout="vertical" initialValues={{sentAt:seoulNow().slice(0,19),deliveryChannel:'PHONE'}} disabled={editor.pending} onValuesChange={editor.changed}>
       <Form.Item name="deliveryChannel" label="전달 채널" rules={[{required:true}]}><Select options={[{value:'PHONE',label:'전화'},{value:'SMS',label:'문자'},{value:'MESSENGER',label:'메신저'},{value:'OTHER',label:'기타'}]} /></Form.Item>
-      <Form.Item name="sentAt" label="실제 전달 시각 (서울)" extra="YYYY-MM-DDTHH:mm:ss" rules={[{required:true,message:'실제 전달 시각을 입력하세요.'}]}><Input /></Form.Item>
+      <Form.Item name="sentAt" label="실제 전달 시각 (서울)" extra="방금 연락했다면 ‘지금’을 누르세요." rules={[{required:true,message:'실제 전달 시각을 입력하세요.'}]}><SeoulDateTimePicker /></Form.Item>
     </Form>
   </Modal>;
 }
