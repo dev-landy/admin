@@ -34,7 +34,7 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
   async function copy(){try{await navigator.clipboard.writeText(deliveryText);message.success('업체 전달 내용을 복사했습니다.');}catch{message.error('복사하지 못했습니다. 아래 내용을 선택해 복사하세요.');}}
   const reasonLabel=r.closeReason==='REJECTED'?'관리자 반려':r.closeReason==='MANUAL'?'임대인 수동 마감':r.closeReason==='DEADLINE'?'모집 기한 종료':'-';
   return <div className={styles.stack}>
-    <PageHeader title={r.title || `수리 요청 #${requestId}`} description={`요청 #${requestId} · ${data.landlordLabel} · 모든 시각은 서울 기준입니다.`}
+    <PageHeader title={`수리 요청 #${requestId}`} description={`${data.landlordLabel} · 모든 시각은 서울 기준입니다.`}
       extra={<>{back}<RefreshButton loading={query.isFetching} onClick={()=>query.refetch()}>새로고침</RefreshButton><Button disabled={!editable} onClick={()=>setDialog({type:'notification'})}>임대인에게 알림</Button>
         <Button type="primary" disabled={!editable || !canProcessRequest(r)} onClick={()=>setDialog({type:'requestProcessing'})}>요청 처리 상태</Button></>} />
     <QueryErrorAlert error={query.error} onRetry={query.refetch} isRetrying={query.isFetching} hasData />
@@ -94,6 +94,6 @@ export function MaintenanceDetail({requestId}:{requestId:number}) {
     {dialog?.type==='history'&&<CorrectionHistoryModal quoteId={dialog.quoteId} onClose={close}/>}
     {dialog?.type==='notification'&&<SendNotificationModal open onClose={close} maintenanceRequestId={requestId} recipient={{userId:data.userId,label:data.landlordLabel}}
       prompt={dialog.draft?'회신을 저장했어요. 임대인에게 바로 알릴까요?':undefined}
-      defaults={dialog.draft ?? {title:'수리 견적 안내',body:`요청 #${requestId} · ${r.title || '수리 요청'}\n${r.processingReason || '수리 견적 진행 상황과 등록된 견적을 앱에서 확인해 주세요.'}`}}/>}
+      defaults={dialog.draft ?? {title:'수리 견적 안내',body:`요청 #${requestId} · ${categoryLabels[data.deliveryContent.category]}\n${r.processingReason || '수리 견적 진행 상황과 등록된 견적을 앱에서 확인해 주세요.'}`}}/>}
   </div>;
 }

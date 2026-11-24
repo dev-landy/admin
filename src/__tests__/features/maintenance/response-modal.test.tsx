@@ -19,11 +19,11 @@ const entry: AdminQuote = {
   vendorPhone: '02-123-4567', deliveryChannel: 'PHONE', operatorNote: '전화 확인',
 };
 const detail: AdminDetail = {
-  request: { requestId: 10, title: '욕실 수리 요청', vendorIds: [], status: 'COLLECTING', createdAt: '2026-10-05T09:00:00',
+  request: { requestId: 10, vendorIds: [], status: 'COLLECTING', createdAt: '2026-10-05T09:00:00',
     submittedAt: '2026-10-05T10:00:00', collectionStartedAt: '2026-10-05T11:00:00', closesAt: '2099-10-07T11:00:00' },
   userId: 7, landlordLabel: '임대인 #7',
   counts: { targetCount: 1, receivedCount: 1, pricedQuoteCount: 1, declinedCount: 0, pendingCount: 0, pendingDispatchCount: 0, waitingCount: 0, delayedCount: 0, rejectedCount: 0 },
-  photos: [], quotes: [entry], deliveryContent: { title: '욕실 수리 요청', category: 'PLUMBING', description: '누수', areaName: '강남구', preferredTiming: 'ASAP' },
+  photos: [], quotes: [entry], deliveryContent: { category: 'PLUMBING', description: '누수', preferredTiming: 'ASAP' },
 };
 function open(target = entry) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });

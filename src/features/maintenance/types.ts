@@ -6,8 +6,8 @@ export type Timing = 'ASAP' | 'THIS_WEEK' | 'NEXT_WEEK' | 'FLEXIBLE';
 export type ProcessingInfo = { processingStatus?: ProcessingStatus | null; processingReason?: string | null; processingUpdatedAt?: string | null };
 export type Counts = { targetCount: number; receivedCount: number; pricedQuoteCount: number; declinedCount: number; pendingCount: number; pendingDispatchCount: number; waitingCount: number; delayedCount: number; rejectedCount: number };
 export type RequestInfo = ProcessingInfo & {
-  requestId: number; propertyId?: number | null; title?: string | null; category?: Category | null; description?: string | null;
-  addressSnapshot?: string | null; areaName?: string | null; locationDetail?: string | null; latitude?: number | null; longitude?: number | null;
+  requestId: number; propertyId?: number | null; category?: Category | null; description?: string | null;
+  addressSnapshot?: string | null; locationDetail?: string | null; latitude?: number | null; longitude?: number | null;
   preferredTiming?: Timing | null; vendorIds: number[]; status: RequestStatus; submittedAt?: string | null; collectionStartedAt?: string | null;
   closesAt?: string | null; closedAt?: string | null; closeReason?: 'MANUAL' | 'DEADLINE' | 'REJECTED' | null; createdAt: string;
 };
@@ -33,8 +33,8 @@ export type CorrectionInput = { expectedRevision: number; reason: string; respon
 export type AdminQuote = { quote: Quote; vendorPhone?: string | null; sentByUserId?: number | null; deliveryChannel?: string | null; recordedByUserId?: number | null; entrySource?: string | null; operatorNote?: string | null };
 export type Photo = { photoId: number; contentType: string; sizeBytes: number; createdAt: string };
 export type AdminDetail = { request: RequestInfo; userId: number; landlordLabel: string; counts: Counts; photos: Photo[]; quotes: AdminQuote[];
-  deliveryContent: { title: string; category: Category; description: string; areaName: string; preferredTiming: Timing } };
-export type AdminSummary = ProcessingInfo & { requestId: number; userId: number; landlordLabel: string; title?: string | null; category?: Category | null; areaName?: string | null; status: RequestStatus; submittedAt?: string | null; closesAt?: string | null; createdAt: string; counts: Counts };
+  deliveryContent: { category: Category; description: string; preferredTiming: Timing } };
+export type AdminSummary = ProcessingInfo & { requestId: number; userId: number; landlordLabel: string; category?: Category | null; status: RequestStatus; submittedAt?: string | null; closesAt?: string | null; createdAt: string; counts: Counts };
 export type ListParams = { page: number; size: number; status?: Exclude<RequestStatus, 'DRAFT'>; quoteStatus?: QuoteStatus; processingStatus?: ProcessingStatus; vendorProcessingStatus?: ProcessingStatus; category?: Category; submittedFrom?: string; submittedTo?: string };
 export type ListResponse = { requests: AdminSummary[]; page: number; size: number; totalElements: number };
 export type Correction = { correctionId: number; quoteId: number; revision: number; reason: string; before: ResponseInput; after: ResponseInput; correctedByUserId: number; correctedAt: string };

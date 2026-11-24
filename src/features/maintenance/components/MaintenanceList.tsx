@@ -32,8 +32,8 @@ export function MaintenanceList() {
   const status=(row:AdminSummary)=><><Tag>{requestLabels[row.status]}</Tag>{row.processingStatus && <Tag color={row.processingStatus==='REJECTED'?'red':row.processingStatus==='DELAYED'?'orange':'default'}>{processingLabels[row.processingStatus]}</Tag>}</>;
   const counts=(row:AdminSummary)=>`견적 ${row.counts.receivedCount}/${row.counts.targetCount} · 전달 전 ${row.counts.pendingDispatchCount} · 대기 ${row.counts.waitingCount}`;
   const columns:TableColumnsType<AdminSummary>=[
-    {key:'request',title:'수리 요청',width:260,render:(_,row)=><><Link href={href(row.requestId)}>{row.title || `요청 #${row.requestId}`}</Link><div><Typography.Text type="secondary">#{row.requestId} · {row.landlordLabel}</Typography.Text></div></>},
-    {key:'category',title:'분야 · 동네',width:150,render:(_,row)=><>{row.category?categoryLabels[row.category]:'-'}<div>{row.areaName || '-'}</div></>},
+    {key:'request',title:'수리 요청',width:260,render:(_,row)=><><Link href={href(row.requestId)}>요청 #{row.requestId}</Link><div><Typography.Text type="secondary">{row.landlordLabel}</Typography.Text></div></>},
+    {key:'category',title:'분야',width:150,render:(_,row)=>row.category?categoryLabels[row.category]:'-'},
     {key:'status',title:'진행 상태',width:175,render:(_,row)=><>{status(row)}{row.processingReason && <Typography.Paragraph ellipsis={{rows:2,tooltip:row.processingReason}}>{row.processingReason}</Typography.Paragraph>}</>},
     {key:'counts',title:'업체 현황',width:240,render:(_,row)=><>{counts(row)}<div><Typography.Text type="secondary">시간 소요 {row.counts.delayedCount} · 반려 {row.counts.rejectedCount} · 작업 불가 {row.counts.declinedCount}</Typography.Text></div></>},
     {key:'times',title:'접수 · 마감 (서울)',width:195,render:(_,row)=><>{formatDateTime(row.submittedAt)}<div><Typography.Text type="secondary">{row.closesAt?formatDateTime(row.closesAt):'첫 전달 전 · 마감 미정'}</Typography.Text></div></>},
@@ -72,6 +72,6 @@ export function MaintenanceList() {
         },
         onKeyDown:event=>{if(event.target===event.currentTarget && event.key==='Enter'){event.preventDefault();router.push(href(row.requestId));}},
       })}
-      renderCard={row=><article className="admin-record-card"><Link href={href(row.requestId)}>{row.title || `요청 #${row.requestId}`}</Link><div>{row.landlordLabel} · {row.areaName}</div><div>{status(row)}</div><p>{counts(row)}</p><div>접수 {formatDateTime(row.submittedAt)}</div><div>마감 {row.closesAt?formatDateTime(row.closesAt):'첫 전달 전 · 마감 미정'}</div></article>} />}
+      renderCard={row=><article className="admin-record-card"><Link href={href(row.requestId)}>요청 #{row.requestId}</Link><div>{[row.landlordLabel,row.category&&categoryLabels[row.category]].filter(Boolean).join(' · ')}</div><div>{status(row)}</div><p>{counts(row)}</p><div>접수 {formatDateTime(row.submittedAt)}</div><div>마감 {row.closesAt?formatDateTime(row.closesAt):'첫 전달 전 · 마감 미정'}</div></article>} />}
   </>;
 }

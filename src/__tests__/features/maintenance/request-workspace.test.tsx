@@ -18,7 +18,7 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/lib/api/client', () => ({ apiClient: { get: jest.fn(), put: jest.fn(), post: jest.fn(), patch: jest.fn() } }));
 const mockGet = jest.mocked(apiClient.get);
 const detail: AdminDetail = {
-  request: { requestId: 10, title: '욕실 수리 요청', category: 'PLUMBING', description: '배관 누수 확인', areaName: '강남구', vendorIds: [], status: 'COLLECTING', closesAt: '2099-10-07T11:00:00', collectionStartedAt: '2026-10-05T11:00:00', createdAt: '2026-10-05T09:00:00', submittedAt: '2026-10-05T10:00:00', processingStatus: 'WAITING' },
+  request: { requestId: 10, category: 'PLUMBING', description: '배관 누수 확인', vendorIds: [], status: 'COLLECTING', closesAt: '2099-10-07T11:00:00', collectionStartedAt: '2026-10-05T11:00:00', createdAt: '2026-10-05T09:00:00', submittedAt: '2026-10-05T10:00:00', processingStatus: 'WAITING' },
   userId: 7, landlordLabel: '임대인 #7',
   counts: { targetCount: 3, receivedCount: 1, pricedQuoteCount: 1, declinedCount: 0, pendingCount: 2, pendingDispatchCount: 1, waitingCount: 1, delayedCount: 1, rejectedCount: 0 },
   photos: [], quotes: [{ quote: { quoteId: 101, requestId: 10, vendorId: 1, vendorName: '한결수리', status: 'RECEIVED', quoteType: 'RANGE', minAmount: 100000, maxAmount: 150000,
@@ -27,7 +27,7 @@ const detail: AdminDetail = {
     { quote: { quoteId: 102, requestId: 10, vendorId: 2, vendorName: '두번째 업체', status: 'WAITING', availableDates: [], sentAt: '2026-10-05T11:30:00', revision: 0, processingStatus: 'DELAYED' } },
     { quote: { quoteId: 103, requestId: 10, vendorId: 3, vendorName: '세번째 업체', status: 'PENDING_DISPATCH', availableDates: [], revision: 0, processingStatus: 'WAITING' } },
   ],
-  deliveryContent: { title: '욕실 수리 요청', category: 'PLUMBING', description: '누수', areaName: '강남구', preferredTiming: 'ASAP' },
+  deliveryContent: { category: 'PLUMBING', description: '누수', preferredTiming: 'ASAP' },
 };
 function open(content: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -73,10 +73,10 @@ test('첫 전달 전 요청에는 모집 기한이 아직 정해지지 않았다
 });
 test('목록 행을 누르면 펼치지 않고 현재 필터를 유지한 채 상세로 이동한다', async () => {
   mockSearch = 'status=SUBMITTED';
-  mockGet.mockResolvedValue({ data: { requests: [{ requestId: 14, userId: 8, landlordLabel: '임대인 #8', title: 'asdf', status: 'SUBMITTED', processingStatus: 'WAITING', createdAt: '2026-10-05T09:00:00', counts: detail.counts }], page: 1, size: 20, totalElements: 1 } });
+  mockGet.mockResolvedValue({ data: { requests: [{ requestId: 14, userId: 8, landlordLabel: '임대인 #8', status: 'SUBMITTED', processingStatus: 'WAITING', createdAt: '2026-10-05T09:00:00', counts: detail.counts }], page: 1, size: 20, totalElements: 1 } });
   open(<MaintenanceList />);
-  const title = await screen.findByText('asdf');
-  const row = title.closest('tr')!;
+  const link = await screen.findByRole('link', { name: '요청 #14' });
+  const row = link.closest('tr')!;
   fireEvent.click(row.querySelector('td:last-child')!);
   expect(mockPush).toHaveBeenCalledWith('/maintenance/14?list=status%3DSUBMITTED');
   expect(row).not.toHaveAttribute('aria-expanded');
@@ -97,12 +97,12 @@ test('회신을 등록하면 견적 내용이 채워진 임대인 알림 창을 
   expect(await screen.findByText('회신을 저장했어요. 임대인에게 바로 알릴까요?')).toBeInTheDocument();
   const sheet = screen.getByText('회신을 저장했어요. 임대인에게 바로 알릴까요?').closest('[role="dialog"]') as HTMLElement;
   expect(within(sheet).getByLabelText('제목')).toHaveValue('수리 견적이 도착했어요');
-  expect(within(sheet).getByLabelText('내용')).toHaveValue('[욕실 수리 요청] 두번째 업체 견적 80,000원이 도착했어요.\n업체 3곳 중 2곳이 회신했어요. 앱에서 확인해 주세요.');
+  expect(within(sheet).getByLabelText('내용')).toHaveValue('[배관·누수 요청] 두번째 업체 견적 80,000원이 도착했어요.\n업체 3곳 중 2곳이 회신했어요. 앱에서 확인해 주세요.');
   expect(within(sheet).getByRole('button', { name: '나중에' })).toBeInTheDocument();
   jest.mocked(apiClient.post).mockResolvedValue({ data: { notificationId: 90, sent: 0, failed: 0, skipped: 0, alreadyClaimed: 0 } });
   fireEvent.click(within(sheet).getByRole('button', { name: '발송' }));
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/v1/admin/notifications/send', {
     userId: 7, maintenanceRequestId: 10, title: '수리 견적이 도착했어요',
-    body: '[욕실 수리 요청] 두번째 업체 견적 80,000원이 도착했어요.\n업체 3곳 중 2곳이 회신했어요. 앱에서 확인해 주세요.',
+    body: '[배관·누수 요청] 두번째 업체 견적 80,000원이 도착했어요.\n업체 3곳 중 2곳이 회신했어요. 앱에서 확인해 주세요.',
   }));
 });

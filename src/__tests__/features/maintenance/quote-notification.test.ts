@@ -3,16 +3,16 @@ import type { AdminDetail, Quote } from '@/features/maintenance/types';
 
 const base: Quote = { quoteId: 1, requestId: 10, vendorId: 1, vendorName: '한결수리', status: 'RECEIVED', availableDates: [], revision: 0 };
 const detailWith = (quote: Partial<Quote>): AdminDetail => ({
-  request: { requestId: 10, title: '욕실 수리', vendorIds: [], status: 'COLLECTING', createdAt: '2026-10-05T09:00:00' },
+  request: { requestId: 10, vendorIds: [], status: 'COLLECTING', createdAt: '2026-10-05T09:00:00' },
   userId: 7, landlordLabel: '임대인 #7', photos: [], quotes: [{ quote: { ...base, ...quote } }],
   counts: { targetCount: 3, receivedCount: 1, pricedQuoteCount: 1, declinedCount: 0, pendingCount: 2, pendingDispatchCount: 0, waitingCount: 2, delayedCount: 0, rejectedCount: 0 },
-  deliveryContent: { title: '욕실 수리', category: 'PLUMBING', description: '', areaName: '강남구', preferredTiming: 'ASAP' },
+  deliveryContent: { category: 'PLUMBING', description: '', preferredTiming: 'ASAP' },
 });
 
-test('범위 견적은 비교 총액과 회신 현황을 알림 초안에 담는다', () => {
+test('범위 견적은 서비스 분야·비교 총액·회신 현황을 알림 초안에 담는다', () => {
   expect(buildQuoteNotification(detailWith({ quoteType: 'RANGE', minAmount: 1, maxAmount: 2, totalMinAmount: 100000, totalMaxAmount: 150000 }), 1)).toEqual({
     title: '수리 견적이 도착했어요',
-    body: '[욕실 수리] 한결수리 견적 100,000 ~ 150,000원이 도착했어요.\n업체 3곳 중 1곳이 회신했어요. 앱에서 확인해 주세요.',
+    body: '[배관·누수 요청] 한결수리 견적 100,000 ~ 150,000원이 도착했어요.\n업체 3곳 중 1곳이 회신했어요. 앱에서 확인해 주세요.',
   });
 });
 test('현장 확인과 작업 불가 회신은 각각의 문구를 쓴다', () => {
