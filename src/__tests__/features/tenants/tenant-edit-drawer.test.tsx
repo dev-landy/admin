@@ -47,15 +47,15 @@ test("서버가 일시납 총액 정정을 거절하면 금액 오류와 나머�
     status: 422, statusText: "Unprocessable Entity", headers: new AxiosHeaders(), config: { headers: new AxiosHeaders() },
   }));
   render(<Drawer tenant={{ ...TENANT, rentChargeFrequency: "ONE_TIME", billingTiming: "PREPAID", endDate: "2027-04-19" }} />);
-  fireEvent.change(await screen.findByLabelText("계약기간 임대료 총액"), { target: { value: "800" } });
+  fireEvent.change(await screen.findByLabelText("계약기간 임대료 총액"), { target: { value: "1,800" } });
   fireEvent.change(screen.getByLabelText("월 관리비"), { target: { value: "7" } });
   await submitChangedName("보존할 이름");
   await waitFor(() => expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveAttribute("aria-invalid", "true"));
   await waitFor(() => expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveAccessibleDescription(expect.stringContaining(detail)));
-  expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveValue("800");
+  expect(screen.getByLabelText("계약기간 임대료 총액")).toHaveValue("1,800");
   expect(screen.getByLabelText("월 관리비")).toHaveValue("7");
   expect(screen.getByLabelText("세입자 이름")).toHaveValue("보존할 이름");
-  expect(mockUpdate.mock.calls[0][1]).toMatchObject({ rentPrice: 8_000_000, maintenanceFee: 70_000 });
+  expect(mockUpdate.mock.calls[0][1]).toMatchObject({ rentPrice: 18_000_000, maintenanceFee: 70_000 });
   expect(mockUpdate.mock.calls[0][1]).not.toHaveProperty("rentChargeFrequency");
   expect(onClose).not.toHaveBeenCalled();
 });

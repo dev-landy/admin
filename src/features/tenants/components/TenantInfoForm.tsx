@@ -130,10 +130,14 @@ function toWon(manwon: number | null | undefined): number | null {
   return manwon === null || manwon === undefined ? null : Math.round(manwon * 10_000);
 }
 
-const formatMoneyInput: NonNullable<InputNumberProps<number>["formatter"]> = (
-  amount,
-  { userTyping, input },
-) => userTyping ? input : String(amount ?? "");
+function groupMoneyDigits(text: string): string {
+  return text.replaceAll(",", "").replace(/^[+-]?\d+/, (integer) => integer.replace(/\B(?=(\d{3})+$)/g, ","));
+}
+
+const formatMoneyInput: NonNullable<InputNumberProps<number>["formatter"]> = (amount, { userTyping, input }) => {
+  // 입력 중인 소수점과 끝자리 0을 보존하고 정수 부분에만 쉼표를 붙인다.
+  return groupMoneyDigits(userTyping ? input : String(amount ?? ""));
+};
 
 // 서버 AdminTenantContactPhone과 같은 010 휴대폰·국내 지역번호 일반전화 규칙.
 const CONTACT_PHONE_PATTERN = /^(?:010-[0-9]{4}|(?:02|0(?:3[1-3]|4[1-4]|5[1-5]|6[1-4]))-[0-9]{3,4})-[0-9]{4}$/;
@@ -363,7 +367,7 @@ function MoneyInputWithUnit({
         disabled={disabled}
         value={inWon ? toWon(value) : value}
         onChange={(next) => onChange?.(next === null || !inWon ? next : next / 10_000)}
-        placeholder={inWon && placeholder ? String(Number(placeholder) * 10_000) : placeholder}
+        placeholder={inWon && placeholder ? groupMoneyDigits(String(Number(placeholder) * 10_000)) : placeholder}
         precision={inWon ? 0 : 4}
         formatter={formatMoneyInput}
         style={{ flex: 1, minWidth: 0, ...style }}

@@ -111,12 +111,15 @@ test("분석이나 보관 초안이 없어도 수동 검수 화면을 열고 원
 
 test("일시납 초안을 불러오면 총액과 필수 종료일을 보존해 새 계약으로 등록한다", async () => {
   const values = { ...VALUES, rentChargeFrequency: "ONE_TIME" as const, billingTiming: "PREPAID" as const,
-    startDate: "2026-03-20", endDate: "2027-04-19", rentPrice: 8_000_001 };
+    startDate: "2026-03-20", endDate: "2027-04-19", rentPrice: 18_000_001, depositAmount: 60_000_000 };
   mockDraft.mockResolvedValue({ documentId: DOCUMENT.documentId, values });
   renderReview();
   await applyDraft();
   expect(screen.getByRole("radio", { name: "계약기간 일시납" })).toBeChecked();
-  expect(await screen.findByLabelText("계약기간 임대료 총액")).toHaveValue("800.0001");
+  expect(await screen.findByLabelText("계약기간 임대료 총액")).toHaveValue("1,800.0001");
+  expect(screen.getByLabelText("보증금")).toHaveValue("6,000");
+  fireEvent.click(screen.getByRole("button", { name: "보증금 만원 단위, 원으로 전환" }));
+  expect(screen.getByLabelText("보증금")).toHaveValue("60,000,000");
   expect(screen.getByLabelText("계약 종료일")).toHaveValue("2027-04-19");
   await waitFor(() => expect(screen.getByRole("button", { name: "계약 등록" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "계약 등록" }));

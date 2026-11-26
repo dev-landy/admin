@@ -210,7 +210,7 @@ describe("연락처 입력", () => {
 
 const EXACT_MONEY_VALUES = fromTenantValues({
   name: "홍길동", roomNumber: "101", phone: "010-1111-2222",
-  rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 1_234_567,
+  rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 60_000_000,
   paymentDay: 25, startDate: "2026-09-01", endDate: "2027-08-31",
 });
 
@@ -288,9 +288,9 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
   render(<TestForm onFinish={onFinish} onValuesChange={onValuesChange} initialValues={EXACT_MONEY_VALUES} />);
 
   for (const [label, manwon, won] of [
-      ["월 임대료", "50.0001", "500001"],
-      ["월 관리비", "1.2345", "12345"],
-      ["보증금", "123.4567", "1234567"],
+      ["월 임대료", "50.0001", "500,001"],
+      ["월 관리비", "1.2345", "12,345"],
+      ["보증금", "6,000", "60,000,000"],
     ]) {
       expect(screen.getByLabelText(label)).toHaveValue(manwon);
       fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
@@ -302,7 +302,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
     expect(toTenantValues(onFinish.mock.calls[0][0])).toMatchObject({
-      rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 1_234_567,
+      rentPrice: 500_001, maintenanceFee: 12_345, depositAmount: 60_000_000,
     });
     expect(toTenantValues(onFinish.mock.calls[0][0])).toEqual(toTenantValues(EXACT_MONEY_VALUES));
   });
@@ -314,7 +314,7 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     for (const [label, won, manwon] of [
       ["월 임대료", "501234", "50.1234"],
       ["월 관리비", "56789", "5.6789"],
-      ["보증금", "10000001", "1000.0001"],
+      ["보증금", "10,000,001", "1,000.0001"],
     ]) {
       fireEvent.click(screen.getByRole("button", { name: `${label} 만원 단위, 원으로 전환` }));
       fireEvent.change(screen.getByLabelText(label), { target: { value: won } });
@@ -336,33 +336,36 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     render(<TestForm onFinish={onFinish} />);
     const rent = screen.getByLabelText("월 임대료");
     fireEvent.focus(rent);
-    for (const value of ["1", "1.", "1.2", "1.23", "1.2345"]) {
+    fireEvent.keyDown(rent, { key: "0" });
+    fireEvent.change(rent, { target: { value: "6000" } });
+    expect(rent).toHaveValue("6,000");
+    for (const value of ["6,000.", "6,000.0", "6,000.00", "6,000.0001"]) {
       fireEvent.change(rent, { target: { value } });
       expect(rent).toHaveValue(value);
     }
     fireEvent.blur(rent);
     fireEvent.click(screen.getByRole("button", { name: "월 임대료 만원 단위, 원으로 전환" }));
-    expect(rent).toHaveValue("12345");
-    fireEvent.change(rent, { target: { value: "12345.6" } });
+    expect(rent).toHaveValue("60,000,001");
+    fireEvent.change(rent, { target: { value: "60,000,001.6" } });
     fireEvent.blur(rent);
-    expect(rent).toHaveValue("12346");
+    expect(rent).toHaveValue("60,000,002");
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
-    expect(toTenantValues(onFinish.mock.calls[0][0]).rentPrice).toBe(12_346);
+    expect(toTenantValues(onFinish.mock.calls[0][0]).rentPrice).toBe(60_000_002);
   });
 
   test("원 단위 전환은 다른 금액에 영향을 주지 않고 초안·OCR·저장된 서버값을 현재 단위로 표시한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} appliedValues={EXACT_MONEY_VALUES} />);
     fireEvent.click(screen.getByRole("button", { name: "월 임대료 만원 단위, 원으로 전환" }));
-    expect(screen.getByLabelText("월 임대료")).toHaveValue("500000");
+    expect(screen.getByLabelText("월 임대료")).toHaveValue("500,000");
     expect(screen.getByRole("button", { name: "월 관리비 만원 단위, 원으로 전환" })).toBeInTheDocument();
     expect(screen.getByLabelText("월 관리비")).toHaveValue("5");
 
     fireEvent.click(screen.getByRole("button", { name: "서버 값 적용" }));
-    await waitFor(() => expect(screen.getByLabelText("월 임대료")).toHaveValue("500001"));
+    await waitFor(() => expect(screen.getByLabelText("월 임대료")).toHaveValue("500,001"));
     expect(screen.getByLabelText("월 관리비")).toHaveValue("1.2345");
-    expect(screen.getByLabelText("보증금")).toHaveValue("123.4567");
+    expect(screen.getByLabelText("보증금")).toHaveValue("6,000");
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1));
     expect(toTenantValues(onFinish.mock.calls[0][0])).toEqual(toTenantValues(EXACT_MONEY_VALUES));
