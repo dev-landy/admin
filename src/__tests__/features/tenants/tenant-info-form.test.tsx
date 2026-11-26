@@ -307,6 +307,22 @@ test("만원을 기본 표시하고 단위만 바꾸면 입력값과 실제 금�
     expect(toTenantValues(onFinish.mock.calls[0][0])).toEqual(toTenantValues(EXACT_MONEY_VALUES));
   });
 
+  test("쉼표만 지우거나 같은 금액을 붙여넣어도 표시와 커서 위치를 유지한다", () => {
+    const onValuesChange = jest.fn();
+    render(<TestForm onFinish={jest.fn()} onValuesChange={onValuesChange} initialValues={EXACT_MONEY_VALUES} />);
+    const deposit = screen.getByRole<HTMLInputElement>("spinbutton", { name: "보증금" });
+    for (const [inputType, start, expectedCaret] of [
+      ["deleteContentBackward", 1, 1],
+      ["deleteContentForward", 1, 2],
+      ["insertFromPaste", 4, 5],
+    ] as const) {
+      fireEvent.input(deposit, { inputType, target: { value: "6000", selectionStart: start, selectionEnd: start } });
+      expect(deposit).toHaveValue("6,000");
+      expect(deposit.selectionStart).toBe(expectedCaret);
+    }
+    expect(onValuesChange).not.toHaveBeenCalled();
+  });
+
   test("금액별로 원 단위를 입력하고 만원으로 돌아와도 1원 정밀도로 등록·수정한다", async () => {
     const onFinish = jest.fn();
     render(<TestForm onFinish={onFinish} />);

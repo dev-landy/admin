@@ -139,6 +139,23 @@ const formatMoneyInput: NonNullable<InputNumberProps<number>["formatter"]> = (am
   return groupMoneyDigits(userTyping ? input : String(amount ?? ""));
 };
 
+// 같은 금액을 다시 붙여넣거나 쉼표만 지우면 InputNumber는 formatter를 다시 호출하지 않는다.
+const groupMoneyOnInput: NonNullable<InputNumberProps<number>["onInputCapture"]> = (event) => {
+  if (event.nativeEvent.isComposing) return;
+  const field = event.currentTarget;
+  const raw = field.value;
+  const grouped = groupMoneyDigits(raw);
+  if (raw === grouped) return;
+
+  let caret = raw.slice(0, field.selectionStart ?? raw.length).replaceAll(",", "").length;
+  for (let index = 0; index < caret; index++) {
+    if (grouped[index] === ",") caret++;
+  }
+  if (event.nativeEvent.inputType === "deleteContentForward" && grouped[caret] === ",") caret++;
+  field.setRangeText(grouped, 0, raw.length);
+  field.setSelectionRange(caret, caret);
+};
+
 // 서버 AdminTenantContactPhone과 같은 010 휴대폰·국내 지역번호 일반전화 규칙.
 const CONTACT_PHONE_PATTERN = /^(?:010-[0-9]{4}|(?:02|0(?:3[1-3]|4[1-4]|5[1-5]|6[1-4]))-[0-9]{3,4})-[0-9]{4}$/;
 
@@ -370,6 +387,7 @@ function MoneyInputWithUnit({
         placeholder={inWon && placeholder ? groupMoneyDigits(String(Number(placeholder) * 10_000)) : placeholder}
         precision={inWon ? 0 : 4}
         formatter={formatMoneyInput}
+        onInputCapture={groupMoneyOnInput}
         style={{ flex: 1, minWidth: 0, ...style }}
       />
       <Button
