@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client";
-import type { TenantsListParams, TenantsListResponse, TenantDetail, UpdateTenantRequest } from "./types";
+import type { CorrectableContractType, TenantsListParams, TenantsListResponse, TenantDetail, UpdateTenantRequest } from "./types";
 
 export async function fetchTenants(params: TenantsListParams): Promise<TenantsListResponse> {
   const { data } = await apiClient.get<TenantsListResponse>("/v1/admin/tenants", { params });
@@ -13,6 +13,10 @@ export async function fetchTenant(tenantId: number): Promise<TenantDetail> {
 
 export async function updateTenant(tenantId: number, body: UpdateTenantRequest): Promise<void> {
   await apiClient.patch(`/v1/admin/tenants/${tenantId}`, body);
+}
+
+export async function correctTenantContractType(tenantId: number, contractType: CorrectableContractType): Promise<void> {
+  await apiClient.patch(`/v1/admin/tenants/${tenantId}/contract-type`, { contractType });
 }
 
 export async function deleteTenant(tenantId: number): Promise<void> {

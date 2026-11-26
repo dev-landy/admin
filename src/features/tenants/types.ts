@@ -5,6 +5,7 @@ export type BillingTiming = "PREPAID" | "POSTPAID";
 export type RentChargeFrequency = "MONTHLY" | "ONE_TIME";
 
 export type ContractType = "ROOM" | "COMMERCIAL" | "PARKING" | "OTHERS";
+export type CorrectableContractType = Extract<ContractType, "ROOM" | "COMMERCIAL">;
 export type ContractStatus = "UPCOMING" | "ACTIVE" | "ENDED";
 
 export type TenantSummary = {

@@ -13,8 +13,9 @@ export const propertyKeys = {
   all: ["properties"] as const,
   list: (params: PropertiesListParams) => ["properties", "list", params] as const,
   user: (userId: number) => ["properties", "user", userId] as const,
+  tenantLists: (propertyId: number) => ["properties", propertyId, "tenants"] as const,
   tenants: (propertyId: number, page: number, size: number, filters: PropertyTenantsParams = {}) =>
-    ["properties", propertyId, "tenants", page, size, filters] as const,
+    [...propertyKeys.tenantLists(propertyId), page, size, filters] as const,
 };
 
 export function useProperties(params: PropertiesListParams, enabled = true) {

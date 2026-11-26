@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchTenants, fetchTenant, updateTenant, deleteTenant } from "./api";
-import type { TenantsListParams, UpdateTenantRequest } from "./types";
+import { propertyKeys } from "@/features/properties/hooks";
+import { userKeys } from "@/features/users/hooks";
+import { correctTenantContractType, fetchTenants, fetchTenant, updateTenant, deleteTenant } from "./api";
+import type { CorrectableContractType, TenantDetail, TenantsListParams, UpdateTenantRequest } from "./types";
 
 export const tenantKeys = {
   all: ["tenants"] as const,
-  list: (p: TenantsListParams) => ["tenants", "list", p] as const,
+  lists: ["tenants", "list"] as const,
+  list: (p: TenantsListParams) => [...tenantKeys.lists, p] as const,
   detail: (id: number) => ["tenants", id] as const,
 };
 
@@ -14,6 +17,19 @@ export function useTenants(params: TenantsListParams) {
 
 export function useTenant(tenantId: number) {
   return useQuery({ queryKey: tenantKeys.detail(tenantId), queryFn: () => fetchTenant(tenantId) });
+}
+
+export function useCorrectTenantContractType({ tenantId, userId, propertyId }: TenantDetail) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (contractType: CorrectableContractType) => correctTenantContractType(tenantId, contractType),
+    onSuccess: () => Promise.all([
+      client.invalidateQueries({ queryKey: tenantKeys.detail(tenantId) }),
+      client.invalidateQueries({ queryKey: tenantKeys.lists }),
+      client.invalidateQueries({ queryKey: userKeys.tenants(userId) }),
+      client.invalidateQueries({ queryKey: propertyId == null ? propertyKeys.all : propertyKeys.tenantLists(propertyId) }),
+    ]),
+  });
 }
 
 export function useUpdateTenant(tenantId: number) {
